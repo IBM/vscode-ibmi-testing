@@ -12,6 +12,10 @@
   "activationEvents": [
     "onStartupFinished"
   ],
+  "extensionDependencies": [
+    "halcyontechltd.code-for-ibmi",
+    "halcyontechltd.vscode-rpgle"
+  ],
   "main": "./dist/extension.js",
   "scripts": {
     "vscode:prepublish": "npm run package",
