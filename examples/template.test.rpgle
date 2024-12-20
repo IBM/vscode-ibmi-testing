@@ -216,13 +216,13 @@ end-proc;
 // ============================================================
 //  RPGUnit test case.
 // ============================================================
-dcl-proc testWhatever_1 export;
+dcl-proc test_thisShouldFail export;
   dcl-pi *n extproc(*dclcase) end-pi;
 
   print('Executing:       * testWhatever_1()');
 
 // Run
-assert(sds.pgmName = 'TEMPLATE': 'Name of the test suite should be ''TEMPLATE''');
+assert(sds.pgmName = 'INVALID': 'Name of the test suite should be ''TEMPLATE''');
 
 // Place your assertions here.
 
@@ -231,7 +231,7 @@ end-proc;
 // ============================================================
 //  RPGUnit test case.
 // ============================================================
-dcl-proc testWhatever_2 export;
+dcl-proc test_thisShouldPass export;
   dcl-pi *n extproc(*dclcase) end-pi;
 
   print('Executing:       * testWhatever_2()');
