@@ -1,16 +1,17 @@
-import { CancellationToken, ExtensionContext, GlobPattern, RelativePattern, TestController, TestItem, TestItemCollection, TestRunProfileKind, TestRunRequest, tests, TextDocument, TextDocumentChangeEvent, Uri, workspace, WorkspaceFolder } from "vscode";
+import { CancellationToken, ExtensionContext, GlobPattern, Location, RelativePattern, TestController, TestItem, TestItemCollection, TestMessage, TestRun, TestRunProfileKind, TestRunRequest, tests, TextDocument, TextDocumentChangeEvent, Uri, workspace, WorkspaceFolder } from "vscode";
 import { TestFile } from "./testFile";
 import { TestCase } from "./testCase";
+import * as path from "path";
+import { IBMiTestRunner } from "./runner";
 
 export type IBMiTestData = TestFile | TestCase;
 
 export class IBMiTestManager {
-    private static CONTROLLER_ID = 'ibmiTest';
-    private static CONTROLLER_LABEL = 'IBM i Tests';
-    private static PROFILE_LABEL = 'Run Tests';
-    private static PATTERN_EXTENSION = '.test.rpgle';
-
-    private context: ExtensionContext;
+    public static CONTROLLER_ID = 'ibmiTest';
+    public static CONTROLLER_LABEL = 'IBM i Tests';
+    public static PROFILE_LABEL = 'Run Tests';
+    public static PATTERN_EXTENSION = '.test.rpgle'; // TODO: Need to search for cobol tests to support RUCRTCBL
+    public context: ExtensionContext;
     public testData: WeakMap<TestItem, IBMiTestData>;
     public controller: TestController;
 
@@ -26,7 +27,7 @@ export class IBMiTestManager {
 
             const data = this.testData.get(item);
             if (data instanceof TestFile) {
-                await data.loadTestCases(this, item);
+                await data.load();
             }
         };
         this.controller.refreshHandler = async () => {
@@ -36,7 +37,8 @@ export class IBMiTestManager {
             }
         };
         this.controller.createRunProfile(IBMiTestManager.PROFILE_LABEL, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
-            await this.runHandler(request, token);
+            const runner = new IBMiTestRunner(this, request, token);
+            await runner.runHandler();
         }, true, undefined, false);
 
         for (const document of workspace.textDocuments) {
@@ -87,8 +89,9 @@ export class IBMiTestManager {
             });
             watcher.onDidChange(async (uri: Uri) => {
                 const { item, data } = this.getOrCreateFile(uri);
-                if (data.didLoadTestCases) {
-                    await data.loadTestCases(this, item);
+                if (data.didLoad) {
+                    await data.load();
+                    data.didCompile = false;
                 }
             });
             watcher.onDidDelete((uri: Uri) => {
@@ -97,6 +100,28 @@ export class IBMiTestManager {
 
             this.findInitialFiles(workspaceTestPattern.pattern);
         }
+    }
+
+    private getOrCreateFile(uri: Uri) {
+        const existingItem = this.controller.items.get(uri.toString());
+        if (existingItem) {
+            return {
+                item: existingItem,
+                data: this.testData.get(existingItem) as TestFile
+            };
+        }
+
+        const item = this.controller.createTestItem(uri.toString(), path.parse(uri.path).base, uri);
+        item.canResolveChildren = true;
+        this.controller.items.add(item);
+
+        const data = new TestFile(item);
+        this.testData.set(item, data);
+
+        return {
+            item,
+            data
+        };
     }
 
     private updateNodeForDocument(document: TextDocument) {
@@ -109,78 +134,6 @@ export class IBMiTestManager {
         }
 
         const { item, data } = this.getOrCreateFile(document.uri);
-        data.loadTestCases(this, item);
-    }
-
-    private getOrCreateFile(uri: Uri) {
-        const existingItem = this.controller.items.get(uri.toString());
-        if (existingItem) {
-            return {
-                item: existingItem,
-                data: this.testData.get(existingItem) as TestFile
-            };
-        }
-
-        const item = this.controller.createTestItem(uri.toString(), uri.path.split('/').pop()!, uri);
-        item.canResolveChildren = true;
-        this.controller.items.add(item);
-
-        const data = new TestFile();
-        this.testData.set(item, data);
-
-        return {
-            item,
-            data
-        };
-    }
-
-    private async runHandler(request: TestRunRequest, token: CancellationToken) {
-        const queue: { item: TestItem, data: TestCase }[] = [];
-        const run = this.controller.createTestRun(request);
-
-        const discoverTests = async (items: Iterable<TestItem>) => {
-            for (const item of items) {
-                if (request.exclude?.includes(item)) {
-                    continue;
-                }
-
-                const data = this.testData.get(item);
-                if (data instanceof TestCase) {
-                    run.enqueued(item);
-                    queue.push({ item, data });
-                } else {
-                    if (data instanceof TestFile && !data.didLoadTestCases) {
-                        await data.loadTestCases(this, item);
-                    }
-
-                    await discoverTests(this.gatherTestItems(item.children));
-                }
-            }
-        };
-
-        await discoverTests(request.include ?? this.gatherTestItems(this.controller.items));
-
-        for (const { item, data } of queue) {
-            run.appendOutput(`Running ${item.id}\r\n`);
-
-            if (run.token.isCancellationRequested) {
-                run.skipped(item);
-            } else {
-                run.started(item);
-                await data.run(item, run);
-            }
-
-            run.appendOutput(`Completed ${item.id}\r\n`);
-        }
-        run.end();
-    }
-
-    private gatherTestItems(collection: TestItemCollection) {
-        const items: TestItem[] = [];
-        collection.forEach((item) => {
-            items.push(item);
-        });
-
-        return items;
+        data.load(document.getText());
     }
 }
