@@ -47,6 +47,7 @@ export class IBMiTestManager {
             this.updateNodeForDocument(document);
         }
 
+        // TODO: Need to add onDidCloseTextDocument to handle when members are closed?
         context.subscriptions.push(
             this.controller,
             workspace.onDidOpenTextDocument((document: TextDocument) => {
