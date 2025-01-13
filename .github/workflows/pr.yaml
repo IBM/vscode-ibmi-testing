@@ -1,0 +1,69 @@
+name: Build VSIX
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    name: Validation
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install NPM Dependencies
+        run: |
+          npm install
+          npm install -g vsce
+
+      - name: Package
+        run: vsce package
+
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-ibmi-testing-pr-build
+          path: ./*.vsix
+          if-no-files-found: error
+
+      - name: Find Comment
+        uses: peter-evans/find-comment@v1
+        id: fc
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: new build is available
+
+      - name: Post comment
+        if: steps.fc.outputs.comment-id == ''
+        uses: actions/github-script@v5
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '👋 A new build is available for this PR based on ${{ github.event.pull_request.head.sha }}. Click [here](https://github.com/IBM/vscode-ibmi-testing/actions/runs/${{ github.run_id }}) to download.'
+            })
+
+      - name: Update comment
+        if: steps.fc.outputs.comment-id != ''
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          edit-mode: replace
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          body: |
+            👋 A new build is available for this PR based on ${{ github.event.pull_request.head.sha }}. Click [here](https://github.com/IBM/vscode-ibmi-testing/actions/runs/${{ github.run_id }}) to download.
