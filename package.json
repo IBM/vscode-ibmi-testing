@@ -1,13 +1,32 @@
 {
   "name": "vscode-ibmi-testing",
-  "displayName": "vscode-ibmi-testing",
+  "displayName": "IBM i Testing",
   "description": "IBM i Testing extension for VS Code",
-  "version": "0.0.1",
+  "author": {
+    "name": "IBM",
+    "url": "https://github.com/IBM"
+  },
+  "publisher": "IBM",
+  "license": "Apache-2.0",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/IBM/vscode-ibmi-testing"
+  },
+  "homepage": "https://github.com/IBM/vscode-ibmi-testing/blob/main/README.md",
+  "bugs": {
+    "url": "https://github.com/IBM/vscode-ibmi-testing/issues"
+  },
+  "keywords": [
+    "ibmi",
+    "iseries",
+    "as400",
+    "irpgunit"
+  ],
   "engines": {
     "vscode": "^1.96.0"
   },
   "categories": [
-    "Other"
+    "Testing"
   ],
   "activationEvents": [
     "onStartupFinished"
