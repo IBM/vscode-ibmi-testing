@@ -4,6 +4,7 @@ import { TestFile } from "./testFile";
 import { getInstance } from "./api/ibmi";
 import * as path from "path";
 import { parseStringPromise } from "xml2js";
+import { RUCALLTST } from "./types";
 
 export class IBMiTestRunner {
     public static TEST_OUTPUT_DIRECTORY: string = 'vscode-ibmi-testing';
@@ -41,7 +42,7 @@ export class IBMiTestRunner {
                 if (testFileData.didCompile) {
                     IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Compilation Skipped' });
                 } else {
-                    await testFileData.createAndCompile(run);
+                    await testFileData.compileMember(run);
                     compiledTestFiles.push(testFileItem);
                 }
             }
@@ -109,18 +110,24 @@ export class IBMiTestRunner {
         const content = ibmi!.getContent();
         const config = ibmi!.getConfig();
 
-        const library: string = config.currentLibrary;
-        const tstpgm: string = (item.parent?.label || item.label).replace(IBMiTestManager.PATTERN_EXTENSION, '').toLocaleUpperCase();
-        const tstprc: string | undefined = item.parent ? item.label : undefined;
-        const xmlstmf: string = path.posix.join(config.tempDir, IBMiTestRunner.TEST_OUTPUT_DIRECTORY, `${tstpgm}${tstprc ? `-${tstprc}` : ``}.xml`); // TODO: Where to put the xml file? Need to delete it eventually?
-
         // TODO: Again, RPGUNIT library must be on the library list
-        const testCommand = tstprc ?
-            content.toCl(`RUCALLTST`, { tstpgm: `${library}/${tstpgm}`, tstprc: tstprc, xmlstmf: xmlstmf }) :
-            content.toCl(`RUCALLTST`, { tstpgm: `${library}/${tstpgm}`, xmlstmf: xmlstmf });
-        await connection.runCommand({ command: testCommand, environment: `ile` });
+        const library = item.uri?.scheme === 'file' ? config.currentLibrary : connection.parserMemberPath(item.uri!.path).library;
+        const programName = (item.parent?.label || item.label).replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), IBMiTestManager.TEST_SUFFIX).toLocaleUpperCase();
 
-        const rawXml = (await content.downloadStreamfileRaw(xmlstmf));
+        const tstpgm = `${library}/${programName}`;
+        const tstprc = item.parent ? item.label : undefined;
+        const xmlstmf = path.posix.join(config.tempDir, IBMiTestRunner.TEST_OUTPUT_DIRECTORY, `${programName}${tstprc ? `-${tstprc}` : ``}.xml`) // TODO: Where to put the xml file? Need to delete it eventually?
+
+        const testParams: RUCALLTST = {
+            TSTPGM: tstpgm,
+            TSTPRC: tstprc,
+            XMLSTMF: xmlstmf,
+        };
+
+        const testCommand = content.toCl(`RUCALLTST`, testParams as any);
+        const testResult = await connection.runCommand({ command: testCommand, environment: `ile` });
+
+        const rawXml = (await content.downloadStreamfileRaw(testParams.XMLSTMF));
         const parsedXml = await parseStringPromise(rawXml);
 
         // TODO: How to get actual and expected value for failed test cases to show diff style output message
@@ -143,11 +150,12 @@ export class IBMiTestRunner {
         });
     }
 
-    static updateTestRunStatus(run: TestRun, type: 'testFile' | 'compilation' | 'testCase' | 'metrics', data?: any) {
+    static updateTestRunStatus(run: TestRun, type: 'testFile' | 'upload' | 'compilation' | 'testCase' | 'metrics', data?: any) {
         switch (type) {
             case 'testFile':
                 run.appendOutput(data.item.label);
                 break;
+            case 'upload':
             case 'compilation':
                 run.appendOutput(` (${data.compilationResult})\r\n`);
                 if (data.messages) {
@@ -187,7 +195,7 @@ export class IBMiTestRunner {
                 run.appendOutput(`\r\n`);
                 run.appendOutput(`Test Suites: ${data.numSuitesPassed} passed, ${data.numSuites} total\r\n`);
                 run.appendOutput(`Tests:       ${data.numTestsPassed} passed, ${data.numTests} total\r\n`);
-                run.appendOutput(`Time:        ${data.duration}s\r\n`);
+                run.appendOutput(`Duration:    ${data.duration}s\r\n`);
         }
     }
 }

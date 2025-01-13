@@ -10,7 +10,9 @@ export class IBMiTestManager {
     public static CONTROLLER_ID = 'ibmiTest';
     public static CONTROLLER_LABEL = 'IBM i Tests';
     public static PROFILE_LABEL = 'Run Tests';
-    public static PATTERN_EXTENSION = '.test.rpgle'; // TODO: Need to search for cobol tests to support RUCRTCBL
+    public static TEST_SUFFIX = '.test';
+    public static RPGLE_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.rpgle';
+    public static COBOL_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.cblle';// TODO: Support RUCRTCBL
     public context: ExtensionContext;
     public testData: WeakMap<TestItem, IBMiTestData>;
     public controller: TestController;
@@ -65,7 +67,7 @@ export class IBMiTestManager {
         return workspaceFolders.map((workspaceFolder: WorkspaceFolder) => {
             return {
                 workspaceFolder,
-                pattern: new RelativePattern(workspaceFolder, `**/*${IBMiTestManager.PATTERN_EXTENSION}`)
+                pattern: new RelativePattern(workspaceFolder, `**/*${IBMiTestManager.RPGLE_TEST_SUFFIX}`)
             };
         });
     }
@@ -125,11 +127,11 @@ export class IBMiTestManager {
     }
 
     private updateNodeForDocument(document: TextDocument) {
-        if (document.uri.scheme !== 'file') {
+        if (!['file', 'member'].includes(document.uri.scheme)) {
             return;
         }
 
-        if (!document.uri.path.endsWith(IBMiTestManager.PATTERN_EXTENSION)) {
+        if (!document.uri.path.toLocaleLowerCase().endsWith(IBMiTestManager.RPGLE_TEST_SUFFIX)) {
             return;
         }
 
