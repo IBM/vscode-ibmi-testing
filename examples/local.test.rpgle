@@ -211,7 +211,7 @@ dcl-proc tearDown export;
 
   print('Executing:   - tearDown()');
 
-end-proc;
+end-proc; 
 
 // ============================================================
 //  RPGUnit test case.

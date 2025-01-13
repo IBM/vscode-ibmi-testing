@@ -4,6 +4,8 @@ import { manager } from "./extension";
 import { getInstance } from "./api/ibmi";
 import { IBMiTestManager } from "./manager";
 import { IBMiTestRunner } from "./runner";
+import { RUCRTRPG } from "./types";
+import * as path from "path";
 
 export class TestFile {
     static textDecoder = new TextDecoder('utf-8');
@@ -51,17 +53,58 @@ export class TestFile {
         this.item.children.replace(childItems);
     }
 
-    async createAndCompile(run: TestRun) {
+    async compileMember(run: TestRun) {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
         const content = ibmi!.getContent();
         const config = ibmi!.getConfig();
 
-        const library: string = config.currentLibrary;
-        const srcPf: string = 'TEMP'; // TODO: What should this be? The parent directory?
-        const mbr: string = this.item.label.replace(IBMiTestManager.PATTERN_EXTENSION, '').toLocaleUpperCase();
-        const mbrType: string = 'RPGLE'; // TODO: Extract mbr type from uri
-        const tstPgm: string = mbr; // TODO: Keep test program name the same as the member name?
+        let library: string;
+        let srcPf: string;
+        let mbr: string;
+        let mbrType: string;
+        let isUploaded: boolean;
+
+        if (this.item.uri?.scheme === 'file') {
+            library = config.currentLibrary;
+            srcPf = 'TEMP'; // TODO: What should this be? The parent directory?
+            mbr = this.item.label.replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), IBMiTestManager.TEST_SUFFIX).toLocaleUpperCase();
+            mbrType = path.parse(this.item.uri.path).ext.substring(1).toLocaleUpperCase();
+            isUploaded = await this.uploadMember(run, library, srcPf, mbr, mbrType);
+        } else {
+            const parsedPath = connection.parserMemberPath(this.item.uri!.path);
+            library = parsedPath.library;
+            srcPf = parsedPath.file;
+            mbr = parsedPath.name.toLocaleUpperCase();
+            mbrType = parsedPath.extension;
+            isUploaded = true;
+        }
+
+        const compileParams: RUCRTRPG = {
+            TSTPGM: `${library}/${mbr}`,
+            SRCFILE: `${library}/${srcPf}`,
+            SRCMBR: mbr
+        };
+
+        if (isUploaded) {
+            // TODO: RPGUNIT library must be on the library list
+            // TODO: Add support for RUCRTCBL
+            const compileCommand = content.toCl(`RUCRTRPG`, compileParams as any);
+            const compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
+            if (compileResult.code !== 0) {
+                IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Compilation Failed', messages: compileResult.stderr.split('\n') });
+            } else {
+                IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Compilation Successful' });
+                this.didCompile = true;
+                return;
+            }
+        }
+    }
+
+    private async uploadMember(run: TestRun, library: string, srcPf: string, mbr: string, mbrType: string): Promise<boolean> {
+        const ibmi = getInstance();
+        const connection = ibmi!.getConnection();
+        const content = ibmi!.getContent();
 
         const commands = [
             content.toCl(`CRTSRCPF`, { file: `${library}/${srcPf}`, rcdlen: 112 }),
@@ -78,25 +121,16 @@ export class TestFile {
             }
         }
 
+        let isUploaded: boolean = false;
         try {
-            const uploadResult = await content.uploadMemberContent(undefined, library, srcPf, mbr, this.content);
-            if (uploadResult) {
-                // TODO: RPGUNIT library must be on the library list
-                // TODO: Add support for RUCRTCBL
-                const compileCommand = content.toCl(`RUCRTRPG`, { tstpgm: `${library}/${tstPgm}`, srcfile: `${library}/${srcPf}`, srcmbr: mbr });
-                const compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
-                if (compileResult.code !== 0) {
-                    IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Compilation Failed', messages: compileResult.stderr.split('\n') });
-                } else {
-                    IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Compilation Successful' });
-                    this.didCompile = true;
-                    return;
-                }
-            } else {
-                IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Source Upload Failed' });
+            isUploaded = await content.uploadMemberContent(undefined, library, srcPf, mbr, this.content);
+            if (!isUploaded) {
+                IBMiTestRunner.updateTestRunStatus(run, 'upload', { compilationResult: 'Source Upload Failed' });
             }
         } catch (error: any) {
-            IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Source Upload Failed', messages: error.message.split('\n') });
+            IBMiTestRunner.updateTestRunStatus(run, 'upload', { compilationResult: 'Source Upload Failed', messages: error.message.split('\n') });
         }
+
+        return isUploaded;
     }
 }
