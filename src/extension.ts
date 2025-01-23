@@ -1,7 +1,7 @@
 import { ExtensionContext, workspace } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { getInstance, loadBase } from "./api/ibmi";
-import { Configurations } from "./configuration";
+import { Configuration } from "./configuration";
 
 export let manager: IBMiTestManager | undefined;
 
@@ -12,10 +12,10 @@ export function activate(context: ExtensionContext) {
 	loadBase();
 
 	// Initialize configurations
-	Configurations.initialize();
+	Configuration.initialize();
 	workspace.onDidChangeConfiguration(async event => {
-		if (event.affectsConfiguration(Configurations.group)) {
-			await Configurations.initialize();
+		if (event.affectsConfiguration(Configuration.group)) {
+			await Configuration.initialize();
 		}
 	});
 

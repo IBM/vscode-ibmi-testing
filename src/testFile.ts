@@ -81,9 +81,9 @@ export class TestFile {
         }
 
         const compileParams: RUCRTRPG = {
-            TSTPGM: `${library}/${mbr}`,
-            SRCFILE: `${library}/${srcPf}`,
-            SRCMBR: mbr
+            tstPgm: `${library}/${mbr}`,
+            srcFile: `${library}/${srcPf}`,
+            srcMbr: mbr
         };
 
         if (isUploaded) {

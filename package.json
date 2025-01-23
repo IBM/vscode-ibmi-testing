@@ -98,9 +98,9 @@
           "vscode-ibmi-testing.createReport": {
             "order": 5,
             "type": "string",
-            "default": "*ALWAYS",
+            "default": "*ALLWAYS",
             "enum": [
-              "*ALWAYS",
+              "*ALLWAYS",
               "*ERROR",
               "*NONE"
             ],
@@ -117,7 +117,7 @@
             "default": "*NO",
             "enum": [
               "*NO",
-              "*ALWAYS",
+              "*ALLWAYS",
               "*ONCE"
             ],
             "enumDescriptions": [

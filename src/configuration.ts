@@ -12,35 +12,35 @@ export enum Section {
     productLibrary = 'productLibrary'
 }
 
-export const defaults: { [T in Section]: string } = {
+export const defaultConfigurations: { [T in Section]: string } = {
     [Section.runOrder]: '*API',
     [Section.libraryList]: '*CURRENT',
     [Section.jobDescription]: '*DFT',
     [Section.jobDescriptionLibrary]: '',
     [Section.reportDetail]: '*BASIC',
-    [Section.createReport]: '*ALWAYS',
+    [Section.createReport]: '*ALLWAYS',
     [Section.reclaimResources]: '*NO',
     [Section.xmlStreamFile]: '/tmp/iRPGUnit_<TSTPGM>-%F.%T.log',
     [Section.productLibrary]: '*LIBL'
 };
 
-export namespace Configurations {
+export namespace Configuration {
     export const group: string = 'vscode-ibmi-testing';
 
     export async function initialize(): Promise<void> {
         for (const section of Object.values(Section)) {
-            const value = Configurations.get<string>(section);
+            const value = Configuration.get<string>(section);
             if (!value) {
-                await Configurations.set(section, defaults[section]);
+                await Configuration.set(section, defaultConfigurations[section]);
             }
         }
     }
 
     export function get<T>(section: Section): T | undefined {
-        return workspace.getConfiguration(Configurations.group).get(section) as T;
+        return workspace.getConfiguration(Configuration.group).get(section) as T;
     }
 
     export async function set(section: Section, value: any): Promise<void> {
-        return await workspace.getConfiguration(Configurations.group).update(section, value, ConfigurationTarget.Global);
+        return await workspace.getConfiguration(Configuration.group).update(section, value, ConfigurationTarget.Global);
     }
 }
