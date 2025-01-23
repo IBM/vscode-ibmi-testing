@@ -36,6 +36,113 @@
     "halcyontechltd.vscode-rpgle"
   ],
   "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": [
+      {
+        "title": "IBM i Testing",
+        "properties": {
+          "vscode-ibmi-testing.runOrder": {
+            "order": 0,
+            "type": "string",
+            "default": "*API",
+            "enum": [
+              "*API",
+              "*REVERSE"
+            ],
+            "enumDescriptions": [
+              "Run test procedures in the order provided by the system API.",
+              "Run test procedures in reverse order."
+            ],
+            "markdownDescription": "Specifies the order for running the test procedures. Useful to check that there is no dependencies between test procedures."
+          },
+          "vscode-ibmi-testing.libraryList": {
+            "order": 1,
+            "type": "string",
+            "default": "*CURRENT",
+            "enum": [
+              "*CURRENT",
+              "*JOBD"
+            ],
+            "enumDescriptions": [
+              "The current library list is used to execute the unit test suite.",
+              "The initial library list part of the specified job description is used to execute the unit test suite."
+            ],
+            "markdownDescription": "Specifies the library list for executing the specified unit test."
+          },
+          "vscode-ibmi-testing.jobDescription": {
+            "order": 2,
+            "type": "string",
+            "default": "*DFT",
+            "markdownDescription": "Specifies the name of the job description that is used to set the library list, when parameter `#vscode-ibmi-testing.libraryList#` is set to `*JOBD`. `*DFT` can be used here to indicate the library of the unit test suite (service program) is searched for job description `RPGUNIT`."
+          },
+          "vscode-ibmi-testing.jobDescriptionLibrary": {
+            "order": 3,
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Specifies the library that is searched for the job description. `*LIBL` can be used here to indicate all libraries in the user and system portions of the job's library list are searched until the first match is found."
+          },
+          "vscode-ibmi-testing.reportDetail": {
+            "order": 4,
+            "type": "string",
+            "default": "*BASIC",
+            "enum": [
+              "*BASIC",
+              "*ALL"
+            ],
+            "enumDescriptions": [
+              "Full detail for failures and errors, no detail for successes.",
+              "Full detail in all cases."
+            ],
+            "markdownDescription": "Specifies how detailed the test run report should be."
+          },
+          "vscode-ibmi-testing.createReport": {
+            "order": 5,
+            "type": "string",
+            "default": "*ALLWAYS",
+            "enum": [
+              "*ALLWAYS",
+              "*ERROR",
+              "*NONE"
+            ],
+            "enumDescriptions": [
+              "Creates a report regardless of the test result.",
+              "Creates a report in case of failures and errors, only.",
+              "Does not create any report."
+            ],
+            "markdownDescription": "Specifies whether a report is created."
+          },
+          "vscode-ibmi-testing.reclaimResources": {
+            "order": 6,
+            "type": "string",
+            "default": "*NO",
+            "enum": [
+              "*NO",
+              "*ALLWAYS",
+              "*ONCE"
+            ],
+            "enumDescriptions": [
+              "Resources are not reclaimed.",
+              "Resources are reclaimed after each test case and at the end of the test suite.",
+              "Resources are reclaimed at the end of the test suite."
+            ],
+            "markdownDescription": "Specifies when to reclaim resources. Resources, such as open files, can be reclaimed after each test case or at the end of the test suite. This option is useful if the test suite calls OPM programs, which do not set the `*INLR` indicator."
+          },
+          "vscode-ibmi-testing.xmlStreamFile": {
+            "order": 7,
+            "type": "string",
+            "default": "/tmp/iRPGUnit_<TSTPGM>-%F.%T.log",
+            "markdownDescription": "Specifies the path of an XML stream file that contains the result of the unit test. The XML file is created with a format, which can be parsed by a Jenkins build server. Existing files are replaced.\n\nYou can use several replacement variables to produce the name of the XML stream file on the fly. Refer to the documentation for a full list of replacement variables."
+          },
+          "vscode-ibmi-testing.productLibrary": {
+            "order": 8,
+            "type": "string",
+            "default": "*LIBL",
+            "markdownDescription": "Specifies the name of the RPGUnit product library on the host."
+          }
+        }
+      }
+    ]
+  },
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",

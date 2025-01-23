@@ -5,12 +5,13 @@ import { getInstance } from "./api/ibmi";
 import * as path from "path";
 import { parseStringPromise } from "xml2js";
 import { RUCALLTST } from "./types";
+import { Configuration, defaultConfigurations, Section } from "./configuration";
 
 export class IBMiTestRunner {
     public static TEST_OUTPUT_DIRECTORY: string = 'vscode-ibmi-testing';
     private manager: IBMiTestManager;
     private request: TestRunRequest;
-    private token: CancellationToken; // TODO: This is should be accounted for  test execution
+    private token: CancellationToken; // TODO: This is should be accounted for during test execution
 
     constructor(manager: IBMiTestManager, request: TestRunRequest, token: CancellationToken) {
         this.manager = manager;
@@ -119,16 +120,32 @@ export class IBMiTestRunner {
         const xmlstmf = path.posix.join(config.tempDir, IBMiTestRunner.TEST_OUTPUT_DIRECTORY, `${programName}${tstprc ? `-${tstprc}` : ``}.xml`) // TODO: Where to put the xml file? Need to delete it eventually?
 
         const testParams: RUCALLTST = {
-            TSTPGM: tstpgm,
-            TSTPRC: tstprc,
-            XMLSTMF: xmlstmf,
+            tstPgm: tstpgm,
+            tstPrc: tstprc,
+            order: Configuration.get<string>(Section.runOrder),
+            detail: Configuration.get<string>(Section.reportDetail),
+            output: Configuration.get<string>(Section.createReport),
+            libl: Configuration.get<string>(Section.libraryList),
+            jobD: Configuration.get<string>(Section.jobDescription),
+            rclRsc: Configuration.get<string>(Section.reclaimResources),
+            xmlStmf: xmlstmf
+            // TODO: Replace with xmlstmf from configurations, but need to figure out how to get the name with resolved variables
+            // xmlStmf: Configuration.get<string>(Section.xmlStreamFile) || defaultConfigurations[Section.xmlStreamFile]
         };
 
-        const testCommand = content.toCl(`RUCALLTST`, testParams as any);
+        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
+        // TODO: Check stdout as it looks like it has some useful information that should maybe be displayed?
         const testResult = await connection.runCommand({ command: testCommand, environment: `ile` });
 
-        const rawXml = (await content.downloadStreamfileRaw(testParams.XMLSTMF));
-        const parsedXml = await parseStringPromise(rawXml);
+        // TODO: Can we get an interface for the parsedXml?
+        let parsedXml: any | undefined;
+        try {
+            const rawXml = (await content.downloadStreamfileRaw(testParams.xmlStmf));
+            parsedXml = await parseStringPromise(rawXml);
+        } catch (error) {
+            // TODO: Need to call updateTestRunStatus on TestItem, but what to log (xml parse error or stdout from testResult)?
+        }
 
         // TODO: How to get actual and expected value for failed test cases to show diff style output message
         parsedXml.testsuite.testcase.forEach((testcase: any) => {
@@ -150,6 +167,7 @@ export class IBMiTestRunner {
         });
     }
 
+    // TODO: Fix data to have a type instead of any
     static updateTestRunStatus(run: TestRun, type: 'testFile' | 'upload' | 'compilation' | 'testCase' | 'metrics', data?: any) {
         switch (type) {
             case 'testFile':
