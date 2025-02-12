@@ -37,6 +37,14 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "jsonValidation": [
+      {
+        "fileMatch": [
+          "testing.json"
+        ],
+        "url": "./schemas/testing.json"
+      }
+    ],
     "configuration": [
       {
         "title": "IBM i Testing",
@@ -136,7 +144,7 @@
           "vscode-ibmi-testing.productLibrary": {
             "order": 8,
             "type": "string",
-            "default": "*LIBL",
+            "default": "RPGUNIT",
             "markdownDescription": "Specifies the name of the RPGUnit product library on the host."
           }
         }

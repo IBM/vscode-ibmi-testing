@@ -21,7 +21,7 @@ export const defaultConfigurations: { [T in Section]: string } = {
     [Section.createReport]: '*ALLWAYS',
     [Section.reclaimResources]: '*NO',
     [Section.xmlStreamFile]: '/tmp/iRPGUnit_<TSTPGM>-%F.%T.log',
-    [Section.productLibrary]: '*LIBL'
+    [Section.productLibrary]: 'RPGUNIT'
 };
 
 export namespace Configuration {
