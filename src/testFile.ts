@@ -4,8 +4,10 @@ import { manager } from "./extension";
 import { getInstance } from "./api/ibmi";
 import { IBMiTestManager } from "./manager";
 import { IBMiTestRunner } from "./runner";
-import { RUCRTRPG } from "./types";
+import { TestingConfig, RUCRTRPG } from "./types";
 import * as path from "path";
+import { ConfigHandler } from "./config";
+import { Configuration, defaultConfigurations, Section } from "./configuration";
 
 export class TestFile {
     static textDecoder = new TextDecoder('utf-8');
@@ -63,6 +65,7 @@ export class TestFile {
         let srcPf: string;
         let mbr: string;
         let mbrType: string;
+        let testingConfig: TestingConfig | undefined;
         let isUploaded: boolean;
 
         if (this.item.uri?.scheme === 'file') {
@@ -70,6 +73,7 @@ export class TestFile {
             srcPf = 'TEMP'; // TODO: What should this be? The parent directory?
             mbr = this.item.label.replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), IBMiTestManager.TEST_SUFFIX).toLocaleUpperCase();
             mbrType = path.parse(this.item.uri.path).ext.substring(1).toLocaleUpperCase();
+            testingConfig = await ConfigHandler.getLocalConfig(this.item.uri);
             isUploaded = await this.uploadMember(run, library, srcPf, mbr, mbrType);
         } else {
             const parsedPath = connection.parserMemberPath(this.item.uri!.path);
@@ -77,19 +81,21 @@ export class TestFile {
             srcPf = parsedPath.file;
             mbr = parsedPath.name.toLocaleUpperCase();
             mbrType = parsedPath.extension;
+            testingConfig = await ConfigHandler.getRemoteConfig(this.item.uri!);
             isUploaded = true;
         }
 
         const compileParams: RUCRTRPG = {
             tstPgm: `${library}/${mbr}`,
             srcFile: `${library}/${srcPf}`,
-            srcMbr: mbr
+            srcMbr: mbr,
+            ...testingConfig?.RUCRTRPG
         };
 
         if (isUploaded) {
-            // TODO: RPGUNIT library must be on the library list
             // TODO: Add support for RUCRTCBL
-            const compileCommand = content.toCl(`RUCRTRPG`, compileParams as any);
+            const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+            const compileCommand = content.toCl(`${productLibrary}/RUCRTRPG`, compileParams as any);
             const compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
             if (compileResult.code !== 0) {
                 IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Compilation Failed', messages: compileResult.stderr.split('\n') });

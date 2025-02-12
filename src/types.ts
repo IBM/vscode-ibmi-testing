@@ -1,3 +1,8 @@
+export interface TestingConfig {
+    RUCRTRPG?: RUCRTRPG,
+    RUCRTCBL?: RUCRTCBL
+}
+
 export interface RUCRTRPG {
     tstPgm: string,
     srcFile: string,
@@ -8,14 +13,16 @@ export interface RUCRTRPG {
     bndSrvPgm?: string,
     bndDir?: string,
     bOption?: string,
-    define?: string,
     dltSplf?: string,
     actGrp?: string,
     module?: string,
     rpgPpOpt?: string,
     pOption?: string,
-    compileOpt?: string,
-    tgtRls?: string,
+    compileOpt?: string
+}
+
+export interface RUCRTCBL {
+    // TODO: Implmement this
 }
 
 export interface RUCALLTST {
