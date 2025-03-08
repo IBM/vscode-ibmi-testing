@@ -3,17 +3,24 @@
 //  Empty Unit Test Case. Prints a protocol of the execution flow.
 //=====================================================================
 //  Command to create the service program:
-//  RUCRTRPG TSTPGM(RPGUNIT/TEMPLATE) SRCFILE(RPGUNIT/QSRC)
+//  cd /home/raddatz
+//  git clone git@github.com:tools-400/irpgunit.git
+//  CD DIR('/home/Raddatz/iRpgUnit/host')
+//  RUCRTRPG TSTPGM(RPGUNIT/RPGSTMF) SRCFILE(RPGUNIT/QSRC)
+//    SRCSTMF('./iRPGUnit/QTEMPLATE/rpgstmf.rpgle')
+//    DEFINE('stmf') RPGPPOPT(*LVL2)
+//    INCDIR('./iRPGUnit')
+//    TGTCCSID(*JOB)
 //=====================================================================
 //  Tools/400 STRPREPRC instructions:
 //   >>PRE-COMPILER<<
-//     >>CRTCMD<<  RUCRTRPG    TSTPGM(&LI/&OB) +
-//                             SRCFILE(&SL/&SF) +
-//                             SRCMBR(&SM);
+//     >>CRTCMD<<  RUCRTRPG  TSTPGM(RPGUNIT/RPGSTMF) +
+//                           SRCSTMF('./iRPGUnit/QTEMPLATE/rpgstmf.rpgle');
 //     >>COMPILE<<
-//       >>PARM<< COPTION(*EVENTF);
-//       >>PARM<< DBGVIEW(*LIST);
-//       >>PARM<< BNDDIR(*N);
+//       >>PARM<< DEFINE('stmf');
+//       >>PARM<< RPGPPOPT(*LVL2);
+//       >>PARM<< INCDIR('./iRPGUnit');
+//       >>PARM<< TGTCCSID(*JOB);
 //     >>END-COMPILE<<
 //     >>EXECUTE<<
 //   >>END-PRE-COMPILER<<
@@ -30,9 +37,13 @@
 ctl-opt NoMain Option(*SrcStmt : *NoDebugIO);
 dcl-f QSYSPRT printer(80) oflind(*in70) usropn;
 
-/include qinclude,TESTCASE                  iRPGUnit Test Suite
-
-/include qinclude,SDS                       Program status data structure
+/if defined(IRPGUNIT_STMF)
+/include qinclude/TESTCASE.RPGLE            iRPGUnit Test Suite
+/include qinclude/SDS.RPGLE                 Program status data structure
+/else
+/include qinclude,TESTCASE.RPGLE            iRPGUnit Test Suite
+/include qinclude,SDS.RPGLE                 Program status data structure
+/endif
 
 // ------------------------------------------------------------
 //  Global type templates.
@@ -211,18 +222,18 @@ dcl-proc tearDown export;
 
   print('Executing:   - tearDown()');
 
-end-proc; 
+end-proc;
 
 // ============================================================
 //  RPGUnit test case.
 // ============================================================
-dcl-proc test_thisShouldFail export;
+dcl-proc testWhatever_1 export;
   dcl-pi *n extproc(*dclcase) end-pi;
 
   print('Executing:       * testWhatever_1()');
 
 // Run
-assert(sds.pgmName = 'INVALID': 'Name of the test suite should be ''TEMPLATE''');
+assert(sds.pgmName = 'TEMPLATE': 'Name of the test suite should be ''TEMPLATE''');
 
 // Place your assertions here.
 
@@ -231,7 +242,7 @@ end-proc;
 // ============================================================
 //  RPGUnit test case.
 // ============================================================
-dcl-proc test_thisShouldPass export;
+dcl-proc testWhatever_2 export;
   dcl-pi *n extproc(*dclcase) end-pi;
 
   print('Executing:       * testWhatever_2()');

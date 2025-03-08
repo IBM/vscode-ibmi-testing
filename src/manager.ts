@@ -11,9 +11,11 @@ export class IBMiTestManager {
     public static CONTROLLER_ID = 'ibmiTest';
     public static CONTROLLER_LABEL = 'IBM i Tests';
     public static PROFILE_LABEL = 'Run Tests';
-    public static TEST_SUFFIX = '.test';
-    public static RPGLE_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.rpgle';
-    public static COBOL_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.cblle';// TODO: Support RUCRTCBL
+    public static TEST_SUFFIX = '.TEST';
+    public static RPGLE_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.RPGLE';
+    public static SQLRPGLE_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.SQLRPGLE';
+    public static COBOL_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.CBLLE';
+    public static SQLCOBOL_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.SQLCBLLE';
     public context: ExtensionContext;
     public testData: WeakMap<TestItem, IBMiTestData>;
     public controller: TestController;
@@ -66,10 +68,17 @@ export class IBMiTestManager {
             return [];
         }
 
+        const testSuffixes = [
+            IBMiTestManager.RPGLE_TEST_SUFFIX,
+            IBMiTestManager.SQLRPGLE_TEST_SUFFIX,
+            IBMiTestManager.COBOL_TEST_SUFFIX,
+            IBMiTestManager.SQLCOBOL_TEST_SUFFIX
+        ].flatMap(suffix => [suffix, suffix.toLowerCase()]).join(',');
+
         return workspaceFolders.map((workspaceFolder: WorkspaceFolder) => {
             return {
                 workspaceFolder,
-                pattern: new RelativePattern(workspaceFolder, `**/*${IBMiTestManager.RPGLE_TEST_SUFFIX}`)
+                pattern: new RelativePattern(workspaceFolder, `**/*{${testSuffixes}}`)
             };
         });
     }
@@ -165,7 +174,13 @@ export class IBMiTestManager {
             return;
         }
 
-        if (!document.uri.path.toLocaleLowerCase().endsWith(IBMiTestManager.RPGLE_TEST_SUFFIX)) {
+        const testSuffixes = [
+            IBMiTestManager.RPGLE_TEST_SUFFIX,
+            IBMiTestManager.SQLRPGLE_TEST_SUFFIX,
+            IBMiTestManager.COBOL_TEST_SUFFIX,
+            IBMiTestManager.SQLCOBOL_TEST_SUFFIX
+        ];
+        if (!testSuffixes.some(suffix => document.uri.path.toLocaleUpperCase().endsWith(suffix))) {
             return;
         }
 

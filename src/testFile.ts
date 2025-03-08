@@ -10,17 +10,26 @@ import { ConfigHandler } from "./config";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
 
 export class TestFile {
+    static RPGLE_TEST_CASE_REGEX = /^TEST.+$/i;
+    static COBOL_TEST_CASE_REGEX = /^PROGRAM-ID\. +(TEST.+)$/i;
     static textDecoder = new TextDecoder('utf-8');
+    item: TestItem;
     isLoaded: boolean;
     isCompiled: boolean;
     content: string;
-    item: TestItem;
+    isRPGLE: boolean;
 
     constructor(item: TestItem) {
+        this.item = item;
         this.isLoaded = false;
         this.isCompiled = false;
         this.content = '';
-        this.item = item;
+
+        const rpgleTestSuffixes = [
+            IBMiTestManager.RPGLE_TEST_SUFFIX,
+            IBMiTestManager.SQLRPGLE_TEST_SUFFIX
+        ];
+        this.isRPGLE = rpgleTestSuffixes.some(suffix => item.uri!.path.toLocaleUpperCase().endsWith(suffix));
     }
 
     async load(content?: string): Promise<void> {
@@ -44,8 +53,15 @@ export class TestFile {
             const childItems: TestItem[] = [];
             const documentSymbols = await commands.executeCommand<DocumentSymbol[]>(`vscode.executeDocumentSymbolProvider`, this.item.uri) || [];
             for (const documentSymbol of documentSymbols) {
-                if (documentSymbol.kind === SymbolKind.Function && documentSymbol.name.startsWith('test')) {
-                    const childItem = manager!.controller.createTestItem(`${this.item.uri}/${documentSymbol.name}`, documentSymbol.name, this.item.uri);
+                const isTestCase = this.isRPGLE ?
+                    documentSymbol.kind === SymbolKind.Function && TestFile.RPGLE_TEST_CASE_REGEX.test(documentSymbol.name) :
+                    documentSymbol.kind === SymbolKind.Class && documentSymbol.name.match(TestFile.COBOL_TEST_CASE_REGEX)?.[1];
+
+                if (isTestCase) {
+                    const testCaseName = this.isRPGLE ?
+                        documentSymbol.name :
+                        documentSymbol.name.match(TestFile.COBOL_TEST_CASE_REGEX)![1];
+                    const childItem = manager!.controller.createTestItem(`${this.item.uri}/${testCaseName}`, testCaseName, this.item.uri);
                     childItem.range = documentSymbol.range;
 
                     const data = new TestCase(childItem);
@@ -73,6 +89,8 @@ export class TestFile {
         if (this.item.uri?.scheme === 'file') {
             library = config.currentLibrary;
             srcPf = 'TEMP'; // TODO: What should this be? The parent directory?
+            // TODO: Add COBOL support
+            // TODO: Make case insensitive
             mbr = this.item.label.replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), IBMiTestManager.TEST_SUFFIX).toLocaleUpperCase();
             mbrType = path.parse(this.item.uri.path).ext.substring(1).toLocaleUpperCase();
             testingConfig = await ConfigHandler.getLocalConfig(this.item.uri);

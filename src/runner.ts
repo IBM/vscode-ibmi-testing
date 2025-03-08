@@ -112,6 +112,8 @@ export class IBMiTestRunner {
         const config = ibmi!.getConfig();
 
         // TODO: Again, RPGUNIT library must be on the library list
+        // TODO: Add COBOL support
+        // TODO: Make case insensitive
         const library = item.uri?.scheme === 'file' ? config.currentLibrary : connection.parserMemberPath(item.uri!.path).library;
         const programName = (item.parent?.label || item.label).replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), IBMiTestManager.TEST_SUFFIX).toLocaleUpperCase();
 

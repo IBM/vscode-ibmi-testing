@@ -36,6 +36,11 @@
                     "default": "",
                     "markdownDescription": "Binding options\n\nRefer to the `OPTION` parameter in `CRTSRVPGM` command help."
                 },
+                "define": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Define condition names\n\nSpecifies condition names that are defined before the compilation begins. Using the parameter `DEFINE(condition-name)` is equivalent to coding the `/DEFINE` condition-name directive on the first line of the source file."
+                },
                 "dltSplf": {
                     "type": "string",
                     "default": "",
@@ -56,7 +61,7 @@
                     "default": "",
                     "markdownDescription": "Pre-compiler RPGPPOPT\n\nRefer to the `RPGPPOPT` parameter in `CRTSRVPGM` command."
                 },
-                "pOption": {
+                "option": {
                     "type": "string",
                     "default": "",
                     "markdownDescription": "Pre-compiler OPTIONS\n\nRefer to the `OPTION` parameter in `CRTSQLRPGI` command help."
@@ -65,6 +70,92 @@
                     "type": "string",
                     "default": "",
                     "markdownDescription": "Pre-Compiler COMPILEOPT\n\nRefer to the `COMPILEOPT` parameter in `CRTSQLRPGI` command help."
+                },
+                "tgtRls": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Target release\n\nRefer to the `TGTRLS` parameter in `CRTSRVPGM` command help."
+                },
+                "incDir": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
+                },
+                "tgtCcsid": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
+                }
+            }
+        },
+        "RUCRTCBL": {
+            "type": "object",
+            "markdownDescription": "The Create COBOL Test Suite (RUCRTCBL) command compiles CBLLE and SQLCBLLE source members containing test procedures into a iRPGUnit test suite service program.",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Text description\n\nAllows you to enter text that briefly describes the RPGUnit test case and its function."
+                },
+                "cOption": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Compile options\n\nRefer to the `OPTION` parameter in `CRTCBLMOD` command help."
+                },
+                "dbgView": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Debugging views\n\nRefer to the `DBGVIEW` parameter in `CRTCBLMOD` command help."
+                },
+                "bndSrvPgm": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Bind service program\n\nRefer to the `BNDSRVPGM` parameter in `CRTSRVPGM` command help."
+                },
+                "bndDir": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Binding directory\n\nRefer to the `BNDDIR` parameter in `CRTSRVPGM` command help."
+                },
+                "bOption": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Binding options\n\nRefer to the `OPTION` parameter in `CRTSRVPGM` command help."
+                },
+                "define": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Define condition names\n\nSpecifies condition names that are defined before the compilation begins. Using the parameter `DEFINE(condition-name)` is equivalent to coding the `/DEFINE` condition-name directive on the first line of the source file."
+                },
+                "dltSplf": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Delete spooled files\n\nSpecifies if all spooled files (compile listing) created by the object creations commands are deleted on success."
+                },
+                "actGrp": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Activation group\n\nRefer to the `ACTGRP` parameter in `CRTSRVPGM` command help."
+                },
+                "module": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Module\n\nRefer to the `MODULE` parameter in `CRTSRVPGM` command help."
+                },
+                "option": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Pre-compiler OPTIONS\n\nRefer to the `OPTION` parameter in `CRTSQLCBLI` command help."
+                },
+                "compileOpt": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Pre-Compiler COMPILEOPT\n\nRefer to the `COMPILEOPT` parameter in `CRTSQLCBLI` command help."
+                },
+                "tgtRls": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Target release\n\nRefer to the `TGTRLS` parameter in `CRTSRVPGM` command help."
                 },
                 "incDir": {
                     "type": "string",
