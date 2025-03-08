@@ -3,8 +3,9 @@ import { TestFile } from "./testFile";
 import { TestCase } from "./testCase";
 import * as path from "path";
 import { IBMiTestRunner } from "./runner";
+import { TestDirectory } from "./testDirectory";
 
-export type IBMiTestData = TestFile | TestCase;
+export type IBMiTestData = TestDirectory | TestFile | TestCase;
 
 export class IBMiTestManager {
     public static CONTROLLER_ID = 'ibmiTest';
@@ -50,16 +51,16 @@ export class IBMiTestManager {
         // TODO: Need to add onDidCloseTextDocument to handle when members are closed?
         context.subscriptions.push(
             this.controller,
-            workspace.onDidOpenTextDocument((document: TextDocument) => {
-                this.updateNodeForDocument(document);
+            workspace.onDidOpenTextDocument(async (document: TextDocument) => {
+                await this.updateNodeForDocument(document);
             }),
-            workspace.onDidChangeTextDocument((event: TextDocumentChangeEvent) => {
-                this.updateNodeForDocument(event.document);
+            workspace.onDidChangeTextDocument(async (event: TextDocumentChangeEvent) => {
+                await this.updateNodeForDocument(event.document);
             })
         );
     }
 
-    private getWorkspaceTestPatterns() {
+    private getWorkspaceTestPatterns(): { workspaceFolder: WorkspaceFolder; pattern: RelativePattern; }[] {
         const workspaceFolders = workspace.workspaceFolders;
         if (!workspaceFolders) {
             return [];
@@ -73,14 +74,14 @@ export class IBMiTestManager {
         });
     }
 
-    private async findInitialFiles(pattern: GlobPattern) {
+    private async findInitialFiles(pattern: GlobPattern): Promise<void> {
         const fileUris = await workspace.findFiles(pattern);
         for (const uri of fileUris) {
             this.getOrCreateFile(uri);
         }
     }
 
-    private startWatchingWorkspace() {
+    private startWatchingWorkspace(): void {
         const workspaceTestPatterns = this.getWorkspaceTestPatterns();
 
         for (const workspaceTestPattern of workspaceTestPatterns) {
@@ -91,10 +92,11 @@ export class IBMiTestManager {
                 this.getOrCreateFile(uri);
             });
             watcher.onDidChange(async (uri: Uri) => {
-                const { item, data } = this.getOrCreateFile(uri);
-                if (data.didLoad) {
-                    await data.load();
-                    data.didCompile = false;
+                const result = this.getOrCreateFile(uri);
+                if (result) {
+                    result.data.isLoaded = false;
+                    result.data.isCompiled = false;
+                    await result.data.load();
                 }
             });
             watcher.onDidDelete((uri: Uri) => {
@@ -105,29 +107,60 @@ export class IBMiTestManager {
         }
     }
 
-    private getOrCreateFile(uri: Uri) {
+    private getOrCreateFile(uri: Uri): { item: TestItem; data: TestFile; } | undefined {
+        // Check if test item already exists
         const existingItem = this.controller.items.get(uri.toString());
         if (existingItem) {
             return {
                 item: existingItem,
                 data: this.testData.get(existingItem) as TestFile
             };
+        } else {
+            // Get workspace folder for the file
+            const workspaceFolder = workspace.getWorkspaceFolder(uri);
+            if (!workspaceFolder) {
+                return;
+            }
+
+            // Create workspace test item if it does not exist
+            let workspaceItem = this.controller.items.get(workspaceFolder.uri.toString());
+            if (!workspaceItem) {
+                workspaceItem = this.controller.createTestItem(workspaceFolder.uri.toString(), path.parse(workspaceFolder.uri.path).base, uri);
+                workspaceItem.canResolveChildren = true;
+                this.controller.items.add(workspaceItem);
+            }
+
+            // Create directory test items if they do not exist
+            let parentItem = workspaceItem;
+            const relativePathToTest = path.relative(workspaceFolder.uri.fsPath, path.parse(uri.fsPath).dir);
+            const directoryNames = relativePathToTest.split(path.sep).filter((directoryName) => directoryName !== '');
+            for (const directoryName of directoryNames) {
+                const directoryUri = Uri.joinPath(workspaceFolder.uri, directoryName);
+                let directoryItem = this.controller.items.get(directoryUri.toString());
+                if (!directoryItem) {
+                    directoryItem = this.controller.createTestItem(directoryUri.toString(), directoryName, uri);
+                    directoryItem.canResolveChildren = true;
+                    parentItem.children.add(directoryItem);
+                    parentItem = directoryItem;
+                }
+            }
+
+            // Create file test item
+            const fileItem = this.controller.createTestItem(uri.toString(), path.parse(uri.path).base, uri);
+            fileItem.canResolveChildren = true;
+            parentItem.children.add(fileItem);
+
+            const data = new TestFile(fileItem);
+            this.testData.set(fileItem, data);
+
+            return {
+                item: fileItem,
+                data: data
+            };
         }
-
-        const item = this.controller.createTestItem(uri.toString(), path.parse(uri.path).base, uri);
-        item.canResolveChildren = true;
-        this.controller.items.add(item);
-
-        const data = new TestFile(item);
-        this.testData.set(item, data);
-
-        return {
-            item,
-            data
-        };
     }
 
-    private updateNodeForDocument(document: TextDocument) {
+    private async updateNodeForDocument(document: TextDocument): Promise<void> {
         if (!['file', 'member'].includes(document.uri.scheme)) {
             return;
         }
@@ -136,7 +169,9 @@ export class IBMiTestManager {
             return;
         }
 
-        const { item, data } = this.getOrCreateFile(document.uri);
-        data.load(document.getText());
+        const result = this.getOrCreateFile(document.uri);
+        if (result) {
+            await result.data.load(document.getText());
+        }
     }
 }
