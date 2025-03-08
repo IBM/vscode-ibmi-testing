@@ -1,6 +1,7 @@
 {
     "RUCRTRPG": {
-        "text": "Sub testing.json"
+        "text": "Sub testing.json",
+        "tgtCcsid": "37"
     },
     "RUCRTCBL": { }
 }

@@ -65,6 +65,16 @@
                     "type": "string",
                     "default": "",
                     "markdownDescription": "Pre-Compiler COMPILEOPT\n\nRefer to the `COMPILEOPT` parameter in `CRTSQLRPGI` command help."
+                },
+                "incDir": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
+                },
+                "tgtCcsid": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
                 }
             }
         }
