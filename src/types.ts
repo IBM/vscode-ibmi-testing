@@ -5,8 +5,9 @@ export interface TestingConfig {
 
 export interface RUCRTRPG {
     tstPgm: string,
-    srcFile: string,
-    srcMbr: string,
+    srcFile?: string,
+    srcMbr?: string,
+    srcStmf?: string,
     text?: string,
     cOption?: string,
     dbgView?: string,
@@ -18,7 +19,9 @@ export interface RUCRTRPG {
     module?: string,
     rpgPpOpt?: string,
     pOption?: string,
-    compileOpt?: string
+    compileOpt?: string,
+    incDir?: string,
+    tgtCcsid?: string,
 }
 
 export interface RUCRTCBL {

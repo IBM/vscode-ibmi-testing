@@ -1,6 +1,7 @@
 {
     "RUCRTRPG": {
-        "text": "Root testing.json"
+        "text": "Root testing.json",
+        "tgtCcsid": "37"
     },
     "RUCRTCBL": { }
 }
