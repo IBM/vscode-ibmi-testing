@@ -14,18 +14,38 @@ export interface RUCRTRPG {
     bndSrvPgm?: string,
     bndDir?: string,
     bOption?: string,
+    define?: string,
     dltSplf?: string,
     actGrp?: string,
     module?: string,
     rpgPpOpt?: string,
-    pOption?: string,
+    option?: string,
     compileOpt?: string,
+    tgtRls?: string
     incDir?: string,
-    tgtCcsid?: string,
+    tgtCcsid?: string
 }
 
 export interface RUCRTCBL {
-    // TODO: Implmement this
+    tstPgm: string,
+    srcFile?: string,
+    srcMbr?: string,
+    srcStmf?: string,
+    text?: string,
+    cOption?: string,
+    dbgView?: string,
+    bndSrvPgm?: string,
+    bndDir?: string,
+    bOption?: string,
+    define?: string,
+    dltSplf?: string,
+    actGrp?: string,
+    module?: string,
+    option?: string,
+    compileOpt?: string,
+    tgtRls?: string
+    incDir?: string,
+    tgtCcsid?: string
 }
 
 export interface RUCALLTST {
