@@ -1,0 +1,244 @@
+      *=====================================================================*
+      *  Empty Unit Test Case (Cobol).                                      *
+      *=====================================================================*
+      *  Command to create the service program:                             *
+      *  RUCRTCBL TSTPGM(RPGUNIT/CBL) SRCFILE(RPGUNIT/QTEMPLATE)            *
+      *=====================================================================*
+      *  Tools/400 STRPREPRC instructions:                                  *
+      *   >>PRE-COMPILER<<                                                  *
+      *     >>CRTCMD<<  RUCRTCBL    TSTPGM(&LI/&OB) +                       *
+      *                             SRCFILE(&SL/&SF) SRCMBR(&SM);           *
+      *     >>COMPILE<<                                                     *
+      *       >>PARM<< COPTION(*EVENTF);                                    *
+      *       >>PARM<< DBGVIEW(*LIST);                                      *
+      *       >>PARM<< BNDDIR(*N);                                          *
+      *     >>END-COMPILE<<                                                 *
+      *     >>EXECUTE<<                                                     *
+      *   >>END-PRE-COMPILER<<                                              *
+      *=====================================================================*
+      *  Compile options:                                                   *
+      *    *SrcStmt       - Assign SEU line numbers when compiling the      *
+      *                     source member. This option is required to       *
+      *                     position the LPEX editor to the line in error   *
+      *                     when the source member is opened from the       *
+      *                     RPGUnit view.                                   *
+      *    *NoDebugIO     - Do not generate breakpoints for input and       *
+      *                     output specifications. Optional but useful.     *
+      *=====================================================================*
+
+      *=====================================================================*
+      *  setUpSte(), called once at the beginning of a test suite.
+      *=====================================================================*
+       PROCESS  NOMONOPRC.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. SETUPSTE.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+         Special-Names.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       PROCEDURE DIVISION.
+       SETUPSTE.
+           GOBACK.
+       END PROGRAM SETUPSTE.
+
+      *=====================================================================*
+      *  setUp(), called at the beginning of each test case.
+      *=====================================================================*
+       PROCESS  NOMONOPRC.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. SETUP.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+         Special-Names.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       PROCEDURE DIVISION.
+       SETUP.
+           GOBACK.
+       END PROGRAM SETUP.
+
+      *=====================================================================*
+      *  tearDwn(), called at the end of each test case.
+      *=====================================================================*
+       PROCESS  NOMONOPRC.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. TEARDWN.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+         Special-Names.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       PROCEDURE DIVISION.
+       TEARDWN.
+           GOBACK.
+       END PROGRAM TEARDWN.
+
+      *=====================================================================*
+      *  tearDwnSte(), called once at the end of a test suite.
+      *=====================================================================*
+       PROCESS  NOMONOPRC.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. TEARDWNSTE.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+         Special-Names.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       PROCEDURE DIVISION.
+       TEARDWNSTE.
+           GOBACK.
+       END PROGRAM TEARDWNSTE.
+
+      *=====================================================================*
+      *  Using assert() with 1 parameter.
+      *=====================================================================*
+       PROCESS  NOMONOPRC.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. TEST_TRUE.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+         Special-Names.
+       Copy CBLLINKAGE Of QINCLUDE.
+      * Terminate Special-Names section , because CBLLINKAGE
+      * does not do that.
+         .
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  bResult Pic x(1).
+           88 bFalse Value "0".
+           88 bTrue  Value "1".
+       01  x Pic x(1) Value "1".
+       PROCEDURE DIVISION.
+       TEST_TRUE.
+
+      * -----------------------------------------
+      *  Compute a boolean result. Then ...
+      *------------------------------------------
+
+           If x = "1"
+              Move "1" To bResult
+           Else
+              Move "0" To bResult.
+
+           Call "assert" Using By Content bResult.
+
+      * -----------------------------------------
+      *  ... or ...
+      *------------------------------------------
+
+           if x = "1"
+              Call "assert" Using By Content B"1"
+           else
+              Call "assert" Using By Content B"0".
+
+           GOBACK.
+
+       END PROGRAM TEST_TRUE.
+
+      *=====================================================================*
+      *  Using assert() with 2 parameters.
+      *=====================================================================*
+       PROCESS  NOMONOPRC.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. TEST_FALSE.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+         Special-Names.
+       Copy CBLLINKAGE Of QINCLUDE.
+      * Terminate Special-Names section , because CBLLINKAGE
+      * does not do that.
+         .
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  bResult Pic x(1).
+           88 bFalse Value "0".
+           88 bTrue  Value "1".
+       01  x Pic x(1) Value "2".
+       PROCEDURE DIVISION.
+       TEST_FALSE.
+
+      * -----------------------------------------
+      *  Compute a boolean result. Then ...
+      *------------------------------------------
+
+           If x = "1"
+              Move "1" To bResult
+           Else
+              Move "0" To bResult.
+
+           Call "assert" Using By Content bResult
+                               By Content "x must be set to '1'.".
+
+      * -----------------------------------------
+      *  ... or ...
+      *------------------------------------------
+
+           if x = "1"
+              Call "assert" Using By Content B"1"
+                                  By Content "x must be set to '1'."
+           else
+              Call "assert" Using By Content B"0"
+                                  By Content "x must be set to '1'.".
+
+           GOBACK.
+
+       END PROGRAM TEST_FALSE.
+
+      *=====================================================================*
+      *  Using fail() with 0 parameters.
+      *=====================================================================*
+       PROCESS  NOMONOPRC.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. TEST_FAIL0.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+         Special-Names.
+       Copy CBLLINKAGE Of QINCLUDE.
+      * Terminate Special-Names section , because CBLLINKAGE
+      * does not do that.
+         .
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       PROCEDURE DIVISION.
+       TEST_FAIL0.
+
+      * -----------------------------------------
+      *  Use fail() in case you want to make
+      *  the unit test fail.
+      *------------------------------------------
+
+           Call "fail".
+
+           GOBACK.
+
+       END PROGRAM TEST_FAIL0.
+
+      *=====================================================================*
+      *  Using fail() with 1 parameter.
+      *=====================================================================*
+       PROCESS  NOMONOPRC.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. TEST_FAIL1.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+         Special-Names.
+       Copy CBLLINKAGE Of QINCLUDE.
+      * Terminate Special-Names section , because CBLLINKAGE
+      * does not do that.
+         .
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       PROCEDURE DIVISION.
+       TEST_FAIL1.
+
+      * -----------------------------------------
+      *  Use fail() in case you want to make
+      *  the unit test fail.
+      *------------------------------------------
+
+           Call "fail" Using By Content "Let the unit test fail.".
+
+           GOBACK.
+
+       END PROGRAM TEST_FAIL1.
