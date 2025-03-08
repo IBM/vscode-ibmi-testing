@@ -19,7 +19,36 @@ export class IBMiTestRunner {
         this.token = token;
     }
 
-    async runHandler() {
+    async getTestQueue(run: TestRun): Promise<{ item: TestItem; data: IBMiTestData; }[]> {
+        const queue: { item: TestItem, data: IBMiTestData }[] = [];
+
+        let items: any = [];
+        if (this.request.include) {
+            items = this.request.include;
+        } else {
+            this.manager.controller.items.forEach((item) => {
+                items.push(item);
+            });
+        }
+
+        for (const item of items) {
+            if (this.request.exclude?.includes(item)) {
+                continue;
+            }
+
+            const data = this.manager.testData.get(item)!;
+            if (data instanceof TestFile) {
+                await data.load();
+            }
+
+            run.enqueued(item);
+            queue.push({ item, data });
+        }
+
+        return queue;
+    }
+
+    async runHandler(): Promise<void> {
         const run = this.manager.controller.createTestRun(this.request);
 
         // Setup test output directory
@@ -40,7 +69,7 @@ export class IBMiTestRunner {
             if (!compiledTestFile) {
                 IBMiTestRunner.updateTestRunStatus(run, 'testFile', { item: testFileItem });
 
-                if (testFileData.didCompile) {
+                if (testFileData.isCompiled) {
                     IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Compilation Skipped' });
                 } else {
                     await testFileData.compileMember(run);
@@ -48,7 +77,7 @@ export class IBMiTestRunner {
                 }
             }
 
-            if (!testFileData.didCompile) {
+            if (!testFileData.isCompiled) {
                 if (data instanceof TestFile) {
                     item.children.forEach((childItem) => {
                         if (!this.request.exclude?.includes(childItem)) {
@@ -76,36 +105,7 @@ export class IBMiTestRunner {
         run.end();
     }
 
-    async getTestQueue(run: TestRun) {
-        const queue: { item: TestItem, data: IBMiTestData }[] = [];
-
-        let items: any = [];
-        if (this.request.include) {
-            items = this.request.include;
-        } else {
-            this.manager.controller.items.forEach((item) => {
-                items.push(item);
-            });
-        }
-
-        for (const item of items) {
-            if (this.request.exclude?.includes(item)) {
-                continue;
-            }
-
-            const data = this.manager.testData.get(item)!;
-            if (data instanceof TestFile && !data.didLoad) {
-                await data.load();
-            }
-
-            run.enqueued(item);
-            queue.push({ item, data });
-        }
-
-        return queue;
-    }
-
-    async runTest(run: TestRun, item: TestItem) {
+    async runTest(run: TestRun, item: TestItem): Promise<void> {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
         const content = ibmi!.getContent();
@@ -168,7 +168,7 @@ export class IBMiTestRunner {
     }
 
     // TODO: Fix data to have a type instead of any
-    static updateTestRunStatus(run: TestRun, type: 'testFile' | 'upload' | 'compilation' | 'testCase' | 'metrics', data?: any) {
+    static updateTestRunStatus(run: TestRun, type: 'testFile' | 'upload' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
         switch (type) {
             case 'testFile':
                 run.appendOutput(data.item.label);

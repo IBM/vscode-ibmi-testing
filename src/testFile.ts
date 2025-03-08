@@ -11,51 +11,53 @@ import { Configuration, defaultConfigurations, Section } from "./configuration";
 
 export class TestFile {
     static textDecoder = new TextDecoder('utf-8');
-    didLoad: boolean;
-    didCompile: boolean;
+    isLoaded: boolean;
+    isCompiled: boolean;
     content: string;
     item: TestItem;
 
     constructor(item: TestItem) {
-        this.didLoad = false;
-        this.didCompile = false;
+        this.isLoaded = false;
+        this.isCompiled = false;
         this.content = '';
         this.item = item;
     }
 
-    async load(content?: string) {
-        this.didLoad = true;
+    async load(content?: string): Promise<void> {
+        if (!this.isLoaded) {
+            this.isLoaded = true;
 
-        // Load test file content
-        if (content) {
-            this.content = content;
-        } else {
-            try {
-                const rawContent = await workspace.fs.readFile(this.item.uri!);
-                this.content = TestFile.textDecoder.decode(rawContent);
-            } catch (error) {
-                // TODO: What to do here?
-                console.log(`Failed to load test file: ${error}`);
+            // Load test file content
+            if (content) {
+                this.content = content;
+            } else {
+                try {
+                    const rawContent = await workspace.fs.readFile(this.item.uri!);
+                    this.content = TestFile.textDecoder.decode(rawContent);
+                } catch (error) {
+                    // TODO: What to do here?
+                    console.log(`Failed to load test file: ${error}`);
+                }
             }
-        }
 
-        // Load test cases
-        const childItems: TestItem[] = [];
-        const documentSymbols = await commands.executeCommand<DocumentSymbol[]>(`vscode.executeDocumentSymbolProvider`, this.item.uri) || [];
-        for (const documentSymbol of documentSymbols) {
-            if (documentSymbol.kind === SymbolKind.Function && documentSymbol.name.startsWith('test')) {
-                const childItem = manager!.controller.createTestItem(`${this.item.uri}/${documentSymbol.name}`, documentSymbol.name, this.item.uri);
-                childItem.range = documentSymbol.range;
-                const data = new TestCase(childItem);
+            // Load test cases
+            const childItems: TestItem[] = [];
+            const documentSymbols = await commands.executeCommand<DocumentSymbol[]>(`vscode.executeDocumentSymbolProvider`, this.item.uri) || [];
+            for (const documentSymbol of documentSymbols) {
+                if (documentSymbol.kind === SymbolKind.Function && documentSymbol.name.startsWith('test')) {
+                    const childItem = manager!.controller.createTestItem(`${this.item.uri}/${documentSymbol.name}`, documentSymbol.name, this.item.uri);
+                    childItem.range = documentSymbol.range;
 
-                manager!.testData.set(childItem, data);
-                childItems.push(childItem);
+                    const data = new TestCase(childItem);
+                    manager!.testData.set(childItem, data);
+                    childItems.push(childItem);
+                }
             }
+            this.item.children.replace(childItems);
         }
-        this.item.children.replace(childItems);
     }
 
-    async compileMember(run: TestRun) {
+    async compileMember(run: TestRun): Promise<void> {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
         const content = ibmi!.getContent();
@@ -101,7 +103,7 @@ export class TestFile {
                 IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Compilation Failed', messages: compileResult.stderr.split('\n') });
             } else {
                 IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Compilation Successful' });
-                this.didCompile = true;
+                this.isCompiled = true;
                 return;
             }
         }
