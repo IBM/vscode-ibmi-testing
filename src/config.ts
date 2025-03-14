@@ -1,9 +1,11 @@
 import { RelativePattern, Uri, workspace, WorkspaceFolder } from "vscode";
 import { TestingConfig } from "./types";
 import * as path from "path";
+import lodash from "lodash";
 
 export namespace ConfigHandler {
     const TESTING_CONFIG_FILE = 'testing.json';
+    const GLOBAL_CONFIG_DIRECTORY = '.vscode';
 
     export async function getLocalConfig(uri: Uri): Promise<TestingConfig | undefined> {
         const workspaceFolder = workspace.getWorkspaceFolder(uri);
@@ -12,11 +14,13 @@ export namespace ConfigHandler {
         }
 
         try {
-            const testingConfigUri = await findTestingConfig(workspaceFolder, uri);
-            if (testingConfigUri) {
-                const content = await workspace.fs.readFile(testingConfigUri);
-                return JSON.parse(content.toString()) as TestingConfig;
-            }
+            const localConfigUri = await findTestingConfig(workspaceFolder, uri);
+            const localConfig = localConfigUri ? await readLocalTestingConfig(localConfigUri) : undefined;
+
+            const globalConfigUri = Uri.joinPath(workspaceFolder.uri, GLOBAL_CONFIG_DIRECTORY, TESTING_CONFIG_FILE);
+            const globalConfig = await readLocalTestingConfig(globalConfigUri);
+
+            return lodash.merge({}, globalConfig, localConfig);
         } catch (error) {
             return;
         }
@@ -34,6 +38,15 @@ export namespace ConfigHandler {
             }
         }
     };
+
+    async function readLocalTestingConfig(testingConfigPath: Uri): Promise<TestingConfig | undefined> {
+        try {
+            const content = await workspace.fs.readFile(testingConfigPath);
+            return JSON.parse(content.toString()) as TestingConfig;
+        } catch (error) {
+            return;
+        }
+    }
 
     export async function getRemoteConfig(uri: Uri): Promise<TestingConfig | undefined> {
         // TODO: Implement this

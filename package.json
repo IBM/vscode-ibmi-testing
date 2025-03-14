@@ -164,17 +164,19 @@
   },
   "dependencies": {
     "@halcyontech/vscode-ibmi-types": "^2.14.5",
+    "lodash": "^4.17.21",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.16",
     "@types/mocha": "^10.0.7",
     "@types/node": "20.x",
     "@types/vscode": "^1.96.0",
+    "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
     "@typescript-eslint/parser": "^7.11.0",
     "@vscode/test-cli": "^0.0.9",
     "@vscode/test-electron": "^2.4.0",
-    "@types/xml2js": "^0.4.14",
     "eslint": "^8.57.0",
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.5",
