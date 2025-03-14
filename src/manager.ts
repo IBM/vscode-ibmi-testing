@@ -50,7 +50,6 @@ export class IBMiTestManager {
             this.updateNodeForDocument(document);
         }
 
-        // TODO: Need to add onDidCloseTextDocument to handle when members are closed?
         context.subscriptions.push(
             this.controller,
             workspace.onDidOpenTextDocument(async (document: TextDocument) => {
@@ -109,7 +108,34 @@ export class IBMiTestManager {
                 }
             });
             watcher.onDidDelete((uri: Uri) => {
-                this.controller.items.delete(uri.toString());
+                const allTestItems = this.getFlattenedTestItems();
+                const deletedItem = allTestItems.find((item) => item.uri?.toString() === uri.toString());
+
+                if (!deletedItem) {
+                    // File not found in test collection
+                    return;
+                }
+
+                // Delete item associated with the file
+                let parentItem = deletedItem.parent;
+                parentItem?.children.delete(deletedItem.id);
+                this.testData.delete(deletedItem);
+            
+                // Recursively delete empty parents
+                while (parentItem && parentItem.children.size === 0) {
+                    const grandParentItem = parentItem.parent;
+            
+                    if (!grandParentItem) {
+                        // Delete workspace item when no grandparent
+                        this.controller.items.delete(parentItem.id);
+                        this.testData.delete(parentItem);
+                        break;
+                    }
+            
+                    grandParentItem.children.delete(parentItem.id);
+                    this.testData.delete(parentItem);
+                    parentItem = grandParentItem;
+                }
             });
 
             this.findInitialFiles(workspaceTestPattern.pattern);
@@ -118,7 +144,8 @@ export class IBMiTestManager {
 
     private getOrCreateFile(uri: Uri): { item: TestItem; data: TestFile; } | undefined {
         // Check if test item already exists
-        const existingItem = this.controller.items.get(uri.toString());
+        const allTestItems = this.getFlattenedTestItems();
+        const existingItem = allTestItems.find((item) => item.uri!.toString() === uri.toString());
         if (existingItem) {
             return {
                 item: existingItem,
@@ -134,9 +161,12 @@ export class IBMiTestManager {
             // Create workspace test item if it does not exist
             let workspaceItem = this.controller.items.get(workspaceFolder.uri.toString());
             if (!workspaceItem) {
-                workspaceItem = this.controller.createTestItem(workspaceFolder.uri.toString(), path.parse(workspaceFolder.uri.path).base, uri);
+                workspaceItem = this.controller.createTestItem(workspaceFolder.uri.toString(), path.parse(workspaceFolder.uri.path).base, workspaceFolder.uri);
                 workspaceItem.canResolveChildren = true;
                 this.controller.items.add(workspaceItem);
+
+                const data = new TestDirectory(workspaceItem);
+                this.testData.set(workspaceItem, data);
             }
 
             // Create directory test items if they do not exist
@@ -145,13 +175,17 @@ export class IBMiTestManager {
             const directoryNames = relativePathToTest.split(path.sep).filter((directoryName) => directoryName !== '');
             for (const directoryName of directoryNames) {
                 const directoryUri = Uri.joinPath(workspaceFolder.uri, directoryName);
-                let directoryItem = this.controller.items.get(directoryUri.toString());
+                let directoryItem = parentItem.children.get(directoryUri.toString());
                 if (!directoryItem) {
-                    directoryItem = this.controller.createTestItem(directoryUri.toString(), directoryName, uri);
+                    directoryItem = this.controller.createTestItem(directoryUri.toString(), directoryName, directoryUri);
                     directoryItem.canResolveChildren = true;
                     parentItem.children.add(directoryItem);
-                    parentItem = directoryItem;
+
+                    const data = new TestDirectory(directoryItem);
+                    this.testData.set(directoryItem, data);
                 }
+
+                parentItem = directoryItem;
             }
 
             // Create file test item
@@ -159,7 +193,7 @@ export class IBMiTestManager {
             fileItem.canResolveChildren = true;
             parentItem.children.add(fileItem);
 
-            const data = new TestFile(fileItem);
+            const data = new TestFile(fileItem, workspaceItem);
             this.testData.set(fileItem, data);
 
             return {
@@ -168,6 +202,24 @@ export class IBMiTestManager {
             };
         }
     }
+
+    public getFlattenedTestItems(): TestItem[] {
+        const result: TestItem[] = [];
+
+        function gatherChildren(item: TestItem) {
+            result.push(item);
+            for (const [, child] of item.children) {
+                gatherChildren(child);
+            }
+        }
+
+        for (const [, item] of this.controller.items) {
+            gatherChildren(item);
+        }
+
+        return result;
+    }
+
 
     private async updateNodeForDocument(document: TextDocument): Promise<void> {
         if (!['file', 'member'].includes(document.uri.scheme)) {
