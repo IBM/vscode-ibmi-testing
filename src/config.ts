@@ -26,15 +26,6 @@ export namespace ConfigHandler {
         }
     }
 
-    async function readLocalTestingConfig(testingConfigPath: Uri): Promise<TestingConfig | undefined> {
-        try {
-            const content = await workspace.fs.readFile(testingConfigPath);
-            return JSON.parse(content.toString()) as TestingConfig;
-        } catch (error) {
-            return;
-        }
-    }
-
     async function findTestingConfig(workspaceFolder: WorkspaceFolder, uri: Uri): Promise<Uri | undefined> {
         const parentDirectory = path.parse(uri.fsPath).dir;
         if (parentDirectory.startsWith(workspaceFolder.uri.fsPath)) {
@@ -47,6 +38,15 @@ export namespace ConfigHandler {
             }
         }
     };
+
+    async function readLocalTestingConfig(testingConfigPath: Uri): Promise<TestingConfig | undefined> {
+        try {
+            const content = await workspace.fs.readFile(testingConfigPath);
+            return JSON.parse(content.toString()) as TestingConfig;
+        } catch (error) {
+            return;
+        }
+    }
 
     export async function getRemoteConfig(uri: Uri): Promise<TestingConfig | undefined> {
         // TODO: Implement this
