@@ -37,13 +37,8 @@
 ctl-opt NoMain Option(*SrcStmt : *NoDebugIO);
 dcl-f QSYSPRT printer(80) oflind(*in70) usropn;
 
-/if defined(IRPGUNIT_STMF)
-/include qinclude/TESTCASE.RPGLE            iRPGUnit Test Suite
-/include qinclude/SDS.RPGLE                 Program status data structure
-/else
-/include qinclude,TESTCASE.RPGLE            iRPGUnit Test Suite
-/include qinclude,SDS.RPGLE                 Program status data structure
-/endif
+/include qinclude,TESTCASE                  iRPGUnit Test Suite
+/include qinclude,SDS                       Program status data structure
 
 // ------------------------------------------------------------
 //  Global type templates.

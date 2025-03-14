@@ -1,7 +1,7 @@
 import { commands, DocumentSymbol, SymbolKind, TestItem, TestRun, workspace } from "vscode";
 import { TestCase } from "./testCase";
 import { manager } from "./extension";
-import { getInstance } from "./api/ibmi";
+import { getDeployTools, getInstance } from "./api/ibmi";
 import { IBMiTestManager } from "./manager";
 import { IBMiTestRunner } from "./runner";
 import { TestingConfig, RUCRTRPG } from "./types";
@@ -14,13 +14,15 @@ export class TestFile {
     static COBOL_TEST_CASE_REGEX = /^PROGRAM-ID\. +(TEST.+)$/i;
     static textDecoder = new TextDecoder('utf-8');
     item: TestItem;
+    workspaceItem: TestItem;
     isLoaded: boolean;
     isCompiled: boolean;
     content: string;
     isRPGLE: boolean;
 
-    constructor(item: TestItem) {
+    constructor(item: TestItem, workspaceItem: TestItem) {
         this.item = item;
+        this.workspaceItem = workspaceItem;
         this.isLoaded = false;
         this.isCompiled = false;
         this.content = '';
@@ -79,84 +81,64 @@ export class TestFile {
         const content = ibmi!.getContent();
         const config = ibmi!.getConfig();
 
-        let library: string;
-        let srcPf: string;
-        let mbr: string;
-        let mbrType: string;
+        let tstPgm: { name: string, library: string };
+        let srcFile: { name: string, library: string } | undefined;
+        let srcMbr: string | undefined;
+        let srcStmf: string | undefined;
         let testingConfig: TestingConfig | undefined;
-        let isUploaded: boolean;
 
-        if (this.item.uri?.scheme === 'file') {
-            library = config.currentLibrary;
-            srcPf = 'TEMP'; // TODO: What should this be? The parent directory?
-            // TODO: Add COBOL support
-            // TODO: Make case insensitive
-            mbr = this.item.label.replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), IBMiTestManager.TEST_SUFFIX).toLocaleUpperCase();
-            mbrType = path.parse(this.item.uri.path).ext.substring(1).toLocaleUpperCase();
-            testingConfig = await ConfigHandler.getLocalConfig(this.item.uri);
-            isUploaded = await this.uploadMember(run, library, srcPf, mbr, mbrType);
+        if (this.item.uri!.scheme === 'file') {
+            // Get relative local path to test
+            const workspaceFolder = workspace.getWorkspaceFolder(this.item.uri!)!;
+            const relativePathToTest = path.relative(workspaceFolder.uri.fsPath, this.item.uri!.fsPath).replace(/\\/g, '/');
+
+            // Construct remote path to test
+            const deployTools = getDeployTools()!;
+            const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
+            if (deployDirectory) {
+                srcStmf = path.posix.join(deployDirectory, relativePathToTest);
+            } else {
+                IBMiTestRunner.updateTestRunStatus(run, 'deployment', { result: 'Deploy Location Not Set' });
+            }
+
+            const tstPgmName = this.item.label
+                .replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), '')
+                .replace(new RegExp(IBMiTestManager.SQLRPGLE_TEST_SUFFIX, 'i'), '')
+                .replace(new RegExp(IBMiTestManager.COBOL_TEST_SUFFIX, 'i'), '')
+                .replace(new RegExp(IBMiTestManager.SQLCOBOL_TEST_SUFFIX, 'i'), '')
+                .toLocaleUpperCase();
+            tstPgm = { name: tstPgmName, library: config.currentLibrary };
+            testingConfig = await ConfigHandler.getLocalConfig(this.item.uri!);
         } else {
             const parsedPath = connection.parserMemberPath(this.item.uri!.path);
-            library = parsedPath.library;
-            srcPf = parsedPath.file;
-            mbr = parsedPath.name.toLocaleUpperCase();
-            mbrType = parsedPath.extension;
+            tstPgm = { name: parsedPath.name.toLocaleUpperCase(), library: parsedPath.library };
+            srcFile = { name: parsedPath.file, library: parsedPath.library };
+            srcMbr = '*TSTPGM';
             testingConfig = await ConfigHandler.getRemoteConfig(this.item.uri!);
-            isUploaded = true;
         }
 
         const compileParams: RUCRTRPG = {
-            tstPgm: `${library}/${mbr}`,
-            srcFile: `${library}/${srcPf}`,
-            srcMbr: mbr,
+            tstPgm: `${tstPgm.library}/${tstPgm.name}`,
+            srcFile: srcFile ? `${srcFile.library}/${srcFile.name}` : undefined,
+            srcMbr: srcMbr,
+            srcStmf: srcStmf,
             ...testingConfig?.RUCRTRPG
         };
 
-        if (isUploaded) {
-            // TODO: Add support for RUCRTCBL
-            const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
-            const compileCommand = content.toCl(`${productLibrary}/RUCRTRPG`, compileParams as any);
-            const compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
-            if (compileResult.code !== 0) {
-                IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Compilation Failed', messages: compileResult.stderr.split('\n') });
-            } else {
-                IBMiTestRunner.updateTestRunStatus(run, 'compilation', { compilationResult: 'Compilation Successful' });
-                this.isCompiled = true;
-                return;
-            }
-        }
-    }
-
-    private async uploadMember(run: TestRun, library: string, srcPf: string, mbr: string, mbrType: string): Promise<boolean> {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-        const content = ibmi!.getContent();
-
-        const commands = [
-            content.toCl(`CRTSRCPF`, { file: `${library}/${srcPf}`, rcdlen: 112 }),
-            content.toCl(`ADDPFM`, { file: `${library}/${srcPf}`, mbr: mbr, srcType: mbrType }),
-        ];
-
-        for (const command of commands) {
-            try {
-                const result = await connection.runCommand({ command: command, environment: `ile`, noLibList: true });
-                console.log(result);
-            } catch (error) {
-                // Ignore error as source file and member may already exist
-                // TODO: Need to check for other types of errors?
-            }
+        // Set TGTCCSID to 37 by default if not set
+        if (!compileParams.tgtCcsid) {
+            compileParams.tgtCcsid = "37";
         }
 
-        let isUploaded: boolean = false;
-        try {
-            isUploaded = await content.uploadMemberContent(undefined, library, srcPf, mbr, this.content);
-            if (!isUploaded) {
-                IBMiTestRunner.updateTestRunStatus(run, 'upload', { compilationResult: 'Source Upload Failed' });
-            }
-        } catch (error: any) {
-            IBMiTestRunner.updateTestRunStatus(run, 'upload', { compilationResult: 'Source Upload Failed', messages: error.message.split('\n') });
+        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const languageSpecificCommand = this.isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
+        const compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, compileParams as any);
+        const compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
+        if (compileResult.code !== 0) {
+            IBMiTestRunner.updateTestRunStatus(run, 'compilation', { result: 'Compilation Failed', messages: compileResult.stderr.split('\n') });
+        } else {
+            IBMiTestRunner.updateTestRunStatus(run, 'compilation', { result: 'Compilation Successful' });
+            this.isCompiled = true;
         }
-
-        return isUploaded;
     }
 }
