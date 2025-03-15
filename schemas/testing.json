@@ -169,5 +169,14 @@
                 }
             }
         }
-    }
+    },
+    "defaultSnippets": [
+        {
+            "label": "RPGUnit Test Configuration",
+            "body": {
+                "RUCRTRPG": {},
+                "RUCRTCBL": {}
+            }
+        }
+    ]
 }
