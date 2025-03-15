@@ -78,8 +78,8 @@ export class TestFile {
     async compileMember(run: TestRun): Promise<void> {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
-        const content = ibmi!.getContent();
-        const config = ibmi!.getConfig();
+        const content = connection.getContent();
+        const config = connection.getConfig();
 
         let tstPgm: { name: string, library: string };
         let srcFile: { name: string, library: string } | undefined;

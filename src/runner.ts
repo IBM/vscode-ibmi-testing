@@ -75,7 +75,7 @@ export class IBMiTestRunner {
         // Setup test output directory
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
-        const config = ibmi!.getConfig();
+        const config = connection.getConfig();
         const testOutputPath = path.posix.join(config.tempDir, IBMiTestRunner.TEST_OUTPUT_DIRECTORY);
         await connection.sendCommand({ command: `mkdir -p ${testOutputPath}` });
 
@@ -168,8 +168,8 @@ export class IBMiTestRunner {
     async runTest(run: TestRun, item: TestItem): Promise<void> {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
-        const content = ibmi!.getContent();
-        const config = ibmi!.getConfig();
+        const content = connection.getContent();
+        const config = connection.getConfig();
 
         const library = item.uri?.scheme === 'file' ? config.currentLibrary : connection.parserMemberPath(item.uri!.path).library;
         const data = this.manager.testData.get(item);
