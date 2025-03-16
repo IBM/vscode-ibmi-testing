@@ -53,20 +53,20 @@ export namespace ConfigHandler {
         }
     };
 
-    async function readLocalTestingConfig(testingConfigPath: Uri): Promise<TestingConfig | undefined> {
+    async function readLocalTestingConfig(testingConfigUri: Uri): Promise<TestingConfig | undefined> {
         try {
             // Check if file exists
-            await workspace.fs.stat(testingConfigPath);
+            await workspace.fs.stat(testingConfigUri);
         } catch (error: any) {
             return;
         }
 
         try {
             // Read and parse file
-            const content = await workspace.fs.readFile(testingConfigPath);
+            const content = await workspace.fs.readFile(testingConfigUri);
             return JSON.parse(content.toString()) as TestingConfig;
         } catch (error: any) {
-            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to read testing configuration`, error);
+            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to read testing configuration`, `${testingConfigUri} - ${error}`);
             return;
         }
     }
