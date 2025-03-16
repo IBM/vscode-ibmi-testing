@@ -1,4 +1,4 @@
-import { commands, DocumentSymbol, SymbolKind, TestItem, TestRun, workspace } from "vscode";
+import { commands, DocumentSymbol, LogLevel, SymbolKind, TestItem, TestRun, workspace } from "vscode";
 import { TestCase } from "./testCase";
 import { manager } from "./extension";
 import { getDeployTools, getInstance } from "./api/ibmi";
@@ -8,6 +8,7 @@ import { TestingConfig, RUCRTRPG } from "./types";
 import * as path from "path";
 import { ConfigHandler } from "./config";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
+import { Logger } from "./outputChannel";
 
 export class TestFile {
     static RPGLE_TEST_CASE_REGEX = /^TEST.+$/i;
@@ -45,9 +46,8 @@ export class TestFile {
                 try {
                     const rawContent = await workspace.fs.readFile(this.item.uri!);
                     this.content = TestFile.textDecoder.decode(rawContent);
-                } catch (error) {
-                    // TODO: What to do here?
-                    console.log(`Failed to load test file: ${error}`);
+                } catch (error: any) {
+                    Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to load test file`, error);
                 }
             }
 
@@ -72,6 +72,7 @@ export class TestFile {
                 }
             }
             this.item.children.replace(childItems);
+            Logger.getInstance().log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases: ${childItems.map(item => item.label).join(', ')}`);
         }
     }
 
@@ -133,12 +134,18 @@ export class TestFile {
         const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
         const languageSpecificCommand = this.isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
         const compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, compileParams as any);
+        Logger.getInstance().log(LogLevel.Info, `Compiling ${this.item.label}: ${compileCommand}`);
+
         const compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
-        if (compileResult.code !== 0) {
-            IBMiTestRunner.updateTestRunStatus(run, 'compilation', { result: 'Compilation Failed', messages: compileResult.stderr.split('\n') });
-        } else {
-            IBMiTestRunner.updateTestRunStatus(run, 'compilation', { result: 'Compilation Successful' });
+        if (compileResult.stderr.length > 0) {
+            Logger.getInstance().log(LogLevel.Error, `${this.item.label} compile error(s):\n ${compileResult.stderr}`);
+        }
+
+        if (compileResult.code === 0) {
+            IBMiTestRunner.updateTestRunStatus(run, 'compilation', { item: this.item, success: true });
             this.isCompiled = true;
+        } else {
+            IBMiTestRunner.updateTestRunStatus(run, 'compilation', { item: this.item, failed: true, messages: compileResult.stderr.split('\n') });
         }
     }
 }

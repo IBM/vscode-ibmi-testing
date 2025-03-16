@@ -1,4 +1,4 @@
-import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, window } from "vscode";
+import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel } from "vscode";
 import { IBMiTestData, IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
@@ -8,6 +8,7 @@ import { RUCALLTST, TestQueue } from "./types";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
 import { TestCase } from "./testCase";
 import { TestDirectory } from "./testDirectory";
+import { Logger } from "./outputChannel";
 
 export class IBMiTestRunner {
     public static TEST_OUTPUT_DIRECTORY: string = 'vscode-ibmi-testing';
@@ -80,6 +81,7 @@ export class IBMiTestRunner {
         await connection.sendCommand({ command: `mkdir -p ${testOutputPath}` });
 
         const queue: { item: TestItem, data: IBMiTestData }[] = await this.getTestQueue(run);
+        Logger.getInstance().log(LogLevel.Info, `${queue.length} test item(s) queued: ${queue.map((item) => item.item.label).join(', ')}`);
 
         const attemptedDeployments: { workspaceItem: TestItem, isDeployed: boolean }[] = [];
         const compiledTestFileItems: TestItem[] = [];
@@ -98,12 +100,7 @@ export class IBMiTestRunner {
                 const deployResult = await deployTools!.launchDeploy(workspaceFolder!.index);
                 attempt = { workspaceItem: testFileData.workspaceItem, isDeployed: deployResult ? true : false };
                 attemptedDeployments.push(attempt);
-
-                if (deployResult) {
-                    IBMiTestRunner.updateTestRunStatus(run, 'deployment', { result: 'Deployment Successful' });
-                } else {
-                    IBMiTestRunner.updateTestRunStatus(run, 'deployment', { result: 'Deployment Failed' });
-                }
+                IBMiTestRunner.updateTestRunStatus(run, 'deployment', { item: testFileData.workspaceItem, success: deployResult ? true : false });
             }
 
             // Error out children if workspace folder not deployed
@@ -128,7 +125,7 @@ export class IBMiTestRunner {
                 IBMiTestRunner.updateTestRunStatus(run, 'testFile', { item: testFileItem });
 
                 if (testFileData.isCompiled) {
-                    IBMiTestRunner.updateTestRunStatus(run, 'compilation', { result: 'Compilation Skipped' });
+                    IBMiTestRunner.updateTestRunStatus(run, 'compilation', { item: testFileItem, skipped: true });
                 } else {
                     await testFileData.compileMember(run);
                     compiledTestFileItems.push(testFileItem);
@@ -205,18 +202,26 @@ export class IBMiTestRunner {
 
         const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
         const testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
+        Logger.getInstance().log(LogLevel.Info, `Running ${item.label}: ${testCommand}`);
+
         // TODO: Check stdout as it looks like it has some useful information that should maybe be displayed?
         const testResult = await connection.runCommand({ command: testCommand, environment: `ile` });
+        if (testResult.stdout.length > 0) {
+            Logger.getInstance().log(LogLevel.Info, `${item.label} execution output:\n ${testResult.stdout}`);
+        }
+        if (testResult.stderr.length > 0) {
+            Logger.getInstance().log(LogLevel.Error, `${item.label} execution error(s):\n ${testResult.stderr}`);
+        }
 
         // TODO: Can we get an interface for the parsedXml?
         let parsedXml: any | undefined;
         try {
             const rawXml = (await content.downloadStreamfileRaw(testParams.xmlStmf));
             parsedXml = await parseStringPromise(rawXml);
-        } catch (error) {
+        } catch (error: any) {
             // TODO: How to properly handle when testResult exit code is 0
             // TODO: Need to call updateTestRunStatus on TestItem, but what to log (xml parse error or stdout from testResult)?
-            window.showErrorMessage(`Error parsing XML file. Error ${error}`);
+            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Error parsing XML file`, error);
         }
 
         // TODO: How to get actual and expected value for failed test cases to show diff style output message
@@ -243,12 +248,32 @@ export class IBMiTestRunner {
     static updateTestRunStatus(run: TestRun, type: 'workspaceFolder' | 'testFile' | 'deployment' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
         switch (type) {
             case 'workspaceFolder':
+                run.appendOutput(data.item.label);
+                Logger.getInstance().log(LogLevel.Info, `Deploying ${data.item.label}`);
+                break;
             case 'testFile':
                 run.appendOutput(data.item.label);
                 break;
             case 'deployment':
+                if (data.success) {
+                    run.appendOutput(` (Deployment Successful)\r\n`);
+                    Logger.getInstance().log(LogLevel.Info, `Successfully deployed ${data.item.label}`);
+                } else {
+                    run.appendOutput(` (Deployment Failed)\r\n`);
+                    Logger.getInstance().log(LogLevel.Error, `Failed to deploy ${data.item.label}`);
+                }
+                break;
             case 'compilation':
-                run.appendOutput(` (${data.result})\r\n`);
+                if (data.success) {
+                    run.appendOutput(` (Compilation Successful)\r\n`);
+                    Logger.getInstance().log(LogLevel.Info, `Successfully compiled ${data.item.label}`);
+                } else if (data.failed) {
+                    run.appendOutput(` (Compilation Failed)\r\n`);
+                    Logger.getInstance().log(LogLevel.Error, `Failed to compile ${data.item.label}`);
+                } else if (data.skipped) {
+                    run.appendOutput(` (Compilation Skipped)\r\n`);
+                    Logger.getInstance().log(LogLevel.Warning, `Skipped compilation for ${data.item.label}`);
+                }
                 if (data.messages) {
                     for (const message of data.messages) {
                         run.appendOutput(`\t• ${message}\r\n`);
@@ -259,6 +284,7 @@ export class IBMiTestRunner {
                 if (data.success) {
                     run.passed(data.item, data.duration);
                     run.appendOutput(`\t✔ ${data.item.label} (${data.duration}ms)\r\n`);
+                    Logger.getInstance().log(LogLevel.Info, `Test case ${data.item.label} passed in ${data.duration}ms`);
                 } else if (data.failed) {
                     const testMessage = new TestMessage(data.messages.join('. '));
                     testMessage.expectedOutput = data.messages.join('. '); // TODO: Fix this to show proper actual and expected values
@@ -268,6 +294,7 @@ export class IBMiTestRunner {
                     for (const message of data.messages) {
                         run.appendOutput(`\t\t• ${message}\r\n`);
                     }
+                    Logger.getInstance().log(LogLevel.Error, `Test case ${data.item.label} failed in ${data.duration}ms`);
                 } else if (data.errored) {
                     const testMessage = new TestMessage(data.messages.join('. '));
                     testMessage.expectedOutput = data.messages.join('. ');
@@ -277,9 +304,11 @@ export class IBMiTestRunner {
                     for (const message of data.messages) {
                         run.appendOutput(`\t\t• ${message}\r\n`);
                     }
+                    Logger.getInstance().log(LogLevel.Error, `Test case ${data.item.label} errored`);
                 } else if (data.skipped) {
                     run.skipped(data.item);
                     run.appendOutput(`\t⊘ ${data.item.label}\r\n`);
+                    Logger.getInstance().log(LogLevel.Warning, `Test case ${data.item.label} skipped`);
                 }
                 break;
             case 'metrics':
