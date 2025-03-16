@@ -72,7 +72,7 @@ export class TestFile {
                 }
             }
             this.item.children.replace(childItems);
-            Logger.getInstance().log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases`);
+            Logger.getInstance().log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases: ${childItems.map(item => item.label).join(', ')}`);
         }
     }
 

@@ -81,7 +81,7 @@ export class IBMiTestRunner {
         await connection.sendCommand({ command: `mkdir -p ${testOutputPath}` });
 
         const queue: { item: TestItem, data: IBMiTestData }[] = await this.getTestQueue(run);
-        Logger.getInstance().log(LogLevel.Info, `${queue.length} test item(s) queued`);
+        Logger.getInstance().log(LogLevel.Info, `${queue.length} test item(s) queued: ${queue.map((item) => item.item.label).join(', ')}`);
 
         const attemptedDeployments: { workspaceItem: TestItem, isDeployed: boolean }[] = [];
         const compiledTestFileItems: TestItem[] = [];
