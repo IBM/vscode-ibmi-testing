@@ -1,7 +1,8 @@
-import { RelativePattern, Uri, workspace, WorkspaceFolder } from "vscode";
+import { LogLevel, RelativePattern, Uri, workspace, WorkspaceFolder } from "vscode";
 import { TestingConfig } from "./types";
 import * as path from "path";
 import lodash from "lodash";
+import { Logger } from "./outputChannel";
 
 export namespace ConfigHandler {
     const TESTING_CONFIG_FILE = 'testing.json';
@@ -16,12 +17,25 @@ export namespace ConfigHandler {
         try {
             const localConfigUri = await findTestingConfig(workspaceFolder, uri);
             const localConfig = localConfigUri ? await readLocalTestingConfig(localConfigUri) : undefined;
+            if (localConfigUri && localConfig) {
+                Logger.getInstance().log(LogLevel.Info, `Found local testing configuration at ${localConfigUri.toString()}: ${JSON.stringify(localConfig)}`);
+            } else {
+                Logger.getInstance().log(LogLevel.Info, `No local testing configuration found`);
+            }
 
             const globalConfigUri = Uri.joinPath(workspaceFolder.uri, GLOBAL_CONFIG_DIRECTORY, TESTING_CONFIG_FILE);
             const globalConfig = await readLocalTestingConfig(globalConfigUri);
+            if (globalConfigUri && globalConfig) {
+                Logger.getInstance().log(LogLevel.Info, `Found global testing configuration at ${globalConfigUri.toString()}: ${JSON.stringify(globalConfig)}`);
+            } else {
+                Logger.getInstance().log(LogLevel.Info, `No global testing configuration found`);
+            }
 
-            return lodash.merge({}, globalConfig, localConfig);
-        } catch (error) {
+            const mergedConfig = lodash.merge({}, globalConfig, localConfig);
+            Logger.getInstance().log(LogLevel.Info, `Merged testing configuration: ${JSON.stringify(mergedConfig)}`);
+            return mergedConfig;
+        } catch (error: any) {
+            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
             return;
         }
     }
@@ -43,7 +57,8 @@ export namespace ConfigHandler {
         try {
             const content = await workspace.fs.readFile(testingConfigPath);
             return JSON.parse(content.toString()) as TestingConfig;
-        } catch (error) {
+        } catch (error: any) {
+            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to read testing configuration`, error);
             return;
         }
     }
