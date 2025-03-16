@@ -4,7 +4,7 @@ import { manager } from "./extension";
 import { getDeployTools, getInstance } from "./api/ibmi";
 import { IBMiTestManager } from "./manager";
 import { IBMiTestRunner } from "./runner";
-import { TestingConfig, RUCRTRPG } from "./types";
+import { TestingConfig, RUCRTRPG, RUCRTCBL } from "./types";
 import * as path from "path";
 import { ConfigHandler } from "./config";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
@@ -118,13 +118,28 @@ export class TestFile {
             testingConfig = await ConfigHandler.getRemoteConfig(this.item.uri!);
         }
 
-        const compileParams: RUCRTRPG = {
+        let compileParams: RUCRTRPG | RUCRTCBL = {
             tstPgm: `${tstPgm.library}/${tstPgm.name}`,
             srcFile: srcFile ? `${srcFile.library}/${srcFile.name}` : undefined,
             srcMbr: srcMbr,
-            srcStmf: srcStmf,
-            ...testingConfig?.RUCRTRPG
+            srcStmf: srcStmf
         };
+
+        if (this.isRPGLE) {
+            compileParams = {
+                ...compileParams,
+                ...testingConfig?.RUCRTRPG
+            };
+
+            if (!(compileParams as RUCRTRPG).rpgPpOpt) {
+                (compileParams as RUCRTRPG).rpgPpOpt = "*LVL2";
+            }
+        } else {
+            compileParams = {
+                ...compileParams,
+                ...testingConfig?.RUCRTCBL
+            };
+        }
 
         // Set TGTCCSID to 37 by default if not set
         if (!compileParams.tgtCcsid) {
