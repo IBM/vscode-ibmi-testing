@@ -55,6 +55,14 @@ export namespace ConfigHandler {
 
     async function readLocalTestingConfig(testingConfigPath: Uri): Promise<TestingConfig | undefined> {
         try {
+            // Check if file exists
+            await workspace.fs.stat(testingConfigPath);
+        } catch (error: any) {
+            return;
+        }
+
+        try {
+            // Read and parse file
             const content = await workspace.fs.readFile(testingConfigPath);
             return JSON.parse(content.toString()) as TestingConfig;
         } catch (error: any) {
