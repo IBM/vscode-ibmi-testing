@@ -3,6 +3,7 @@ import { IBMiTestManager } from "./manager";
 import { getInstance, loadBase } from "./api/ibmi";
 import { Configuration } from "./configuration";
 import { Logger } from "./outputChannel";
+import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 
 export let manager: IBMiTestManager | undefined;
 
@@ -26,8 +27,9 @@ export function activate(context: ExtensionContext) {
 
 	// Subscribe to IBM i connect and disconnect events
 	const ibmi = getInstance();
+	let connection: IBMi | undefined;
 	ibmi?.subscribe(context, 'connected', 'Load IBM i Test Manager', async () => {
-		const connection = ibmi!.getConnection();
+		connection = ibmi!.getConnection();
 		Logger.getInstance().log(LogLevel.Info, `Connected to ${connection.currentUser}@${connection.currentHost}`);
 
 		if (!manager) {
@@ -35,8 +37,9 @@ export function activate(context: ExtensionContext) {
 		}
 	});
 	ibmi?.subscribe(context, 'disconnected', 'Dispose IBM i Test Manager', async () => {
-		const connection = ibmi!.getConnection();
-		Logger.getInstance().log(LogLevel.Info, `Disconnected from ${connection.currentUser}@${connection.currentHost}`);
+		if (connection) {
+			Logger.getInstance().log(LogLevel.Info, `Disconnected from ${connection.currentUser}@${connection.currentHost}`);
+		}
 
 		if (manager) {
 			manager.controller.dispose();
