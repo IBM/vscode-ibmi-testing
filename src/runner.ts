@@ -219,9 +219,16 @@ export class IBMiTestRunner {
             const rawXml = (await content.downloadStreamfileRaw(testParams.xmlStmf));
             parsedXml = await parseStringPromise(rawXml);
         } catch (error: any) {
-            // TODO: How to properly handle when testResult exit code is 0
-            // TODO: Need to call updateTestRunStatus on TestItem, but what to log (xml parse error or stdout from testResult)?
-            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Error parsing XML file`, error);
+            if (isTestCase) {
+                IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: item, errored: true, messages: ['Failed to parse XML file'] });
+            } else {
+                item.children.forEach((childItem) => {
+                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: childItem, errored: true, messages: ['Failed to parse XML file'] });
+                });
+            }
+
+            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to parse XML file`, error);
+            return;
         }
 
         // TODO: How to get actual and expected value for failed test cases to show diff style output message
