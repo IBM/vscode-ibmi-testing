@@ -213,11 +213,11 @@ export class IBMiTestRunner {
             Logger.getInstance().log(LogLevel.Error, `${item.label} execution error(s):\n ${testResult.stderr}`);
         }
 
-        // TODO: Can we get an interface for the parsedXml?
-        let parsedXml: any | undefined;
+        // TODO: Can we get an interface for the xml?
+        let xml: any | undefined;
         try {
-            const rawXml = (await content.downloadStreamfileRaw(testParams.xmlStmf));
-            parsedXml = await parseStringPromise(rawXml);
+            const xmlStmfContent = (await content.downloadStreamfileRaw(testParams.xmlStmf));
+            xml = await parseStringPromise(xmlStmfContent);
         } catch (error: any) {
             if (isTestCase) {
                 IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: item, errored: true, messages: ['Failed to parse XML file'] });
@@ -232,7 +232,7 @@ export class IBMiTestRunner {
         }
 
         // TODO: How to get actual and expected value for failed test cases to show diff style output message
-        parsedXml.testsuite.testcase.forEach((testcase: any) => {
+        xml.testsuite.testcase.forEach((testcase: any) => {
             const duration: number = 0;// TODO: Get duration from XML
 
             let mappedItem: TestItem;

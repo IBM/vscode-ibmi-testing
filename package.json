@@ -160,7 +160,11 @@
     "lint": "eslint src --ext ts"
   },
   "dependencies": {
+    "@types/tmp": "^0.2.6",
+    "@types/unzipper": "^0.10.11",
     "lodash": "^4.17.21",
+    "tmp": "^0.2.3",
+    "unzipper": "^0.12.3",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
