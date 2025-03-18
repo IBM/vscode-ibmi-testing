@@ -1,8 +1,9 @@
-import { FileCoverage, Position, StatementCoverage, TestCoverageCount, Uri } from "vscode";
+import { DeclarationCoverage, FileCoverage, Position, StatementCoverage, TestCoverageCount, Uri } from "vscode";
 
 export class IBMiFileCoverage extends FileCoverage {
-    readonly coveredLines: StatementCoverage[] = [];
-    constructor(uri: Uri, codeCoverage: {
+    readonly lines: StatementCoverage[] = [];
+    readonly procedures: DeclarationCoverage[] = [];
+    constructor(uri: Uri, isStatementCoverage: boolean, codeCoverage: {
         basename: string;
         path: any;
         localPath: string;
@@ -16,9 +17,19 @@ export class IBMiFileCoverage extends FileCoverage {
         super(uri, new TestCoverageCount(0, 0));
         for (const file of codeCoverage) {
             for (const [line, executed] of Object.entries(file.coverage.activeLines)) {
-                this.coveredLines.push(new StatementCoverage(executed ? 1 : 0, new Position(Number(line) - 1, 0)));
-                this.statementCoverage.covered += executed ? 1 : 0;
-                this.statementCoverage.total++;
+                if (isStatementCoverage) {
+                    this.lines.push(new StatementCoverage(Boolean(executed), new Position(Number(line) - 1, 0)));
+                    this.statementCoverage.covered += executed ? 1 : 0;
+                    this.statementCoverage.total++;
+                } else {
+                    if (!this.declarationCoverage) {
+                        this.declarationCoverage = new TestCoverageCount(0, 0);
+                    }
+
+                    this.procedures.push(new DeclarationCoverage(line, Boolean(executed), new Position(Number(line) - 1, 1)));
+                    this.declarationCoverage.covered += executed ? 1 : 0;
+                    this.declarationCoverage.total++;
+                }
             }
         }
     }

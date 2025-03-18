@@ -64,3 +64,13 @@ export interface RUCALLTST {
     rclRsc?: string,
     xmlStmf: string
 }
+
+export interface CODECOV {
+    cmd: string,
+    module: string,
+    ccLvl: string,
+    ccView?: string,
+    outDir?: string,
+    outStmf?: string,
+    testId?: string
+}

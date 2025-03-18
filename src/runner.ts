@@ -1,14 +1,16 @@
-import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel } from "vscode";
+import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind } from "vscode";
 import { IBMiTestData, IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
 import * as path from "path";
 import { parseStringPromise } from "xml2js";
-import { RUCALLTST, TestQueue } from "./types";
+import { CODECOV, RUCALLTST, TestQueue } from "./types";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
 import { TestCase } from "./testCase";
 import { TestDirectory } from "./testDirectory";
 import { Logger } from "./outputChannel";
+import { CodeCoverage } from "./codeCoverage";
+import { IBMiFileCoverage } from "./fileCoverage";
 
 export class IBMiTestRunner {
     public static TEST_OUTPUT_DIRECTORY: string = 'vscode-ibmi-testing';
@@ -201,7 +203,18 @@ export class IBMiTestRunner {
         };
 
         const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
-        const testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
+        let testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
+        if (this.request.profile?.kind === TestRunProfileKind.Coverage) {
+            const ccLvl = this.request.profile.label === IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL ?
+                '*LINE' :
+                '*PROC';
+            const coverageParams: CODECOV = {
+                cmd: testCommand,
+                module: `(${tstpgm} *SRVPGM *ALL)`,
+                ccLvl: ccLvl
+            };
+            testCommand = `QDEVTOOLS/CODECOV CMD(${coverageParams.cmd}) MODULE(${coverageParams.module}) CCLVL(${coverageParams.ccLvl})`;
+        }
         Logger.getInstance().log(LogLevel.Info, `Running ${item.label}: ${testCommand}`);
 
         // TODO: Check stdout as it looks like it has some useful information that should maybe be displayed?
@@ -211,6 +224,18 @@ export class IBMiTestRunner {
         }
         if (testResult.stderr.length > 0) {
             Logger.getInstance().log(LogLevel.Error, `${item.label} execution error(s):\n ${testResult.stderr}`);
+        }
+
+        if (this.request.profile?.kind === TestRunProfileKind.Coverage) {
+            const match = testResult.stderr.match(/Created code coverage result file \((.*)\)/);
+            if (match && match.length === 2) {
+                const isStatementCoverage = this.request.profile.label === IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL;
+                const codeCoverage = await CodeCoverage.getCoverage(match[1]);
+                run.addCoverage(new IBMiFileCoverage(item.uri!, isStatementCoverage, codeCoverage));
+            } else {
+                // TODO: Handle error better
+                Logger.getInstance().log(LogLevel.Error, `Failed to get code coverage results for ${item.label}`);
+            }
         }
 
         // TODO: Can we get an interface for the xml?
@@ -239,7 +264,7 @@ export class IBMiTestRunner {
             if (isTestCase) {
                 mappedItem = item;
             } else {
-                mappedItem = item.children.get(`${item.uri}/${testcase.$.name}`)!;
+                mappedItem = item.children.get(`${item.uri}/${testcase.$.name.toLocaleUpperCase()}`)!;
             }
 
             // TODO: Need to handle test case errors

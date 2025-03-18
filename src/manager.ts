@@ -13,7 +13,8 @@ export class IBMiTestManager {
     public static CONTROLLER_ID = 'ibmiTest';
     public static CONTROLLER_LABEL = 'IBM i Tests';
     public static RUN_PROFILE_LABEL = 'Run Tests';
-    public static COVERAGE_PROFILE_LABEL = 'Run Tests with Coverage';
+    public static LINE_COVERAGE_PROFILE_LABEL = 'Run Tests with Line Coverage';
+    public static PROCEDURE_COVERAGE_PROFILE_LABEL = 'Run Tests with Procedure Coverage';
     public static TEST_SUFFIX = '.TEST';
     public static RPGLE_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.RPGLE';
     public static SQLRPGLE_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.SQLRPGLE';
@@ -48,17 +49,27 @@ export class IBMiTestManager {
             const runner = new IBMiTestRunner(this, request, token);
             await runner.runHandler();
         }, true, undefined, false);
-        const coverageProfile = this.controller.createRunProfile(IBMiTestManager.COVERAGE_PROFILE_LABEL, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
+        const lineCoverageProfile = this.controller.createRunProfile(IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
             const runner = new IBMiTestRunner(this, request, token);
             await runner.runHandler();
         }, true, undefined, false);
-        coverageProfile.loadDetailedCoverage = async (testRun: TestRun, fileCoverage: FileCoverage, token: CancellationToken) => {
+        const procedureCoverageProfile = this.controller.createRunProfile(IBMiTestManager.PROCEDURE_COVERAGE_PROFILE_LABEL, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
+            const runner = new IBMiTestRunner(this, request, token);
+            await runner.runHandler();
+        }, false, undefined, false);
+        const loadDetailedCoverage = async (testRun: TestRun, fileCoverage: FileCoverage, token: CancellationToken) => {
             if (fileCoverage instanceof IBMiFileCoverage) {
-                return fileCoverage.coveredLines;
+                if (fileCoverage.lines.length > 0) {
+                    return fileCoverage.lines;
+                } else if (fileCoverage.procedures.length > 0) {
+                    return fileCoverage.procedures;
+                }
             }
 
             return [];
         };
+        lineCoverageProfile.loadDetailedCoverage = loadDetailedCoverage;
+        procedureCoverageProfile.loadDetailedCoverage = loadDetailedCoverage;
 
         for (const document of workspace.textDocuments) {
             this.updateNodeForDocument(document);
