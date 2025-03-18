@@ -1,17 +1,19 @@
-import { CancellationToken, ExtensionContext, GlobPattern, LogLevel, RelativePattern, TestController, TestItem, TestRunProfileKind, TestRunRequest, tests, TextDocument, TextDocumentChangeEvent, Uri, workspace, WorkspaceFolder } from "vscode";
+import { CancellationToken, ExtensionContext, FileCoverage, GlobPattern, LogLevel, RelativePattern, StatementCoverage, TestController, TestItem, TestRun, TestRunProfileKind, TestRunRequest, tests, TextDocument, TextDocumentChangeEvent, Uri, workspace, WorkspaceFolder } from "vscode";
 import { TestFile } from "./testFile";
 import { TestCase } from "./testCase";
 import * as path from "path";
 import { IBMiTestRunner } from "./runner";
 import { TestDirectory } from "./testDirectory";
 import { Logger } from "./outputChannel";
+import { IBMiFileCoverage } from "./fileCoverage";
 
 export type IBMiTestData = TestDirectory | TestFile | TestCase;
 
 export class IBMiTestManager {
     public static CONTROLLER_ID = 'ibmiTest';
     public static CONTROLLER_LABEL = 'IBM i Tests';
-    public static PROFILE_LABEL = 'Run Tests';
+    public static RUN_PROFILE_LABEL = 'Run Tests';
+    public static COVERAGE_PROFILE_LABEL = 'Run Tests with Coverage';
     public static TEST_SUFFIX = '.TEST';
     public static RPGLE_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.RPGLE';
     public static SQLRPGLE_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.SQLRPGLE';
@@ -42,10 +44,21 @@ export class IBMiTestManager {
                 await this.findInitialFiles(workspaceTestPattern.pattern);
             }
         };
-        this.controller.createRunProfile(IBMiTestManager.PROFILE_LABEL, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
+        const runProfile = this.controller.createRunProfile(IBMiTestManager.RUN_PROFILE_LABEL, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
             const runner = new IBMiTestRunner(this, request, token);
             await runner.runHandler();
         }, true, undefined, false);
+        const coverageProfile = this.controller.createRunProfile(IBMiTestManager.COVERAGE_PROFILE_LABEL, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
+            const runner = new IBMiTestRunner(this, request, token);
+            await runner.runHandler();
+        }, true, undefined, false);
+        coverageProfile.loadDetailedCoverage = async (testRun: TestRun, fileCoverage: FileCoverage, token: CancellationToken) => {
+            if (fileCoverage instanceof IBMiFileCoverage) {
+                return fileCoverage.coveredLines;
+            }
+
+            return [];
+        };
 
         for (const document of workspace.textDocuments) {
             this.updateNodeForDocument(document);
