@@ -19,7 +19,7 @@ export class IBMiFileCoverage extends FileCoverage {
                     this.declarationCoverage = new TestCoverageCount(0, 0);
                 }
 
-                // TODO: What to set for declaration coverage name?
+                // TODO: What to set for declaration coverage name - maybe use coverageData.coverage.signitures[Number(line) - 1]
                 this.procedures.push(new DeclarationCoverage(line, Boolean(executed), new Position(Number(line) - 1, 0)));
                 this.declarationCoverage.covered += executed ? 1 : 0;
                 this.declarationCoverage.total++;
