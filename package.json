@@ -20,6 +20,7 @@
     "ibmi",
     "iseries",
     "as400",
+    "test",
     "irpgunit"
   ],
   "engines": {
