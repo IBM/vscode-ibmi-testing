@@ -20,7 +20,9 @@
     "ibmi",
     "iseries",
     "as400",
-    "irpgunit"
+    "rpgunit",
+    "testing",
+    "code coverage"
   ],
   "engines": {
     "vscode": "^1.96.0"
