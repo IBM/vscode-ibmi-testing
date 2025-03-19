@@ -135,12 +135,6 @@
             ],
             "markdownDescription": "Specifies when to reclaim resources. Resources, such as open files, can be reclaimed after each test case or at the end of the test suite. This option is useful if the test suite calls OPM programs, which do not set the `*INLR` indicator."
           },
-          "vscode-ibmi-testing.xmlStreamFile": {
-            "order": 7,
-            "type": "string",
-            "default": "/tmp/iRPGUnit_<TSTPGM>-%F.%T.log",
-            "markdownDescription": "Specifies the path of an XML stream file that contains the result of the unit test. The XML file is created with a format, which can be parsed by a Jenkins build server. Existing files are replaced.\n\nYou can use several replacement variables to produce the name of the XML stream file on the fly. Refer to the documentation for a full list of replacement variables."
-          },
           "vscode-ibmi-testing.productLibrary": {
             "order": 8,
             "type": "string",
@@ -160,11 +154,9 @@
     "lint": "eslint src --ext ts"
   },
   "dependencies": {
-    "@types/tmp": "^0.2.6",
-    "@types/unzipper": "^0.10.11",
     "lodash": "^4.17.21",
     "tmp": "^0.2.3",
-    "unzipper": "^0.12.3",
+    "unzipper": "^0.11.6",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
@@ -172,6 +164,8 @@
     "@types/lodash": "^4.17.16",
     "@types/mocha": "^10.0.7",
     "@types/node": "20.x",
+    "@types/tmp": "^0.2.6",
+    "@types/unzipper": "^0.10.11",
     "@types/vscode": "^1.96.0",
     "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
