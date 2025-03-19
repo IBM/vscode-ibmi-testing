@@ -1,3 +1,8 @@
+import { TestItem } from "vscode";
+import { IBMiTestData } from "./manager";
+
+export type TestQueue = { item: TestItem, data: IBMiTestData }[];
+
 export interface TestingConfig {
     RUCRTRPG?: RUCRTRPG,
     RUCRTCBL?: RUCRTCBL
