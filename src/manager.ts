@@ -16,10 +16,10 @@ export class IBMiTestManager {
     public static LINE_COVERAGE_PROFILE_LABEL = 'Run Tests with Line Coverage';
     public static PROCEDURE_COVERAGE_PROFILE_LABEL = 'Run Tests with Procedure Coverage';
     public static TEST_SUFFIX = '.TEST';
-    public static RPGLE_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.RPGLE';
-    public static SQLRPGLE_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.SQLRPGLE';
-    public static COBOL_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.CBLLE';
-    public static SQLCOBOL_TEST_SUFFIX = IBMiTestManager.TEST_SUFFIX + '.SQLCBLLE';
+    public static RPGLE_TEST_SUFFIX = `${IBMiTestManager.TEST_SUFFIX}.RPGLE`;
+    public static SQLRPGLE_TEST_SUFFIX = `${IBMiTestManager.TEST_SUFFIX}.SQLRPGLE`;
+    public static COBOL_TEST_SUFFIX = `${IBMiTestManager.TEST_SUFFIX}.CBLLE`;
+    public static SQLCOBOL_TEST_SUFFIX = `${IBMiTestManager.TEST_SUFFIX}.SQLCBLLE`;
     public context: ExtensionContext;
     public testData: WeakMap<TestItem, IBMiTestData>;
     public controller: TestController;
@@ -59,7 +59,7 @@ export class IBMiTestManager {
         }, false, undefined, false);
         const loadDetailedCoverage = async (testRun: TestRun, fileCoverage: FileCoverage, token: CancellationToken) => {
             if (fileCoverage instanceof IBMiFileCoverage) {
-                if (fileCoverage.lines.length > 0) {
+                if (fileCoverage.isStatementCoverage) {
                     return fileCoverage.lines;
                 } else if (fileCoverage.procedures.length > 0) {
                     return fileCoverage.procedures;
