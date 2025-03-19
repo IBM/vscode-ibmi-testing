@@ -84,6 +84,8 @@ export class IBMiTestManager {
                 await this.updateNodeForDocument(event.document);
             })
         );
+
+        IBMiTestRunner.setupTestStorage();
     }
 
     private getWorkspaceTestPatterns(): { workspaceFolder: WorkspaceFolder; pattern: RelativePattern; }[] {

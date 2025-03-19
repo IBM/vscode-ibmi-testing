@@ -77,18 +77,7 @@ export class IBMiTestRunner {
     async runHandler(): Promise<void> {
         const run = this.manager.controller.createTestRun(this.request);
 
-        // Setup test output directory
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-        const config = connection.getConfig();
-        const testStorage = [
-            `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.RPGUNIT_DIRECTORY}`,
-            `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.CODECOV_DIRECTORY}`
-        ];
-        for (const storage of testStorage) {
-            await connection.sendCommand({ command: `mkdir -p ${storage}` });
-        }
-
+        // Get test queue
         const queue: { item: TestItem, data: IBMiTestData }[] = await this.getTestQueue(run);
         Logger.getInstance().log(LogLevel.Info, `${queue.length} test item(s) queued: ${queue.map((item) => item.item.label).join(', ')}`);
 
@@ -296,6 +285,20 @@ export class IBMiTestRunner {
                 IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: mappedItem, success: true, duration: duration });
             }
         });
+    }
+
+    static async setupTestStorage(): Promise<void> {
+        // Setup test output directory
+        const ibmi = getInstance();
+        const connection = ibmi!.getConnection();
+        const config = connection.getConfig();
+        const testStorage = [
+            `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.RPGUNIT_DIRECTORY}`,
+            `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.CODECOV_DIRECTORY}`
+        ];
+        for (const storage of testStorage) {
+            await connection.sendCommand({ command: `mkdir -p ${storage}` });
+        }
     }
 
     static getTestStorage(prefix: string): TestStorage {
