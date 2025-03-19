@@ -3,6 +3,11 @@ import { IBMiTestData } from "./manager";
 
 export type TestQueue = { item: TestItem, data: IBMiTestData }[];
 
+export interface TestStorage {
+    RPGUNIT: string,
+    CODECOV: string
+};
+
 export interface TestingConfig {
     RUCRTRPG?: RUCRTRPG,
     RUCRTCBL?: RUCRTCBL
@@ -71,6 +76,18 @@ export interface CODECOV {
     ccLvl: string,
     ccView?: string,
     outDir?: string,
-    outStmf?: string,
+    outStmf: string,
     testId?: string
+}
+
+export interface CoverageData {
+    basename: string,
+    path: string,
+    localPath: string,
+    coverage: {
+        signitures: string[],
+        lineString: string,
+        activeLines: { [key: number]: boolean },
+        percentRan: string
+    }
 }
