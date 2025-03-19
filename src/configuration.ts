@@ -8,7 +8,6 @@ export enum Section {
     reportDetail = 'reportDetail',
     createReport = 'createReport',
     reclaimResources = 'reclaimResources',
-    xmlStreamFile = 'xmlStreamFile',
     productLibrary = 'productLibrary'
 }
 
@@ -20,7 +19,6 @@ export const defaultConfigurations: { [T in Section]: string } = {
     [Section.reportDetail]: '*BASIC',
     [Section.createReport]: '*ALLWAYS',
     [Section.reclaimResources]: '*NO',
-    [Section.xmlStreamFile]: '/tmp/iRPGUnit_<TSTPGM>-%F.%T.log',
     [Section.productLibrary]: 'RPGUNIT'
 };
 

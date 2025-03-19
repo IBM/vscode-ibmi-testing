@@ -63,7 +63,7 @@ export class TestFile {
                     const testCaseName = this.isRPGLE ?
                         documentSymbol.name :
                         documentSymbol.name.match(TestFile.COBOL_TEST_CASE_REGEX)![1];
-                    const childItem = manager!.controller.createTestItem(`${this.item.uri}/${testCaseName}`, testCaseName, this.item.uri);
+                    const childItem = manager!.controller.createTestItem(`${this.item.uri}/${testCaseName.toLocaleUpperCase()}`, testCaseName, this.item.uri);
                     childItem.range = documentSymbol.range;
 
                     const data = new TestCase(childItem);
@@ -153,7 +153,7 @@ export class TestFile {
 
         const compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
         if (compileResult.stderr.length > 0) {
-            Logger.getInstance().log(LogLevel.Error, `${this.item.label} compile error(s):\n ${compileResult.stderr}`);
+            Logger.getInstance().log(LogLevel.Error, `${this.item.label} compile error(s):\n${compileResult.stderr}`);
         }
 
         if (compileResult.code === 0) {

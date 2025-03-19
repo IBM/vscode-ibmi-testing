@@ -1,17 +1,21 @@
-import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel } from "vscode";
+import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri } from "vscode";
 import { IBMiTestData, IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
 import * as path from "path";
 import { parseStringPromise } from "xml2js";
-import { RUCALLTST, TestQueue } from "./types";
+import { CODECOV, RUCALLTST, TestQueue, TestStorage } from "./types";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
 import { TestCase } from "./testCase";
 import { TestDirectory } from "./testDirectory";
 import { Logger } from "./outputChannel";
+import { CodeCoverage } from "./codeCoverage";
+import { IBMiFileCoverage } from "./fileCoverage";
 
 export class IBMiTestRunner {
-    public static TEST_OUTPUT_DIRECTORY: string = 'vscode-ibmi-testing';
+    private static TEST_OUTPUT_DIRECTORY: string = 'vscode-ibmi-testing';
+    private static RPGUNIT_DIRECTORY: string = `RPGUNIT`;
+    private static CODECOV_DIRECTORY: string = `CODECOV`;
     private manager: IBMiTestManager;
     private request: TestRunRequest;
     private token: CancellationToken; // TODO: This is should be accounted for during test execution
@@ -73,13 +77,7 @@ export class IBMiTestRunner {
     async runHandler(): Promise<void> {
         const run = this.manager.controller.createTestRun(this.request);
 
-        // Setup test output directory
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-        const config = connection.getConfig();
-        const testOutputPath = path.posix.join(config.tempDir, IBMiTestRunner.TEST_OUTPUT_DIRECTORY);
-        await connection.sendCommand({ command: `mkdir -p ${testOutputPath}` });
-
+        // Get test queue
         const queue: { item: TestItem, data: IBMiTestData }[] = await this.getTestQueue(run);
         Logger.getInstance().log(LogLevel.Info, `${queue.length} test item(s) queued: ${queue.map((item) => item.item.label).join(', ')}`);
 
@@ -184,7 +182,9 @@ export class IBMiTestRunner {
 
         const tstpgm = `${library}/${programName}`;
         const tstprc = isTestCase ? item.label : undefined;
-        const xmlstmf = path.posix.join(config.tempDir, IBMiTestRunner.TEST_OUTPUT_DIRECTORY, `${programName}${tstprc ? `-${tstprc}` : ``}.xml`);
+        const testStorage = IBMiTestRunner.getTestStorage(`${programName}${tstprc ? `_${tstprc}` : ``}`);
+        Logger.getInstance().log(LogLevel.Info, `Test storage for ${item.label}: ${JSON.stringify(testStorage)}`);
+        const xmlStmf = testStorage.RPGUNIT;
 
         const testParams: RUCALLTST = {
             tstPgm: tstpgm,
@@ -195,51 +195,87 @@ export class IBMiTestRunner {
             libl: Configuration.get<string>(Section.libraryList),
             jobD: Configuration.get<string>(Section.jobDescription),
             rclRsc: Configuration.get<string>(Section.reclaimResources),
-            xmlStmf: xmlstmf
-            // TODO: Replace with xmlstmf from configurations, but need to figure out how to get the name with resolved variables
-            // xmlStmf: Configuration.get<string>(Section.xmlStreamFile) || defaultConfigurations[Section.xmlStreamFile]
+            xmlStmf: xmlStmf
         };
 
+        // Build RUCALLTST command
         const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
-        const testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
+        let testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
+
+        // Build CODECOV command if code coverage is enabled
+        const isCodeCoverageEnabled = this.request.profile?.kind === TestRunProfileKind.Coverage;
+        let coverageParams: CODECOV | undefined;
+        if (isCodeCoverageEnabled) {
+            const ccLvl = this.request.profile!.label === IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL ?
+                '*LINE' :
+                '*PROC';
+            coverageParams = {
+                cmd: testCommand,
+                module: `(${tstpgm} *SRVPGM *ALL)`,
+                ccLvl: ccLvl,
+                outStmf: testStorage.CODECOV
+            };
+            testCommand = `QDEVTOOLS/CODECOV CMD(${coverageParams.cmd}) MODULE(${coverageParams.module}) CCLVL(${coverageParams.ccLvl}) OUTSTMF('${coverageParams.outStmf}')`;
+        }
         Logger.getInstance().log(LogLevel.Info, `Running ${item.label}: ${testCommand}`);
 
         // TODO: Check stdout as it looks like it has some useful information that should maybe be displayed?
         const testResult = await connection.runCommand({ command: testCommand, environment: `ile` });
         if (testResult.stdout.length > 0) {
-            Logger.getInstance().log(LogLevel.Info, `${item.label} execution output:\n ${testResult.stdout}`);
+            Logger.getInstance().log(LogLevel.Info, `${item.label} execution output:\n${testResult.stdout}`);
         }
         if (testResult.stderr.length > 0) {
-            Logger.getInstance().log(LogLevel.Error, `${item.label} execution error(s):\n ${testResult.stderr}`);
+            Logger.getInstance().log(LogLevel.Error, `${item.label} execution error(s):\n${testResult.stderr}`);
         }
 
-        // TODO: Can we get an interface for the parsedXml?
-        let parsedXml: any | undefined;
+        if (isCodeCoverageEnabled) {
+            const codeCoverageResults = await CodeCoverage.getCoverage(coverageParams!.outStmf);
+            if (codeCoverageResults) {
+                const isStatementCoverage = this.request.profile!.label === IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL;
+
+                for (const fileCoverage of codeCoverageResults) {
+                    // Get relative remote path to test
+                    const workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
+                    const deployTools = getDeployTools()!;
+                    const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
+                    const relativePathToTest = path.posix.relative(deployDirectory, `/${fileCoverage.path}`);
+
+                    // Construct local path to test
+                    const localPath = path.join(workspaceFolder.uri.fsPath, relativePathToTest);
+                    const localUri = Uri.file(localPath);
+
+                    run.addCoverage(new IBMiFileCoverage(localUri, fileCoverage, isStatementCoverage));
+                }
+            }
+        }
+
+        // TODO: Can we get an interface for the xml?
+        let xml: any | undefined;
         try {
-            const rawXml = (await content.downloadStreamfileRaw(testParams.xmlStmf));
-            parsedXml = await parseStringPromise(rawXml);
+            const xmlStmfContent = (await content.downloadStreamfileRaw(testParams.xmlStmf));
+            xml = await parseStringPromise(xmlStmfContent);
         } catch (error: any) {
             if (isTestCase) {
-                IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: item, errored: true, messages: ['Failed to parse XML file'] });
+                IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: item, errored: true, messages: ['Failed to parse XML test file results'] });
             } else {
                 item.children.forEach((childItem) => {
-                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: childItem, errored: true, messages: ['Failed to parse XML file'] });
+                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: childItem, errored: true, messages: ['Failed to parse XML test file results'] });
                 });
             }
 
-            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to parse XML file`, error);
+            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to parse XML test file results`, error);
             return;
         }
 
         // TODO: How to get actual and expected value for failed test cases to show diff style output message
-        parsedXml.testsuite.testcase.forEach((testcase: any) => {
+        xml.testsuite.testcase.forEach((testcase: any) => {
             const duration: number = 0;// TODO: Get duration from XML
 
             let mappedItem: TestItem;
             if (isTestCase) {
                 mappedItem = item;
             } else {
-                mappedItem = item.children.get(`${item.uri}/${testcase.$.name}`)!;
+                mappedItem = item.children.get(`${item.uri}/${testcase.$.name.toLocaleUpperCase()}`)!;
             }
 
             // TODO: Need to handle test case errors
@@ -249,6 +285,33 @@ export class IBMiTestRunner {
                 IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: mappedItem, success: true, duration: duration });
             }
         });
+    }
+
+    static async setupTestStorage(): Promise<void> {
+        // Setup test output directory
+        const ibmi = getInstance();
+        const connection = ibmi!.getConnection();
+        const config = connection.getConfig();
+        const testStorage = [
+            `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.RPGUNIT_DIRECTORY}`,
+            `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.CODECOV_DIRECTORY}`
+        ];
+        for (const storage of testStorage) {
+            await connection.sendCommand({ command: `mkdir -p ${storage}` });
+        }
+    }
+
+    static getTestStorage(prefix: string): TestStorage {
+        const ibmi = getInstance();
+        const connection = ibmi!.getConnection();
+        const config = connection.getConfig();
+
+        const time = new Date().getTime();
+
+        return {
+            RPGUNIT: `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.RPGUNIT_DIRECTORY}/${prefix}_${time}.xml`,
+            CODECOV: `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.CODECOV_DIRECTORY}/${prefix}_${time}.cczip`
+        };
     }
 
     // TODO: Fix data to have a type instead of any
