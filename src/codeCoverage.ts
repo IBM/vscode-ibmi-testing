@@ -8,6 +8,10 @@ import { Logger } from "./outputChannel";
 import { CoverageData } from "./types";
 
 export namespace CodeCoverage {
+    export async function setupCodeCoverage() {
+        tmp.setGracefulCleanup();
+    }
+
     export async function getCoverage(outputZipPath: string): Promise<CoverageData[] | undefined> {
         // Get ccdata XML from cczip
         const tmpdir = tmp.dirSync({ unsafeCleanup: true });
@@ -15,9 +19,6 @@ export namespace CodeCoverage {
 
         // Parse XML to get coverage data
         const coverageData = await getCoverageData(xml, tmpdir);
-
-        // Clean up
-        tmpdir.removeCallback();
 
         return coverageData;
     }
@@ -43,9 +44,6 @@ export namespace CodeCoverage {
             const ccdataContent = await workspace.fs.readFile(ccdata);
             // TODO: Can we get an interface for the xml?
             const xml = await xml2js.parseStringPromise(ccdataContent);
-
-            // Clean up
-            tmpFile.removeCallback();
 
             return xml;
         } catch (error: any) {

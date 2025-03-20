@@ -146,6 +146,11 @@ export class TestFile {
             compileParams.tgtCcsid = "37";
         }
 
+        // Set DBGVIEW to *SOURCE by default for code coverage to get proper line numbers
+        if(!compileParams.dbgView) {
+            compileParams.dbgView = "*SOURCE";
+        }
+
         const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
         const languageSpecificCommand = this.isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
         const compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, compileParams as any);
