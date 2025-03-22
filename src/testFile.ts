@@ -77,7 +77,7 @@ export class TestFile {
         }
     }
 
-    async compileMember(run: TestRun): Promise<void> {
+    async compileMember(runner: IBMiTestRunner, run: TestRun): Promise<void> {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
         const content = connection.getContent();
@@ -164,13 +164,13 @@ export class TestFile {
         }
 
         if (compileResult.code === 0) {
-            IBMiTestRunner.updateTestRunStatus(run, 'compilation', {
+            runner.updateTestRunStatus(run, 'compilation', {
                 item: this.item,
                 status: 'success'
             });
             this.isCompiled = true;
         } else {
-            IBMiTestRunner.updateTestRunStatus(run, 'compilation', {
+            runner.updateTestRunStatus(run, 'compilation', {
                 item: this.item,
                 status: 'failed',
                 messages: compileResult.stderr.split('\n')
