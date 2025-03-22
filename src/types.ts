@@ -13,9 +13,9 @@ export interface TestStorage {
 };
 
 export interface TestMetrics {
-    testsPassed: number,
-    testsFailed: number,
-    testsErrored: number,
+    testCasesPassed: number,
+    testCasesFailed: number,
+    testCasesErrored: number,
     duration: number
 }
 

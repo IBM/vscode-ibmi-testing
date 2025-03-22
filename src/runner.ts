@@ -26,9 +26,9 @@ export class IBMiTestRunner {
         this.request = request;
         this.token = token;
         this.metrics = {
-            testsPassed: 0,
-            testsFailed: 0,
-            testsErrored: 0,
+            testCasesPassed: 0,
+            testCasesFailed: 0,
+            testCasesErrored: 0,
             duration: 0
         };
     }
@@ -411,13 +411,13 @@ export class IBMiTestRunner {
                 break;
             case 'testCase':
                 if (data.status === 'passed') {
-                    this.metrics.testsPassed++;
+                    this.metrics.testCasesPassed++;
                     run.passed(data.item, data.duration * 1000);
                     run.appendOutput(`\t${c.green(`✔`)}  ${data.item.label} ${c.grey(`${data.duration}s`)}\r\n`);
                     Logger.getInstance().log(LogLevel.Info, `Test case ${data.item.label} passed in ${data.duration}s`);
                 } else if (data.status === 'failed') {
                     if (data.item?.label) {
-                        this.metrics.testsFailed++;
+                        this.metrics.testCasesFailed++;
                         run.appendOutput(`\t${c.red(`✘`)}  ${data.item?.label} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
                     } else {
                         run.appendOutput(`\t${c.red(`✘`)}  ${data.fallBackTestCaseName} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
@@ -443,7 +443,7 @@ export class IBMiTestRunner {
                     }
                 } else if (data.status === 'errored') {
                     if (data.item?.label) {
-                        this.metrics.testsErrored++;
+                        this.metrics.testCasesErrored++;
                         run.appendOutput(`\t${c.yellow(`⚠`)}  ${data.item?.label} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
                     } else {
                         run.appendOutput(`\t${c.yellow(`⚠`)}  ${data.fallBackTestCaseName} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
@@ -475,10 +475,10 @@ export class IBMiTestRunner {
 
                 break;
             case 'metrics':
-                const totalTests = this.metrics.testsFailed + this.metrics.testsPassed + this.metrics.testsErrored;
+                const totalTests = this.metrics.testCasesFailed + this.metrics.testCasesPassed + this.metrics.testCasesErrored;
 
                 // Format text with ansi colors
-                const testCaseResult = `Test Cases: ${c.green(`${this.metrics.testsPassed} passed`)} | ${c.red(`${this.metrics.testsFailed} failed`)} | ${c.yellow(`${this.metrics.testsErrored} errored`)} (${totalTests})`;
+                const testCaseResult = `Test Cases: ${c.green(`${this.metrics.testCasesPassed} passed`)} | ${c.red(`${this.metrics.testCasesFailed} failed`)} | ${c.yellow(`${this.metrics.testCasesErrored} errored`)} (${totalTests})`;
                 const durationResult = `Duration:   ${this.metrics.duration}s`;
 
                 // Calculate box width
