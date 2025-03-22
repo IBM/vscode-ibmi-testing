@@ -234,17 +234,23 @@ export class IBMiTestRunner {
                 const isStatementCoverage = this.request.profile!.label === IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL;
 
                 for (const fileCoverage of codeCoverageResults) {
-                    // Get relative remote path to test
                     const workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
                     const deployTools = getDeployTools()!;
                     const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
-                    const relativePathToTest = path.posix.relative(deployDirectory, `/${fileCoverage.path}`);
 
-                    // Construct local path to test
-                    const localPath = path.join(workspaceFolder.uri.fsPath, relativePathToTest);
-                    const localUri = Uri.file(localPath);
+                    let uri: Uri;
+                    if (fileCoverage.path.startsWith(deployDirectory)) {
+                        // Get relative remote path to test
+                        const relativePathToTest = path.posix.relative(deployDirectory, `/${fileCoverage.path}`);
 
-                    run.addCoverage(new IBMiFileCoverage(localUri, fileCoverage, isStatementCoverage));
+                        // Construct local path to test
+                        const localPath = path.join(workspaceFolder.uri.fsPath, relativePathToTest);
+                        uri = Uri.file(localPath);
+                    } else {
+                        uri = Uri.file(fileCoverage.localPath);
+                    }
+
+                    run.addCoverage(new IBMiFileCoverage(uri, fileCoverage, isStatementCoverage));
                 }
             }
         }
