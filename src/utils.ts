@@ -26,7 +26,7 @@ export namespace Utils {
         // We start the system name with the suppliedPrefix
         let systemName = prefix;
 
-        for (let i = 0; i < name.length && systemName.length <= 10; i++) {
+        for (let i = 0; i < name.length && systemName.length < 10; i++) {
             const char = name[i];
             if (char === char.toUpperCase() || i === 0) {
                 systemName += char;
