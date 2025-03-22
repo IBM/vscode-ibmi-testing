@@ -6,6 +6,7 @@ import { IBMiTestRunner } from "./runner";
 import { TestDirectory } from "./testDirectory";
 import { Logger } from "./outputChannel";
 import { IBMiFileCoverage } from "./fileCoverage";
+import { IBMiTestStorage } from "./storage";
 import { CodeCoverage } from "./codeCoverage";
 
 export type IBMiTestData = TestDirectory | TestFile | TestCase;
@@ -86,7 +87,7 @@ export class IBMiTestManager {
             })
         );
 
-        IBMiTestRunner.setupTestStorage();
+        IBMiTestStorage.setupTestStorage();
         CodeCoverage.setupCodeCoverage();
     }
 
