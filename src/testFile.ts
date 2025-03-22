@@ -9,6 +9,7 @@ import * as path from "path";
 import { ConfigHandler } from "./config";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
 import { Logger } from "./outputChannel";
+import { Utils } from "./utils";
 
 export class TestFile {
     static RPGLE_TEST_CASE_REGEX = /^TEST.*$/i;
@@ -98,13 +99,18 @@ export class TestFile {
             const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
             srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
-            const tstPgmName = this.item.label
+            const originalTstPgmName = this.item.label
                 .replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), '')
                 .replace(new RegExp(IBMiTestManager.SQLRPGLE_TEST_SUFFIX, 'i'), '')
                 .replace(new RegExp(IBMiTestManager.COBOL_TEST_SUFFIX, 'i'), '')
                 .replace(new RegExp(IBMiTestManager.SQLCOBOL_TEST_SUFFIX, 'i'), '')
                 .toLocaleUpperCase();
-            tstPgm = { name: tstPgmName, library: config.currentLibrary };
+            const tstPgmName = Utils.getSystemName(originalTstPgmName);
+            if (tstPgmName !== originalTstPgmName) {
+                Logger.getInstance().log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
+            }
+
+            tstPgm = { library: config.currentLibrary, name: tstPgmName };
             testingConfig = await ConfigHandler.getLocalConfig(this.item.uri!);
         } else {
             const parsedPath = connection.parserMemberPath(this.item.uri!.path);
@@ -143,7 +149,7 @@ export class TestFile {
         }
 
         // Set DBGVIEW to *SOURCE by default for code coverage to get proper line numbers
-        if(!compileParams.dbgView) {
+        if (!compileParams.dbgView) {
             compileParams.dbgView = "*SOURCE";
         }
 

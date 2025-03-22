@@ -13,6 +13,7 @@ import { CodeCoverage } from "./codeCoverage";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { IBMiTestStorage } from "./storage";
 import c from "ansi-colors";
+import { Utils } from "./utils";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
@@ -215,12 +216,13 @@ export class IBMiTestRunner {
             isTestCase ?
                 item.parent!.label :
                 item.label;
-        programName = programName
+        const originalProgramName = programName
             .replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), '')
             .replace(new RegExp(IBMiTestManager.SQLRPGLE_TEST_SUFFIX, 'i'), '')
             .replace(new RegExp(IBMiTestManager.COBOL_TEST_SUFFIX, 'i'), '')
             .replace(new RegExp(IBMiTestManager.SQLCOBOL_TEST_SUFFIX, 'i'), '')
             .toLocaleUpperCase();
+        programName = Utils.getSystemName(originalProgramName);
 
         const tstpgm = `${library}/${programName}`;
         const tstprc = isTestCase ? item.label : undefined;
