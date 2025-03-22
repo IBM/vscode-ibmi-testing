@@ -1,21 +1,20 @@
-import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri } from "vscode";
+import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position } from "vscode";
 import { IBMiTestData, IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
 import * as path from "path";
 import { parseStringPromise } from "xml2js";
-import { CODECOV, RUCALLTST, TestQueue, TestStorage } from "./types";
+import { CODECOV, RUCALLTST, TestQueue } from "./types";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
 import { TestCase } from "./testCase";
 import { TestDirectory } from "./testDirectory";
 import { Logger } from "./outputChannel";
 import { CodeCoverage } from "./codeCoverage";
 import { IBMiFileCoverage } from "./fileCoverage";
+import { IBMiTestStorage } from "./storage";
+import c from "ansi-colors";
 
 export class IBMiTestRunner {
-    private static TEST_OUTPUT_DIRECTORY: string = 'vscode-ibmi-testing';
-    private static RPGUNIT_DIRECTORY: string = `RPGUNIT`;
-    private static CODECOV_DIRECTORY: string = `CODECOV`;
     private manager: IBMiTestManager;
     private request: TestRunRequest;
     private token: CancellationToken; // TODO: This is should be accounted for during test execution
@@ -43,6 +42,7 @@ export class IBMiTestRunner {
             await this.processRequest(requestItem, run, queue);
         }
 
+        Logger.getInstance().log(LogLevel.Info, `${queue.length} test item(s) queued: ${queue.map((item) => item.item.label).join(', ')}`);
         return queue;
     }
 
@@ -64,7 +64,12 @@ export class IBMiTestRunner {
         } else if (data instanceof TestFile) {
             // Request is a test file so load data and add to queue
             await data.load();
-            queue.push({ item, data });
+
+            if (data.item.children.size !== 0) {
+                queue.push({ item, data });
+            } else {
+                Logger.getInstance().log(LogLevel.Warning, `Test file ${data.item.label} not queued (no test cases found)`);
+            }
         } else if (data instanceof TestCase) {
             // Request is a test case so add to queue
             queue.push({ item, data });
@@ -79,7 +84,6 @@ export class IBMiTestRunner {
 
         // Get test queue
         const queue: { item: TestItem, data: IBMiTestData }[] = await this.getTestQueue(run);
-        Logger.getInstance().log(LogLevel.Info, `${queue.length} test item(s) queued: ${queue.map((item) => item.item.label).join(', ')}`);
 
         const attemptedDeployments: { workspaceItem: TestItem, isDeployed: boolean }[] = [];
         const compiledTestFileItems: TestItem[] = [];
@@ -92,26 +96,45 @@ export class IBMiTestRunner {
             const workspaceFolder = workspace.getWorkspaceFolder(testFileData.workspaceItem.uri!);
             let attempt = attemptedDeployments.find((attempt) => attempt.workspaceItem.uri?.toString() === workspaceFolder!.uri.toString());
             if (!attempt) {
-                IBMiTestRunner.updateTestRunStatus(run, 'workspaceFolder', { item: testFileData.workspaceItem });
+                IBMiTestRunner.updateTestRunStatus(run, 'workspaceFolder', {
+                    item: testFileData.workspaceItem
+                });
 
                 const deployTools = getDeployTools();
                 const deployResult = await deployTools!.launchDeploy(workspaceFolder!.index);
                 attempt = { workspaceItem: testFileData.workspaceItem, isDeployed: deployResult ? true : false };
                 attemptedDeployments.push(attempt);
-                IBMiTestRunner.updateTestRunStatus(run, 'deployment', { item: testFileData.workspaceItem, success: deployResult ? true : false });
+                IBMiTestRunner.updateTestRunStatus(run, 'deployment', {
+                    item: testFileData.workspaceItem,
+                    success: deployResult ? true : false
+                });
             }
 
             // Error out children if workspace folder not deployed
             // TODO: Fix test file name and directory not being displayed in test results view
             if (!attempt.isDeployed) {
+                IBMiTestRunner.updateTestRunStatus(run, 'testFile', {
+                    item: testFileItem
+                });
+                IBMiTestRunner.updateTestRunStatus(run, 'compilation', {
+                    item: testFileItem,
+                    status: 'skipped'
+                });
+
                 if (data instanceof TestFile) {
                     item.children.forEach((childItem) => {
                         if (!this.request.exclude?.includes(childItem)) {
-                            IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: childItem, errored: true, messages: ['Source must be deployed'] });
+                            IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                                item: childItem,
+                                status: 'errored'
+                            });
                         }
                     });
                 } else {
-                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: item, errored: true, messages: ['Source must be deployed'] });
+                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                        item: item,
+                        status: 'errored'
+                    });
                 }
 
                 continue;
@@ -120,10 +143,15 @@ export class IBMiTestRunner {
             // Compile test file if not already compiled
             const compiledTestFileItem = compiledTestFileItems.find((testFile) => testFile.id === testFileItem.id);
             if (!compiledTestFileItem) {
-                IBMiTestRunner.updateTestRunStatus(run, 'testFile', { item: testFileItem });
+                IBMiTestRunner.updateTestRunStatus(run, 'testFile', {
+                    item: testFileItem
+                });
 
                 if (testFileData.isCompiled) {
-                    IBMiTestRunner.updateTestRunStatus(run, 'compilation', { item: testFileItem, skipped: true });
+                    IBMiTestRunner.updateTestRunStatus(run, 'compilation', {
+                        item: testFileItem,
+                        status: 'skipped'
+                    });
                 } else {
                     await testFileData.compileMember(run);
                     compiledTestFileItems.push(testFileItem);
@@ -135,11 +163,17 @@ export class IBMiTestRunner {
                 if (data instanceof TestFile) {
                     item.children.forEach((childItem) => {
                         if (!this.request.exclude?.includes(childItem)) {
-                            IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: childItem, errored: true, messages: ['Source must be compiled'] });
+                            IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                                item: childItem,
+                                status: 'errored'
+                            });
                         }
                     });
                 } else {
-                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: item, errored: true, messages: ['Source must be compiled'] });
+                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                        item: item,
+                        status: 'errored'
+                    });
                 }
 
                 continue;
@@ -155,7 +189,15 @@ export class IBMiTestRunner {
         }
 
         // TODO: Add metrics
-        IBMiTestRunner.updateTestRunStatus(run, 'metrics', { numSuitesPassed: 0, numSuites: 0, numTestsPassed: 0, numTests: 0, duration: 0 });
+        IBMiTestRunner.updateTestRunStatus(run, 'metrics', {
+            testFilesPassed: 0,
+            testFilesFailed: 0,
+            testFilesErroed: 0,
+            testsPassed: 0,
+            testsFailed: 0,
+            testsErrored: 0,
+            duration: 0
+        });
 
         run.end();
     }
@@ -182,7 +224,7 @@ export class IBMiTestRunner {
 
         const tstpgm = `${library}/${programName}`;
         const tstprc = isTestCase ? item.label : undefined;
-        const testStorage = IBMiTestRunner.getTestStorage(`${programName}${tstprc ? `_${tstprc}` : ``}`);
+        const testStorage = IBMiTestStorage.getTestStorage(`${programName}${tstprc ? `_${tstprc}` : ``}`);
         Logger.getInstance().log(LogLevel.Info, `Test storage for ${item.label}: ${JSON.stringify(testStorage)}`);
         const xmlStmf = testStorage.RPGUNIT;
 
@@ -249,17 +291,24 @@ export class IBMiTestRunner {
             }
         }
 
-        // TODO: Can we get an interface for the xml?
         let xml: any | undefined;
         try {
             const xmlStmfContent = (await content.downloadStreamfileRaw(testParams.xmlStmf));
             xml = await parseStringPromise(xmlStmfContent);
         } catch (error: any) {
             if (isTestCase) {
-                IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: item, errored: true, messages: ['Failed to parse XML test file results'] });
+                IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                    item: item,
+                    status: 'errored',
+                    messages: ['Failed to parse XML test file results']
+                });
             } else {
                 item.children.forEach((childItem) => {
-                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: childItem, errored: true, messages: ['Failed to parse XML test file results'] });
+                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                        item: childItem,
+                        status: 'errored',
+                        messages: ['Failed to parse XML test file results']
+                    });
                 });
             }
 
@@ -267,125 +316,153 @@ export class IBMiTestRunner {
             return;
         }
 
-        // TODO: How to get actual and expected value for failed test cases to show diff style output message
         xml.testsuite.testcase.forEach((testcase: any) => {
-            const duration: number = 0;// TODO: Get duration from XML
+            const duration: number = parseFloat(testcase.$.time);
 
-            let mappedItem: TestItem;
-            if (isTestCase) {
-                mappedItem = item;
-            } else {
-                mappedItem = item.children.get(`${item.uri}/${testcase.$.name.toLocaleUpperCase()}`)!;
-            }
+            const testCaseName = testcase.$.name.toLocaleUpperCase();
+            const parentItem = isTestCase ? item.parent! : item;
+            const mappedItem = parentItem.children.get(`${item.uri}/${testCaseName}`)!;
 
-            // TODO: Need to handle test case errors
-            if (testcase.failure) {
-                IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: mappedItem, failed: true, duration: duration, messages: testcase.failure.map((failure: any) => failure.$.message) });
+            if (testcase.failure || testcase.error) {
+                const messages: { line?: number, message: string }[] = [];
+
+                if (testcase.failure) {
+                    testcase.failure.forEach((failure: any) => {
+                        const match = failure._.match(/:(\d+)\)/);
+                        const line = match ? parseInt(match[1]) : undefined;
+
+                        messages.push({
+                            line: line,
+                            message: failure.$.type ? `${failure.$.type}: ${failure.$.message}` : failure.$.message
+                        });
+                    });
+                }
+
+                if (testcase.error) {
+                    testcase.error.forEach((error: any) => {
+                        const match = error._.match(/:(\d+)\)/);
+                        const errorLine = match ? parseInt(match[1]) : undefined;
+
+                        messages.push({
+                            line: errorLine,
+                            message: error.$.type ? `${error.$.type}: ${error.$.message}` : error.$.message
+                        });
+                    });
+                }
+
+                IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                    item: mappedItem,
+                    status: testcase.error ? 'errored' : 'failed',
+                    duration: duration,
+                    messages: messages,
+                    fallbackTestFile: parentItem,
+                    fallBackTestCaseName: testCaseName
+                });
             } else {
-                IBMiTestRunner.updateTestRunStatus(run, 'testCase', { item: mappedItem, success: true, duration: duration });
+                IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                    item: mappedItem,
+                    status: 'passed',
+                    duration: duration
+                });
             }
         });
-    }
-
-    static async setupTestStorage(): Promise<void> {
-        // Setup test output directory
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-        const config = connection.getConfig();
-        const testStorage = [
-            `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.RPGUNIT_DIRECTORY}`,
-            `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.CODECOV_DIRECTORY}`
-        ];
-        for (const storage of testStorage) {
-            await connection.sendCommand({ command: `mkdir -p ${storage}` });
-        }
-    }
-
-    static getTestStorage(prefix: string): TestStorage {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-        const config = connection.getConfig();
-
-        const time = new Date().getTime();
-
-        return {
-            RPGUNIT: `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.RPGUNIT_DIRECTORY}/${prefix}_${time}.xml`,
-            CODECOV: `${config.tempDir}/${IBMiTestRunner.TEST_OUTPUT_DIRECTORY}/${IBMiTestRunner.CODECOV_DIRECTORY}/${prefix}_${time}.cczip`
-        };
     }
 
     // TODO: Fix data to have a type instead of any
     static updateTestRunStatus(run: TestRun, type: 'workspaceFolder' | 'testFile' | 'deployment' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
         switch (type) {
             case 'workspaceFolder':
-                run.appendOutput(data.item.label);
+                run.appendOutput(`${c.bgBlue(` WORKSPACE `)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);
                 Logger.getInstance().log(LogLevel.Info, `Deploying ${data.item.label}`);
                 break;
             case 'testFile':
-                run.appendOutput(data.item.label);
+                run.appendOutput(`${c.blue(`❯`)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);
                 break;
             case 'deployment':
                 if (data.success) {
-                    run.appendOutput(` (Deployment Successful)\r\n`);
+                    run.appendOutput(` ${c.grey(`[ Deployment Successful ]`)}\r\n`);
                     Logger.getInstance().log(LogLevel.Info, `Successfully deployed ${data.item.label}`);
                 } else {
-                    run.appendOutput(` (Deployment Failed)\r\n`);
+                    run.appendOutput(` ${c.red(`[ Deployment Failed ]`)}\r\n`);
                     Logger.getInstance().log(LogLevel.Error, `Failed to deploy ${data.item.label}`);
                 }
                 break;
             case 'compilation':
-                if (data.success) {
-                    run.appendOutput(` (Compilation Successful)\r\n`);
+                if (data.status === 'success') {
+                    run.appendOutput(` ${c.grey(`[ Compilation Successful ]`)}\r\n`);
                     Logger.getInstance().log(LogLevel.Info, `Successfully compiled ${data.item.label}`);
-                } else if (data.failed) {
-                    run.appendOutput(` (Compilation Failed)\r\n`);
+                } else if (data.status === 'failed') {
+                    run.appendOutput(` ${c.red(`[ Compilation Failed ]`)}\r\n`);
                     Logger.getInstance().log(LogLevel.Error, `Failed to compile ${data.item.label}`);
-                } else if (data.skipped) {
-                    run.appendOutput(` (Compilation Skipped)\r\n`);
+                } else if (data.status === 'skipped') {
+                    run.appendOutput(` ${c.grey(`[ Compilation Skipped ]`)}\r\n`);
                     Logger.getInstance().log(LogLevel.Warning, `Skipped compilation for ${data.item.label}`);
                 }
                 if (data.messages) {
                     for (const message of data.messages) {
-                        run.appendOutput(`\t• ${message}\r\n`);
+                        run.appendOutput(`\t${c.red(`${message}`)}\r\n`);
                     }
                 }
                 break;
             case 'testCase':
-                if (data.success) {
-                    run.passed(data.item, data.duration);
-                    run.appendOutput(`\t✔ ${data.item.label} (${data.duration}ms)\r\n`);
-                    Logger.getInstance().log(LogLevel.Info, `Test case ${data.item.label} passed in ${data.duration}ms`);
-                } else if (data.failed) {
-                    const testMessage = new TestMessage(data.messages.join('. '));
-                    testMessage.expectedOutput = data.messages.join('. '); // TODO: Fix this to show proper actual and expected values
-                    testMessage.location = new Location(data.item.uri!, data.item.range!);
-                    run.failed(data.item, testMessage, data.duration);
-                    run.appendOutput(`\t✘ ${data.item.label} (${data.duration}ms)\r\n`);
-                    for (const message of data.messages) {
-                        run.appendOutput(`\t\t• ${message}\r\n`);
+                if (data.status === 'passed') {
+                    run.passed(data.item, data.duration * 1000);
+                    run.appendOutput(`\t${c.green(`✔`)}  ${data.item.label} ${c.grey(`${data.duration}s`)}\r\n`);
+                    Logger.getInstance().log(LogLevel.Info, `Test case ${data.item.label} passed in ${data.duration}s`);
+                } else if (data.status === 'failed') {
+                    run.appendOutput(`\t${c.red(`✘`)}  ${data.item?.label || data.fallBackTestCaseName} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
+
+                    const testMessages: TestMessage[] = [];
+                    if (data.messages) {
+                        for (const messageData of data.messages) {
+                            run.appendOutput(`\t\t${c.red(`${c.bold(`Failure:`)} ${messageData.message}`)}\r\n`);
+
+                            const testMessage = new TestMessage(messageData.message);
+                            const range = messageData.line ? new Position(messageData.line - 1, 0) : data.item?.range;
+                            testMessage.location = range ? new Location(data.item?.uri || data.fallbackTestFile.uri, range) : undefined;
+                            testMessages.push(testMessage);
+                        }
                     }
-                    Logger.getInstance().log(LogLevel.Error, `Test case ${data.item.label} failed in ${data.duration}ms`);
-                } else if (data.errored) {
-                    const testMessage = new TestMessage(data.messages.join('. '));
-                    testMessage.expectedOutput = data.messages.join('. ');
-                    testMessage.location = new Location(data.item.uri!, data.item.range!);
-                    run.errored(data.item, testMessage);
-                    run.appendOutput(`\t⚠ ${data.item.label}\r\n`);
-                    for (const message of data.messages) {
-                        run.appendOutput(`\t\t• ${message}\r\n`);
+
+                    if (data.item) {
+                        run.failed(data.item, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
+                        Logger.getInstance().log(LogLevel.Error, `Test case ${data.item.label} failed${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
+                    } else {
+                        run.failed(data.fallbackTestFile, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
                     }
-                    Logger.getInstance().log(LogLevel.Error, `Test case ${data.item.label} errored`);
-                } else if (data.skipped) {
-                    run.skipped(data.item);
-                    run.appendOutput(`\t⊘ ${data.item.label}\r\n`);
-                    Logger.getInstance().log(LogLevel.Warning, `Test case ${data.item.label} skipped`);
+                } else if (data.status === 'errored') {
+                    run.appendOutput(`\t${c.yellow(`⚠`)}  ${data.item?.label || data.fallBackTestCaseName} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
+
+                    const testMessages: TestMessage[] = [];
+                    if (data.messages) {
+                        for (const messageData of data.messages) {
+                            run.appendOutput(`\t\t${c.yellow(`${c.bold(`Error:`)} ${messageData.message}`)}\r\n`);
+
+                            const testMessage = new TestMessage(messageData.message);
+                            const range = messageData.line ? new Position(messageData.line - 1, 0) : data.item?.range;
+                            testMessage.location = range ? new Location(data.item?.uri || data.fallbackTestFile.uri, range) : undefined;
+                            testMessages.push(testMessage);
+                        }
+                    }
+
+                    if (data.item) {
+                        run.errored(data.item, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
+                        Logger.getInstance().log(LogLevel.Error, `Test case ${data.item.label} errored${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
+                    } else {
+                        run.errored(data.fallbackTestFile, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
+                    }
                 }
                 break;
             case 'metrics':
+                const totalTestFiles = data.testFilesFailed + data.testFilesPassed + data.testFilesErroed;
+                const totalTests = data.testsFailed + data.testsPassed + data.testsErrored;
+
                 run.appendOutput(`\r\n`);
-                run.appendOutput(`Test Suites: ${data.numSuitesPassed} passed, ${data.numSuites} total\r\n`);
-                run.appendOutput(`Tests:       ${data.numTestsPassed} passed, ${data.numTests} total\r\n`);
-                run.appendOutput(`Duration:    ${data.duration}s\r\n`);
+                run.appendOutput(c.blue(`┌─────────────────────────────────────────────────┐\r\n`));
+                run.appendOutput(`${c.blue(`│`)} Test Files: ${c.green(`${data.testFilesPassed} passed`)} | ${c.red(`${data.testFilesFailed} failed`)} | ${c.yellow(`${data.testFilesErroed} errored`)} (${totalTestFiles}) ${c.blue(`│`)}\r\n`);
+                run.appendOutput(`${c.blue(`│`)} Tests:      ${c.green(`${data.testsPassed} passed`)} | ${c.red(`${data.testsFailed} failed`)} | ${c.yellow(`${data.testsErrored} errored`)} (${totalTests}) ${c.blue(`│`)}\r\n`);
+                run.appendOutput(`${c.blue(`│`)} Duration:   ${data.duration}s                                  ${c.blue(`│`)}\r\n`);
+                run.appendOutput(c.blue(`└─────────────────────────────────────────────────┘`));
         }
     }
 }

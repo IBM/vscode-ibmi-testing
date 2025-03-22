@@ -11,7 +11,7 @@ import { Configuration, defaultConfigurations, Section } from "./configuration";
 import { Logger } from "./outputChannel";
 
 export class TestFile {
-    static RPGLE_TEST_CASE_REGEX = /^TEST.+$/i;
+    static RPGLE_TEST_CASE_REGEX = /^TEST.*$/i;
     static COBOL_TEST_CASE_REGEX = /^PROGRAM-ID\. +(TEST.+)$/i;
     static textDecoder = new TextDecoder('utf-8');
     item: TestItem;
@@ -96,11 +96,7 @@ export class TestFile {
             // Construct remote path to test
             const deployTools = getDeployTools()!;
             const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
-            if (deployDirectory) {
-                srcStmf = path.posix.join(deployDirectory, relativePathToTest);
-            } else {
-                IBMiTestRunner.updateTestRunStatus(run, 'deployment', { result: 'Deploy Location Not Set' });
-            }
+            srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
             const tstPgmName = this.item.label
                 .replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), '')
@@ -157,10 +153,17 @@ export class TestFile {
         }
 
         if (compileResult.code === 0) {
-            IBMiTestRunner.updateTestRunStatus(run, 'compilation', { item: this.item, success: true });
+            IBMiTestRunner.updateTestRunStatus(run, 'compilation', {
+                item: this.item,
+                status: 'success'
+            });
             this.isCompiled = true;
         } else {
-            IBMiTestRunner.updateTestRunStatus(run, 'compilation', { item: this.item, failed: true, messages: compileResult.stderr.split('\n') });
+            IBMiTestRunner.updateTestRunStatus(run, 'compilation', {
+                item: this.item,
+                status: 'failed',
+                messages: compileResult.stderr.split('\n')
+            });
         }
     }
 }

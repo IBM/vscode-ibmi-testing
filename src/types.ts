@@ -8,6 +8,24 @@ export interface TestStorage {
     CODECOV: string
 };
 
+interface TestRunMetrics {
+    testFilesPassed: number,
+    testFilesFailed: number,
+    testFilesErroed: number,
+    testsPassed: number,
+    testsFailed: number,
+    testsErrored: number,
+    duration: number
+}
+
+export type CompilationStatus = 'success' | 'failed' | 'skipped';
+export type TestStatus = 'passed' | 'failed' | 'errored';
+
+export interface TestCaseMetrics {
+    assertions: number,
+    time: number
+}
+
 export interface TestingConfig {
     RUCRTRPG?: RUCRTRPG,
     RUCRTCBL?: RUCRTCBL
