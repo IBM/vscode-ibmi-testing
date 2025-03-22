@@ -6,6 +6,7 @@ import { IBMiTestRunner } from "./runner";
 import { TestDirectory } from "./testDirectory";
 import { Logger } from "./outputChannel";
 import { IBMiFileCoverage } from "./fileCoverage";
+import { IBMiTestStorage } from "./storage";
 
 export type IBMiTestData = TestDirectory | TestFile | TestCase;
 
@@ -85,7 +86,7 @@ export class IBMiTestManager {
             })
         );
 
-        IBMiTestRunner.setupTestStorage();
+        IBMiTestStorage.setupTestStorage();
     }
 
     private getWorkspaceTestPatterns(): { workspaceFolder: WorkspaceFolder; pattern: RelativePattern; }[] {
