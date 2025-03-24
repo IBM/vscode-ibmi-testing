@@ -3,27 +3,20 @@ import { IBMiTestData } from "./manager";
 
 export type TestQueue = { item: TestItem, data: IBMiTestData }[];
 
+export type CompilationStatus = 'success' | 'failed' | 'skipped';
+
+export type TestStatus = 'passed' | 'failed' | 'errored';
+
 export interface TestStorage {
     RPGUNIT: string,
     CODECOV: string
 };
 
-interface TestRunMetrics {
-    testFilesPassed: number,
-    testFilesFailed: number,
-    testFilesErroed: number,
-    testsPassed: number,
-    testsFailed: number,
-    testsErrored: number,
+export interface TestMetrics {
+    testCasesPassed: number,
+    testCasesFailed: number,
+    testCasesErrored: number,
     duration: number
-}
-
-export type CompilationStatus = 'success' | 'failed' | 'skipped';
-export type TestStatus = 'passed' | 'failed' | 'errored';
-
-export interface TestCaseMetrics {
-    assertions: number,
-    time: number
 }
 
 export interface TestingConfig {

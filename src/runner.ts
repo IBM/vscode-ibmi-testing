@@ -4,7 +4,7 @@ import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
 import * as path from "path";
 import { parseStringPromise } from "xml2js";
-import { CODECOV, RUCALLTST, TestQueue } from "./types";
+import { CODECOV, RUCALLTST, TestQueue, TestMetrics } from "./types";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
 import { TestCase } from "./testCase";
 import { TestDirectory } from "./testDirectory";
@@ -18,12 +18,19 @@ import { Utils } from "./utils";
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
     private request: TestRunRequest;
+    private metrics: TestMetrics;
     private token: CancellationToken; // TODO: This is should be accounted for during test execution
 
     constructor(manager: IBMiTestManager, request: TestRunRequest, token: CancellationToken) {
         this.manager = manager;
         this.request = request;
         this.token = token;
+        this.metrics = {
+            testCasesPassed: 0,
+            testCasesFailed: 0,
+            testCasesErrored: 0,
+            duration: 0
+        };
     }
 
     async getTestQueue(run: TestRun): Promise<TestQueue> {
@@ -97,7 +104,7 @@ export class IBMiTestRunner {
             const workspaceFolder = workspace.getWorkspaceFolder(testFileData.workspaceItem.uri!);
             let attempt = attemptedDeployments.find((attempt) => attempt.workspaceItem.uri?.toString() === workspaceFolder!.uri.toString());
             if (!attempt) {
-                IBMiTestRunner.updateTestRunStatus(run, 'workspaceFolder', {
+                this.updateTestRunStatus(run, 'workspaceFolder', {
                     item: testFileData.workspaceItem
                 });
 
@@ -105,7 +112,7 @@ export class IBMiTestRunner {
                 const deployResult = await deployTools!.launchDeploy(workspaceFolder!.index);
                 attempt = { workspaceItem: testFileData.workspaceItem, isDeployed: deployResult ? true : false };
                 attemptedDeployments.push(attempt);
-                IBMiTestRunner.updateTestRunStatus(run, 'deployment', {
+                this.updateTestRunStatus(run, 'deployment', {
                     item: testFileData.workspaceItem,
                     success: deployResult ? true : false
                 });
@@ -114,10 +121,10 @@ export class IBMiTestRunner {
             // Error out children if workspace folder not deployed
             // TODO: Fix test file name and directory not being displayed in test results view
             if (!attempt.isDeployed) {
-                IBMiTestRunner.updateTestRunStatus(run, 'testFile', {
+                this.updateTestRunStatus(run, 'testFile', {
                     item: testFileItem
                 });
-                IBMiTestRunner.updateTestRunStatus(run, 'compilation', {
+                this.updateTestRunStatus(run, 'compilation', {
                     item: testFileItem,
                     status: 'skipped'
                 });
@@ -125,14 +132,14 @@ export class IBMiTestRunner {
                 if (data instanceof TestFile) {
                     item.children.forEach((childItem) => {
                         if (!this.request.exclude?.includes(childItem)) {
-                            IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                            this.updateTestRunStatus(run, 'testCase', {
                                 item: childItem,
                                 status: 'errored'
                             });
                         }
                     });
                 } else {
-                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                    this.updateTestRunStatus(run, 'testCase', {
                         item: item,
                         status: 'errored'
                     });
@@ -144,17 +151,17 @@ export class IBMiTestRunner {
             // Compile test file if not already compiled
             const compiledTestFileItem = compiledTestFileItems.find((testFile) => testFile.id === testFileItem.id);
             if (!compiledTestFileItem) {
-                IBMiTestRunner.updateTestRunStatus(run, 'testFile', {
+                this.updateTestRunStatus(run, 'testFile', {
                     item: testFileItem
                 });
 
                 if (testFileData.isCompiled) {
-                    IBMiTestRunner.updateTestRunStatus(run, 'compilation', {
+                    this.updateTestRunStatus(run, 'compilation', {
                         item: testFileItem,
                         status: 'skipped'
                     });
                 } else {
-                    await testFileData.compileMember(run);
+                    await testFileData.compileMember(this, run);
                     compiledTestFileItems.push(testFileItem);
                 }
             }
@@ -164,14 +171,14 @@ export class IBMiTestRunner {
                 if (data instanceof TestFile) {
                     item.children.forEach((childItem) => {
                         if (!this.request.exclude?.includes(childItem)) {
-                            IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                            this.updateTestRunStatus(run, 'testCase', {
                                 item: childItem,
                                 status: 'errored'
                             });
                         }
                     });
                 } else {
-                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                    this.updateTestRunStatus(run, 'testCase', {
                         item: item,
                         status: 'errored'
                     });
@@ -189,17 +196,7 @@ export class IBMiTestRunner {
             }
         }
 
-        // TODO: Add metrics
-        IBMiTestRunner.updateTestRunStatus(run, 'metrics', {
-            testFilesPassed: 0,
-            testFilesFailed: 0,
-            testFilesErroed: 0,
-            testsPassed: 0,
-            testsFailed: 0,
-            testsErrored: 0,
-            duration: 0
-        });
-
+        this.updateTestRunStatus(run, 'metrics');
         run.end();
     }
 
@@ -305,14 +302,14 @@ export class IBMiTestRunner {
             xml = await parseStringPromise(xmlStmfContent);
         } catch (error: any) {
             if (isTestCase) {
-                IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                this.updateTestRunStatus(run, 'testCase', {
                     item: item,
                     status: 'errored',
                     messages: ['Failed to parse XML test file results']
                 });
             } else {
                 item.children.forEach((childItem) => {
-                    IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                    this.updateTestRunStatus(run, 'testCase', {
                         item: childItem,
                         status: 'errored',
                         messages: ['Failed to parse XML test file results']
@@ -358,7 +355,7 @@ export class IBMiTestRunner {
                     });
                 }
 
-                IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                this.updateTestRunStatus(run, 'testCase', {
                     item: mappedItem,
                     status: testcase.error ? 'errored' : 'failed',
                     duration: duration,
@@ -367,7 +364,7 @@ export class IBMiTestRunner {
                     fallBackTestCaseName: testCaseName
                 });
             } else {
-                IBMiTestRunner.updateTestRunStatus(run, 'testCase', {
+                this.updateTestRunStatus(run, 'testCase', {
                     item: mappedItem,
                     status: 'passed',
                     duration: duration
@@ -377,7 +374,7 @@ export class IBMiTestRunner {
     }
 
     // TODO: Fix data to have a type instead of any
-    static updateTestRunStatus(run: TestRun, type: 'workspaceFolder' | 'testFile' | 'deployment' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
+    public updateTestRunStatus(run: TestRun, type: 'workspaceFolder' | 'testFile' | 'deployment' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
         switch (type) {
             case 'workspaceFolder':
                 run.appendOutput(`${c.bgBlue(` WORKSPACE `)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);
@@ -414,11 +411,17 @@ export class IBMiTestRunner {
                 break;
             case 'testCase':
                 if (data.status === 'passed') {
+                    this.metrics.testCasesPassed++;
                     run.passed(data.item, data.duration * 1000);
                     run.appendOutput(`\t${c.green(`✔`)}  ${data.item.label} ${c.grey(`${data.duration}s`)}\r\n`);
                     Logger.getInstance().log(LogLevel.Info, `Test case ${data.item.label} passed in ${data.duration}s`);
                 } else if (data.status === 'failed') {
-                    run.appendOutput(`\t${c.red(`✘`)}  ${data.item?.label || data.fallBackTestCaseName} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
+                    if (data.item?.label) {
+                        this.metrics.testCasesFailed++;
+                        run.appendOutput(`\t${c.red(`✘`)}  ${data.item?.label} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
+                    } else {
+                        run.appendOutput(`\t${c.red(`✘`)}  ${data.fallBackTestCaseName} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
+                    }
 
                     const testMessages: TestMessage[] = [];
                     if (data.messages) {
@@ -439,7 +442,12 @@ export class IBMiTestRunner {
                         run.failed(data.fallbackTestFile, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
                     }
                 } else if (data.status === 'errored') {
-                    run.appendOutput(`\t${c.yellow(`⚠`)}  ${data.item?.label || data.fallBackTestCaseName} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
+                    if (data.item?.label) {
+                        this.metrics.testCasesErrored++;
+                        run.appendOutput(`\t${c.yellow(`⚠`)}  ${data.item?.label} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
+                    } else {
+                        run.appendOutput(`\t${c.yellow(`⚠`)}  ${data.fallBackTestCaseName} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
+                    }
 
                     const testMessages: TestMessage[] = [];
                     if (data.messages) {
@@ -460,17 +468,41 @@ export class IBMiTestRunner {
                         run.errored(data.fallbackTestFile, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
                     }
                 }
+
+                if (data.duration !== undefined) {
+                    this.metrics.duration += data.duration;
+                }
+
                 break;
             case 'metrics':
-                const totalTestFiles = data.testFilesFailed + data.testFilesPassed + data.testFilesErroed;
-                const totalTests = data.testsFailed + data.testsPassed + data.testsErrored;
+                const totalTests = this.metrics.testCasesFailed + this.metrics.testCasesPassed + this.metrics.testCasesErrored;
 
+                // Format text with ansi colors
+                const testCaseResult = `Test Cases: ${c.green(`${this.metrics.testCasesPassed} passed`)} | ${c.red(`${this.metrics.testCasesFailed} failed`)} | ${c.yellow(`${this.metrics.testCasesErrored} errored`)} (${totalTests})`;
+                const durationResult = `Duration:   ${this.metrics.duration}s`;
+
+                // Calculate box width
+                const maxContentWidth = Math.max(c.stripColor(testCaseResult).length, c.stripColor(durationResult).length);
+                const boxWidth = maxContentWidth + 2;
+
+                // Generate dynamic border
+                const borderTop = c.blue(`┌${'─'.repeat(boxWidth)}┐`);
+                const borderBottom = c.blue(`└${'─'.repeat(boxWidth)}┘`);
+
+                // Add padding to line
+                function addPadding(content: string): string {
+                    const plainTextLength = c.stripColor(content).length;
+                    const padding = maxContentWidth - plainTextLength;
+                    return `${c.blue(`│`)} ${content}${' '.repeat(padding)} ${c.blue(`│`)}`;
+                }
+
+                // Output results
                 run.appendOutput(`\r\n`);
-                run.appendOutput(c.blue(`┌─────────────────────────────────────────────────┐\r\n`));
-                run.appendOutput(`${c.blue(`│`)} Test Files: ${c.green(`${data.testFilesPassed} passed`)} | ${c.red(`${data.testFilesFailed} failed`)} | ${c.yellow(`${data.testFilesErroed} errored`)} (${totalTestFiles}) ${c.blue(`│`)}\r\n`);
-                run.appendOutput(`${c.blue(`│`)} Tests:      ${c.green(`${data.testsPassed} passed`)} | ${c.red(`${data.testsFailed} failed`)} | ${c.yellow(`${data.testsErrored} errored`)} (${totalTests}) ${c.blue(`│`)}\r\n`);
-                run.appendOutput(`${c.blue(`│`)} Duration:   ${data.duration}s                                  ${c.blue(`│`)}\r\n`);
-                run.appendOutput(c.blue(`└─────────────────────────────────────────────────┘`));
+                run.appendOutput(`${borderTop}\r\n`);
+                run.appendOutput(`${addPadding(testCaseResult)}\r\n`);
+                run.appendOutput(`${addPadding(durationResult)}\r\n`);
+                run.appendOutput(borderBottom);
+                break;
         }
     }
 }
