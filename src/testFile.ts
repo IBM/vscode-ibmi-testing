@@ -158,7 +158,19 @@ export class TestFile {
         const compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, compileParams as any);
         Logger.getInstance().log(LogLevel.Info, `Compiling ${this.item.label}: ${compileCommand}`);
 
-        const compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
+        let compileResult: any;
+        try {
+            compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
+        } catch (error: any) {
+            runner.updateTestRunStatus(run, 'compilation', {
+                item: this.item,
+                status: 'failed',
+                messages: [error.message ? error.message : error]
+            });
+
+            return;
+        }
+
         if (compileResult.stderr.length > 0) {
             Logger.getInstance().log(LogLevel.Error, `${this.item.label} compile error(s):\n${compileResult.stderr}`);
         }

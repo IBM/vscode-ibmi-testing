@@ -129,7 +129,12 @@ export class IBMiTestRunner {
                     status: 'skipped'
                 });
 
-                if (data instanceof TestFile) {
+                if (data instanceof TestCase) {
+                    this.updateTestRunStatus(run, 'testCase', {
+                        item: item,
+                        status: 'errored'
+                    });
+                } else {
                     item.children.forEach((childItem) => {
                         if (!this.request.exclude?.includes(childItem)) {
                             this.updateTestRunStatus(run, 'testCase', {
@@ -137,11 +142,6 @@ export class IBMiTestRunner {
                                 status: 'errored'
                             });
                         }
-                    });
-                } else {
-                    this.updateTestRunStatus(run, 'testCase', {
-                        item: item,
-                        status: 'errored'
                     });
                 }
 
@@ -168,7 +168,12 @@ export class IBMiTestRunner {
 
             // Error out children if test file is not compiled
             if (!testFileData.isCompiled) {
-                if (data instanceof TestFile) {
+                if (data instanceof TestCase) {
+                    this.updateTestRunStatus(run, 'testCase', {
+                        item: item,
+                        status: 'errored'
+                    });
+                } else {
                     item.children.forEach((childItem) => {
                         if (!this.request.exclude?.includes(childItem)) {
                             this.updateTestRunStatus(run, 'testCase', {
@@ -176,11 +181,6 @@ export class IBMiTestRunner {
                                 status: 'errored'
                             });
                         }
-                    });
-                } else {
-                    this.updateTestRunStatus(run, 'testCase', {
-                        item: item,
-                        status: 'errored'
                     });
                 }
 
@@ -260,8 +260,31 @@ export class IBMiTestRunner {
         }
         Logger.getInstance().log(LogLevel.Info, `Running ${item.label}: ${testCommand}`);
 
-        // TODO: Check stdout as it looks like it has some useful information that should maybe be displayed?
-        const testResult = await connection.runCommand({ command: testCommand, environment: `ile` });
+        let testResult: any;
+        try {
+            testResult = await connection.runCommand({ command: testCommand, environment: `ile` });
+        } catch (error: any) {
+            if (isTestCase) {
+                this.updateTestRunStatus(run, 'testCase', {
+                    item: item,
+                    status: 'errored',
+                    messages: [{ message: error.message ? error.message : error }]
+                });
+            } else {
+                item.children.forEach((childItem) => {
+                    if (!this.request.exclude?.includes(childItem)) {
+                        this.updateTestRunStatus(run, 'testCase', {
+                            item: childItem,
+                            status: 'errored',
+                            messages: [{ message: error.message ? error.message : error }]
+                        });
+                    }
+                });
+            }
+
+            return;
+        }
+
         if (testResult.stdout.length > 0) {
             Logger.getInstance().log(LogLevel.Info, `${item.label} execution output:\n${testResult.stdout}`);
         }
@@ -305,19 +328,20 @@ export class IBMiTestRunner {
                 this.updateTestRunStatus(run, 'testCase', {
                     item: item,
                     status: 'errored',
-                    messages: ['Failed to parse XML test file results']
+                    messages: [{ message: error.message ? error.message : error }]
                 });
             } else {
                 item.children.forEach((childItem) => {
-                    this.updateTestRunStatus(run, 'testCase', {
-                        item: childItem,
-                        status: 'errored',
-                        messages: ['Failed to parse XML test file results']
-                    });
+                    if (!this.request.exclude?.includes(childItem)) {
+                        this.updateTestRunStatus(run, 'testCase', {
+                            item: childItem,
+                            status: 'errored',
+                            messages: [{ message: error.message ? error.message : error }]
+                        });
+                    }
                 });
             }
 
-            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to parse XML test file results`, error);
             return;
         }
 
@@ -397,7 +421,7 @@ export class IBMiTestRunner {
                     run.appendOutput(` ${c.grey(`[ Compilation Successful ]`)}\r\n`);
                     Logger.getInstance().log(LogLevel.Info, `Successfully compiled ${data.item.label}`);
                 } else if (data.status === 'failed') {
-                    run.appendOutput(` ${c.red(`[ Compilation Failed ]`)}\r\n`);
+                    run.appendOutput(` ${c.yellow(`[ Compilation Error ]`)}\r\n`);
                     Logger.getInstance().log(LogLevel.Error, `Failed to compile ${data.item.label}`);
                 } else if (data.status === 'skipped') {
                     run.appendOutput(` ${c.grey(`[ Compilation Skipped ]`)}\r\n`);
@@ -405,7 +429,7 @@ export class IBMiTestRunner {
                 }
                 if (data.messages) {
                     for (const message of data.messages) {
-                        run.appendOutput(`\t${c.red(`${message}`)}\r\n`);
+                        run.appendOutput(`\t${c.yellow(`${message}`)}\r\n`);
                     }
                 }
                 break;
