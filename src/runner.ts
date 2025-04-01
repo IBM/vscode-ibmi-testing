@@ -303,7 +303,7 @@ export class IBMiTestRunner {
                     const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
 
                     let uri: Uri;
-                    if (fileCoverage.path.startsWith(deployDirectory)) {
+                    if (`/${fileCoverage.path}`.startsWith(deployDirectory)) {
                         // Get relative remote path to test
                         const relativePathToTest = path.posix.relative(deployDirectory, `/${fileCoverage.path}`);
 
