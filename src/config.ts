@@ -18,24 +18,24 @@ export namespace ConfigHandler {
             const localConfigUri = await findTestingConfig(workspaceFolder, uri);
             const localConfig = localConfigUri ? await readLocalTestingConfig(localConfigUri) : undefined;
             if (localConfigUri && localConfig) {
-                Logger.getInstance().log(LogLevel.Info, `Found local testing configuration at ${localConfigUri.toString()}: ${JSON.stringify(localConfig)}`);
+                Logger.log(LogLevel.Info, `Found local testing configuration at ${localConfigUri.toString()}: ${JSON.stringify(localConfig)}`);
             } else {
-                Logger.getInstance().log(LogLevel.Info, `No local testing configuration found`);
+                Logger.log(LogLevel.Info, `No local testing configuration found`);
             }
 
             const globalConfigUri = Uri.joinPath(workspaceFolder.uri, GLOBAL_CONFIG_DIRECTORY, TESTING_CONFIG_FILE);
             const globalConfig = await readLocalTestingConfig(globalConfigUri);
             if (globalConfigUri && globalConfig) {
-                Logger.getInstance().log(LogLevel.Info, `Found global testing configuration at ${globalConfigUri.toString()}: ${JSON.stringify(globalConfig)}`);
+                Logger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigUri.toString()}: ${JSON.stringify(globalConfig)}`);
             } else {
-                Logger.getInstance().log(LogLevel.Info, `No global testing configuration found`);
+                Logger.log(LogLevel.Info, `No global testing configuration found`);
             }
 
             const mergedConfig = lodash.merge({}, globalConfig, localConfig);
-            Logger.getInstance().log(LogLevel.Info, `Merged testing configuration: ${JSON.stringify(mergedConfig)}`);
+            Logger.log(LogLevel.Info, `Merged testing configuration: ${JSON.stringify(mergedConfig)}`);
             return mergedConfig;
         } catch (error: any) {
-            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
+            Logger.logWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
             return;
         }
     }
@@ -66,7 +66,7 @@ export namespace ConfigHandler {
             const content = await workspace.fs.readFile(testingConfigUri);
             return JSON.parse(content.toString()) as TestingConfig;
         } catch (error: any) {
-            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to read testing configuration`, `${testingConfigUri} - ${error}`);
+            Logger.logWithNotification(LogLevel.Error, `Failed to read testing configuration`, `${testingConfigUri} - ${error}`);
             return;
         }
     }

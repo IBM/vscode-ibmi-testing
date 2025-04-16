@@ -32,12 +32,12 @@ export namespace CodeCoverage {
             // Download remote cczip to local temp file
             const tmpFile = tmp.fileSync();
             await content.downloadStreamfileRaw(outputZipPath, tmpFile.name);
-            Logger.getInstance().log(LogLevel.Info, `Downloaded code coverage results to ${tmpFile.name}`);
+            Logger.log(LogLevel.Info, `Downloaded code coverage results to ${tmpFile.name}`);
 
             // Extract local temp file contents to temp directory
             const directory = await unzipper.Open.file(tmpFile.name);
             await directory.extract({ path: tmpDir.name });
-            Logger.getInstance().log(LogLevel.Info, `Extracted code coverage results to ${tmpDir.name}`);
+            Logger.log(LogLevel.Info, `Extracted code coverage results to ${tmpDir.name}`);
 
             // Read and parse xml file from temp directory
             const ccdata = Uri.file(path.join(tmpDir.name, `ccdata`));
@@ -47,7 +47,7 @@ export namespace CodeCoverage {
 
             return xml;
         } catch (error: any) {
-            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to download code coverage results`, `${outputZipPath} - ${error}`);
+            Logger.logWithNotification(LogLevel.Error, `Failed to download code coverage results`, `${outputZipPath} - ${error}`);
         }
     }
 
@@ -96,7 +96,7 @@ export namespace CodeCoverage {
 
             return items;
         } catch (error) {
-            Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to parse code coverage results`, `${error}`);
+            Logger.logWithNotification(LogLevel.Error, `Failed to parse code coverage results`, `${error}`);
         }
     }
 
