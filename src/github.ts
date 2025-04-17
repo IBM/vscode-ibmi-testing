@@ -47,7 +47,7 @@ export namespace GitHub {
     }
 
     export async function downloadTag(tag: Tag, downloadTo: string): Promise<Response<boolean>> {
-        const isDownlodaded: Response<boolean> = {
+        const isDownloaded: Response<boolean> = {
             data: false
         };
 
@@ -65,11 +65,11 @@ export namespace GitHub {
                 response.data as any,
                 fs.createWriteStream(downloadTo)
             );
-            isDownlodaded.data = true;
+            isDownloaded.data = true;
         } catch (error: any) {
-            isDownlodaded.error = error.message ? error.message : error;
+            isDownloaded.error = error.message ? error.message : error;
         }
 
-        return isDownlodaded;
+        return isDownloaded;
     }
 }

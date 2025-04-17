@@ -100,9 +100,9 @@ export class RPGUnitComponent implements IBMiComponent {
         // Downloading zip locally
         const tmpFile = tmp.fileSync();
         Logger.log(LogLevel.Info, `Downloading zip to ${tmpFile.name}`);
-        const isDownlodaded = await GitHub.downloadTag(selectedTag.tag, tmpFile.name);
-        if (!isDownlodaded.data) {
-            Logger.logWithNotification(LogLevel.Error, `Failed to download zip`, isDownlodaded.error);
+        const isDownloaded = await GitHub.downloadTag(selectedTag.tag, tmpFile.name);
+        if (!isDownloaded.data) {
+            Logger.logWithNotification(LogLevel.Error, `Failed to download zip`, isDownloaded.error);
             return state;
         }
 
