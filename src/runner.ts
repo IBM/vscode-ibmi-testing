@@ -50,7 +50,7 @@ export class IBMiTestRunner {
             await this.processRequest(requestItem, run, queue);
         }
 
-        Logger.getInstance().log(LogLevel.Info, `${queue.length} test item(s) queued: ${queue.map((item) => item.item.label).join(', ')}`);
+        Logger.log(LogLevel.Info, `${queue.length} test item(s) queued: ${queue.map((item) => item.item.label).join(', ')}`);
         return queue;
     }
 
@@ -76,7 +76,7 @@ export class IBMiTestRunner {
             if (data.item.children.size !== 0) {
                 queue.push({ item, data });
             } else {
-                Logger.getInstance().log(LogLevel.Warning, `Test file ${data.item.label} not queued (no test cases found)`);
+                Logger.log(LogLevel.Warning, `Test file ${data.item.label} not queued (no test cases found)`);
             }
         } else if (data instanceof TestCase) {
             // Request is a test case so add to queue
@@ -224,7 +224,7 @@ export class IBMiTestRunner {
         const tstpgm = `${library}/${programName}`;
         const tstprc = isTestCase ? item.label : undefined;
         const testStorage = IBMiTestStorage.getTestStorage(`${programName}${tstprc ? `_${tstprc}` : ``}`);
-        Logger.getInstance().log(LogLevel.Info, `Test storage for ${item.label}: ${JSON.stringify(testStorage)}`);
+        Logger.log(LogLevel.Info, `Test storage for ${item.label}: ${JSON.stringify(testStorage)}`);
         const xmlStmf = testStorage.RPGUNIT;
 
         const testParams: RUCALLTST = {
@@ -258,7 +258,7 @@ export class IBMiTestRunner {
             };
             testCommand = `QDEVTOOLS/CODECOV CMD(${coverageParams.cmd}) MODULE(${coverageParams.module}) CCLVL(${coverageParams.ccLvl}) OUTSTMF('${coverageParams.outStmf}')`;
         }
-        Logger.getInstance().log(LogLevel.Info, `Running ${item.label}: ${testCommand}`);
+        Logger.log(LogLevel.Info, `Running ${item.label}: ${testCommand}`);
 
         let testResult: any;
         try {
@@ -286,10 +286,10 @@ export class IBMiTestRunner {
         }
 
         if (testResult.stdout.length > 0) {
-            Logger.getInstance().log(LogLevel.Info, `${item.label} execution output:\n${testResult.stdout}`);
+            Logger.log(LogLevel.Info, `${item.label} execution output:\n${testResult.stdout}`);
         }
         if (testResult.stderr.length > 0) {
-            Logger.getInstance().log(LogLevel.Error, `${item.label} execution error(s):\n${testResult.stderr}`);
+            Logger.log(LogLevel.Error, `${item.label} execution error(s):\n${testResult.stderr}`);
         }
 
         if (isCodeCoverageEnabled) {
@@ -402,7 +402,7 @@ export class IBMiTestRunner {
         switch (type) {
             case 'workspaceFolder':
                 run.appendOutput(`${c.bgBlue(` WORKSPACE `)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);
-                Logger.getInstance().log(LogLevel.Info, `Deploying ${data.item.label}`);
+                Logger.log(LogLevel.Info, `Deploying ${data.item.label}`);
                 break;
             case 'testFile':
                 run.appendOutput(`${c.blue(`❯`)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);
@@ -410,22 +410,22 @@ export class IBMiTestRunner {
             case 'deployment':
                 if (data.success) {
                     run.appendOutput(` ${c.grey(`[ Deployment Successful ]`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Info, `Successfully deployed ${data.item.label}`);
+                    Logger.log(LogLevel.Info, `Successfully deployed ${data.item.label}`);
                 } else {
                     run.appendOutput(` ${c.red(`[ Deployment Failed ]`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Error, `Failed to deploy ${data.item.label}`);
+                    Logger.log(LogLevel.Error, `Failed to deploy ${data.item.label}`);
                 }
                 break;
             case 'compilation':
                 if (data.status === 'success') {
                     run.appendOutput(` ${c.grey(`[ Compilation Successful ]`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Info, `Successfully compiled ${data.item.label}`);
+                    Logger.log(LogLevel.Info, `Successfully compiled ${data.item.label}`);
                 } else if (data.status === 'failed') {
                     run.appendOutput(` ${c.yellow(`[ Compilation Error ]`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Error, `Failed to compile ${data.item.label}`);
+                    Logger.log(LogLevel.Error, `Failed to compile ${data.item.label}`);
                 } else if (data.status === 'skipped') {
                     run.appendOutput(` ${c.grey(`[ Compilation Skipped ]`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Warning, `Skipped compilation for ${data.item.label}`);
+                    Logger.log(LogLevel.Warning, `Skipped compilation for ${data.item.label}`);
                 }
                 if (data.messages) {
                     for (const message of data.messages) {
@@ -438,7 +438,7 @@ export class IBMiTestRunner {
                     this.metrics.testCasesPassed++;
                     run.passed(data.item, data.duration * 1000);
                     run.appendOutput(`\t${c.green(`✔`)}  ${data.item.label} ${c.grey(`${data.duration}s`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Info, `Test case ${data.item.label} passed in ${data.duration}s`);
+                    Logger.log(LogLevel.Info, `Test case ${data.item.label} passed in ${data.duration}s`);
                 } else if (data.status === 'failed') {
                     if (data.item?.label) {
                         this.metrics.testCasesFailed++;
@@ -461,7 +461,7 @@ export class IBMiTestRunner {
 
                     if (data.item) {
                         run.failed(data.item, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
-                        Logger.getInstance().log(LogLevel.Error, `Test case ${data.item.label} failed${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
+                        Logger.log(LogLevel.Error, `Test case ${data.item.label} failed${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
                     } else {
                         run.failed(data.fallbackTestFile, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
                     }
@@ -487,7 +487,7 @@ export class IBMiTestRunner {
 
                     if (data.item) {
                         run.errored(data.item, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
-                        Logger.getInstance().log(LogLevel.Error, `Test case ${data.item.label} errored${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
+                        Logger.log(LogLevel.Error, `Test case ${data.item.label} errored${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
                     } else {
                         run.errored(data.fallbackTestFile, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
                     }

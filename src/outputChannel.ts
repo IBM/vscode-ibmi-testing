@@ -1,22 +1,9 @@
 import { LogLevel, LogOutputChannel, window } from "vscode";
 
 export class Logger {
-    private static instance: Logger;
-    private logOutputChannel: LogOutputChannel;
+    private static logOutputChannel: LogOutputChannel = window.createOutputChannel('IBM i Testing', { log: true });
 
-    private constructor() {
-        this.logOutputChannel = window.createOutputChannel('IBM i Testing', { log: true });
-    }
-
-    public static getInstance(): Logger {
-        if (!Logger.instance) {
-            Logger.instance = new Logger();
-        }
-
-        return Logger.instance;
-    }
-
-    public log(level: LogLevel, message: string): void {
+    public static log(level: LogLevel, message: string): void {
         switch (level) {
             case LogLevel.Info:
                 this.logOutputChannel.info(message);
@@ -30,10 +17,22 @@ export class Logger {
         }
     }
 
-    public logWithErrorNotification(level: LogLevel, message: string, error: string): void {
-        this.log(level, `${message}: ${error}`);
+    public static logWithNotification(level: LogLevel, message: string, details?: string): void {
+        this.log(level, details ? `${message}: ${details}` : message);
 
-        window.showErrorMessage(message, 'View Output').then((value) => {
+        let showMessage;
+        switch (level) {
+            case LogLevel.Error:
+                showMessage = window.showErrorMessage;
+                break;
+            case LogLevel.Warning:
+                showMessage = window.showWarningMessage;
+                break;
+            default:
+                showMessage = window.showInformationMessage;
+        }
+
+        showMessage(message, 'View Output').then((value) => {
             if (value === 'View Output') {
                 this.logOutputChannel.show();
             }
