@@ -18,7 +18,7 @@ export namespace ConfigHandler {
             const localConfigUri = await findTestingConfig(workspaceFolder, uri);
             const localConfig = localConfigUri ? await readLocalTestingConfig(localConfigUri) : undefined;
             if (localConfigUri && localConfig) {
-                Logger.log(LogLevel.Info, `Found local testing configuration at ${localConfigUri.toString()}: ${JSON.stringify(localConfig)}`);
+                Logger.log(LogLevel.Info, `Found local testing configuration at ${localConfigUri.toString()}:\n${JSON.stringify(localConfig, null, 2)}`);
             } else {
                 Logger.log(LogLevel.Info, `No local testing configuration found`);
             }
@@ -26,13 +26,13 @@ export namespace ConfigHandler {
             const globalConfigUri = Uri.joinPath(workspaceFolder.uri, GLOBAL_CONFIG_DIRECTORY, TESTING_CONFIG_FILE);
             const globalConfig = await readLocalTestingConfig(globalConfigUri);
             if (globalConfigUri && globalConfig) {
-                Logger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigUri.toString()}: ${JSON.stringify(globalConfig)}`);
+                Logger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigUri.toString()}:\n${JSON.stringify(globalConfig, null, 2)}`);
             } else {
                 Logger.log(LogLevel.Info, `No global testing configuration found`);
             }
 
             const mergedConfig = lodash.merge({}, globalConfig, localConfig);
-            Logger.log(LogLevel.Info, `Merged testing configuration: ${JSON.stringify(mergedConfig)}`);
+            Logger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
             return mergedConfig;
         } catch (error: any) {
             Logger.logWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);

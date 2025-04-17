@@ -1,4 +1,5 @@
-import { ConfigurationTarget, workspace } from "vscode";
+import { ConfigurationTarget, LogLevel, workspace } from "vscode";
+import { Logger } from "./outputChannel";
 
 export enum Section {
     runOrder = 'runOrder',
@@ -26,12 +27,19 @@ export namespace Configuration {
     export const group: string = 'vscode-ibmi-testing';
 
     export async function initialize(): Promise<void> {
+        const configurations: { [key: string]: string } = {};
+
         for (const section of Object.values(Section)) {
-            const value = Configuration.get<string>(section);
+            let value = Configuration.get<string>(section);
             if (!value) {
-                await Configuration.set(section, defaultConfigurations[section]);
+                value = defaultConfigurations[section];
+                await Configuration.set(section, value);
             }
+
+            configurations[section] = value;
         }
+
+        Logger.log(LogLevel.Info, `Detected configurations:\n${JSON.stringify(configurations, null, 2)}`);
     }
 
     export function get<T>(section: Section): T | undefined {

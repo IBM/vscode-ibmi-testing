@@ -21,11 +21,13 @@ export function activate(context: ExtensionContext) {
 	Configuration.initialize();
 	workspace.onDidChangeConfiguration(async event => {
 		if (event.affectsConfiguration(Configuration.group)) {
+			Logger.log(LogLevel.Info, `Configuration change detected`);
 			await Configuration.initialize();
 		}
 		if (event.affectsConfiguration(`${Configuration.group}.${Section.productLibrary}`)) {
 			const connection = ibmi?.getConnection();
-			await connection?.requireCheck(RPGUnitComponent.ID);
+			const componentManager = connection?.getComponentManager();
+			await componentManager?.getRemoteState(RPGUnitComponent.ID);
 		}
 	});
 

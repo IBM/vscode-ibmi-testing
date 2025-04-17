@@ -11,8 +11,8 @@ import { Logger } from "./outputChannel";
 
 export class RPGUnitComponent implements IBMiComponent {
     static ID: string = "RPGUnit";
-    static MINIMUM_VERSION: string = '5.1.0';
-    static VERSION_REGEX = /copyright information:\n\s*(v\S*)\s*-/i;
+    static MINIMUM_VERSION: string = '5.0.0'; // TODO: Set minimum version
+    static VERSION_REGEX = /copyright information:\n\s*v(\S*)\s*-/i;
 
     getIdentification(): ComponentIdentification {
         return {
@@ -26,13 +26,13 @@ export class RPGUnitComponent implements IBMiComponent {
         const content = connection.getContent();
 
         try {
-            // Check of library exists
+            // Check if product library exists
             const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
             const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
             if (productLibraryExists) {
                 // Get installed version of RPGUnit
                 const versionCommand = content.toCl(`DSPSRVPGM`, { 'SRVPGM': `${productLibrary}/RUTESTCASE` });
-                const versionResult = await connection.runCommand({ command: versionCommand, environment: `ile` });
+                const versionResult = await connection.runCommand({ command: versionCommand, environment: `ile`, noLibList: true });
 
                 if (versionResult.code === 0) {
                     const versionMatch = versionResult.stdout.match(RPGUnitComponent.VERSION_REGEX);
@@ -97,6 +97,32 @@ export class RPGUnitComponent implements IBMiComponent {
         const content = connection.getContent();
         const config = connection.getConfig();
 
+        // Check if product library exists
+        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
+        if (productLibraryExists) {
+            const result = await window.showInformationMessage('Delete product library',
+                {
+                    modal: true,
+                    detail: `The product library ${productLibrary}.LIB already exists. Can it be deleted?`
+                },
+                'Yes', 'No'
+            );
+            if (result === 'Yes') {
+                // Deleting product library
+                Logger.log(LogLevel.Info, `Deleting product library ${productLibrary}.LIB`);
+                const deleteLibCommand = content.toCl(`DLTOBJ`, { 'OBJ': `QSYS/${productLibrary}`, 'OBJTYPE': `*LIB` });
+                const deleteLibResult = await connection.runCommand({ command: deleteLibCommand, environment: `ile`, noLibList: true });
+                if (deleteLibResult.code !== 0) {
+                    Logger.logWithNotification(LogLevel.Error, `Failed to delete library`, deleteLibResult.stderr);
+                    return state;
+                }
+            } else {
+                Logger.logWithNotification(LogLevel.Error, `Installation aborted as product library was not deleted`);
+                return state;
+            }
+        }
+
         // Downloading zip locally
         const tmpFile = tmp.fileSync();
         Logger.log(LogLevel.Info, `Downloading zip to ${tmpFile.name}`);
@@ -135,7 +161,7 @@ export class RPGUnitComponent implements IBMiComponent {
         const createSavfCommand = content.toCl(`CRTSAVF`, {
             'FILE': `${config.tempLibrary}/RPGUNIT`
         });
-        const createSavfResult = await connection.runCommand({ command: createSavfCommand, environment: `ile` });
+        const createSavfResult = await connection.runCommand({ command: createSavfCommand, environment: `ile`, noLibList: true });
         if (createSavfResult.code !== 0 && !createSavfResult.stderr.startsWith('CPF5813')) {
             Logger.logWithNotification(LogLevel.Error, `Failed to create save file`, createSavfResult.stderr);
             return state;
@@ -149,26 +175,10 @@ export class RPGUnitComponent implements IBMiComponent {
             'TOCCSID': 37,
             'REPLACE': `*YES`
         });
-        const transferResult = await connection.runCommand({ command: transferCommand, environment: `ile` });
+        const transferResult = await connection.runCommand({ command: transferCommand, environment: `ile`, noLibList: true });
         if (transferResult.code !== 0) {
             Logger.logWithNotification(LogLevel.Error, `Failed to transfer save file`, transferResult.stderr);
             return state;
-        }
-
-        // Creating product library
-        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
-        Logger.log(LogLevel.Info, `Creating product library ${productLibrary}.LIB`);
-        const createLibCommand = content.toCl(`CRTLIB`, { 'LIB': productLibrary });
-        const createLibResult = await connection.runCommand({ command: createLibCommand, environment: `ile` });
-        if (createLibResult.code !== 0 && createLibResult.stderr.startsWith('CPF2111')) {
-            // Clearing product library
-            Logger.log(LogLevel.Info, `Clearing product library ${productLibrary}.LIB`);
-            const clearCommand = content.toCl(`CLRLIB`, { 'LIB': productLibrary });
-            const clearResult = await connection.runCommand({ command: clearCommand, environment: `ile` });
-            if (clearResult.code !== 0) {
-                Logger.logWithNotification(LogLevel.Error, `Failed to clear library`, clearResult.stderr);
-                return state;
-            }
         }
 
         // Restoring library
@@ -179,7 +189,7 @@ export class RPGUnitComponent implements IBMiComponent {
             'SAVF': `${config.tempLibrary}/RPGUNIT`,
             'RSTLIB': productLibrary
         });
-        const restoreResult = await connection.runCommand({ command: restoreCommand, environment: `ile` });
+        const restoreResult = await connection.runCommand({ command: restoreCommand, environment: `ile`, noLibList: true });
         if (restoreResult.code !== 0) {
             Logger.logWithNotification(LogLevel.Error, `Failed to restore save file contents`, restoreResult.stderr);
             return state;
@@ -192,8 +202,10 @@ export class RPGUnitComponent implements IBMiComponent {
         await connection.runCommand({ command: `rm -rf ${remotePath}` });
 
         const newState = await this.getRemoteState(connection, installDirectory);
-        if(state === 'Installed') {
-            Logger.log(LogLevel.Info, `RPGUnit ${selectedTag.tag.name} installed successfully into ${productLibrary}`);
+        if (state === 'Installed') {
+            Logger.logWithNotification(LogLevel.Info, `RPGUnit ${selectedTag.tag.name} installed successfully into ${productLibrary}.LIB`);
+        } else {
+            Logger.logWithNotification(LogLevel.Error, `RPGUnit ${selectedTag.tag.name} failed to install into ${productLibrary}.LIB`);
         }
         return newState;
     }
