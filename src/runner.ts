@@ -94,8 +94,9 @@ export class IBMiTestRunner {
         // Check if RPGUnit is installed
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
-        const rpgUnit = new RPGUnit();
-        const state = await rpgUnit.getRemoteState(connection, '');
+
+        const componentManager = connection?.getComponentManager();
+        const state = await componentManager?.getRemoteState(RPGUnit.ID);
         const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
         const installMessage = state === 'NeedsUpdate' ?
             `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i.` :
@@ -116,7 +117,7 @@ export class IBMiTestRunner {
                 if (value === 'Install') {
                     await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
                         progress.report({ message: `Installing ${RPGUnit.ID}` });
-                        await rpgUnit.update(connection, '');
+                        await componentManager.installComponent(RPGUnit.ID);
                     });
                 }
             });
