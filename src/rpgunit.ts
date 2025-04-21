@@ -17,7 +17,7 @@ export class RPGUnitComponent implements IBMiComponent {
     getIdentification(): ComponentIdentification {
         return {
             name: RPGUnitComponent.ID,
-            version: semverToNumber(RPGUnitComponent.MINIMUM_VERSION),
+            version: RPGUnitComponent.MINIMUM_VERSION,
             userManaged: true
         };
     }
@@ -209,9 +209,4 @@ export class RPGUnitComponent implements IBMiComponent {
         }
         return newState;
     }
-}
-
-function semverToNumber(version: string): number {
-    const [major, minor, patch] = version.split('.').map(Number);
-    return major * 1_000_000 + minor * 1_000 + patch;
 }
