@@ -24,7 +24,7 @@ export const defaultConfigurations: { [T in Section]: string } = {
 };
 
 export namespace Configuration {
-    export const group: string = 'vscode-ibmi-testing';
+    export const group: string = 'IBM i Testing';
 
     export async function initialize(): Promise<void> {
         const configurations: { [key: string]: string } = {};
