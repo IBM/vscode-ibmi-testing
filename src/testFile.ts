@@ -8,7 +8,7 @@ import { TestingConfig, RUCRTRPG, RUCRTCBL } from "./types";
 import * as path from "path";
 import { ConfigHandler } from "./config";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
-import { Logger } from "./outputChannel";
+import { Logger } from "./logger";
 import { Utils } from "./utils";
 
 export class TestFile {

@@ -4,7 +4,7 @@ import { TestCase } from "./testCase";
 import * as path from "path";
 import { IBMiTestRunner } from "./runner";
 import { TestDirectory } from "./testDirectory";
-import { Logger } from "./outputChannel";
+import { Logger } from "./logger";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { IBMiTestStorage } from "./storage";
 import { CodeCoverage } from "./codeCoverage";

@@ -7,7 +7,7 @@ import { LogLevel, QuickPickItem, window } from "vscode";
 import * as tmp from "tmp";
 import * as path from "path";
 import * as unzipper from "unzipper";
-import { Logger } from "./outputChannel";
+import { Logger } from "./logger";
 
 export class RPGUnitComponent implements IBMiComponent {
     static ID: string = "RPGUnit";

@@ -8,7 +8,7 @@ import { CODECOV, RUCALLTST, TestQueue, TestMetrics } from "./types";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
 import { TestCase } from "./testCase";
 import { TestDirectory } from "./testDirectory";
-import { Logger } from "./outputChannel";
+import { Logger } from "./logger";
 import { CodeCoverage } from "./codeCoverage";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { IBMiTestStorage } from "./storage";

@@ -4,7 +4,7 @@ import * as path from "path";
 import * as unzipper from "unzipper";
 import * as xml2js from "xml2js";
 import { getInstance } from "./api/ibmi";
-import { Logger } from "./outputChannel";
+import { Logger } from "./logger";
 import { CoverageData } from "./types";
 
 export namespace CodeCoverage {

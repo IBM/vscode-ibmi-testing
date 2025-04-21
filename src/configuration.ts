@@ -1,5 +1,5 @@
 import { ConfigurationTarget, LogLevel, workspace } from "vscode";
-import { Logger } from "./outputChannel";
+import { Logger } from "./logger";
 
 export enum Section {
     runOrder = 'runOrder',
