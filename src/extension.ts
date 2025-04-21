@@ -4,7 +4,7 @@ import { getComponentRegistry, getInstance, loadBase } from "./api/ibmi";
 import { Configuration, Section } from "./configuration";
 import { Logger } from "./logger";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
-import { RPGUnitComponent } from "./rpgunit";
+import { RPGUnit } from "./rpgunit";
 
 export let manager: IBMiTestManager | undefined;
 
@@ -27,16 +27,14 @@ export function activate(context: ExtensionContext) {
 		if (event.affectsConfiguration(`${Configuration.group}.${Section.productLibrary}`)) {
 			const connection = ibmi?.getConnection();
 			const componentManager = connection?.getComponentManager();
-			await componentManager?.getRemoteState(RPGUnitComponent.ID);
+			await componentManager?.getRemoteState(RPGUnit.ID);
 		}
 	});
 
 	// Register component
-	const rpgUnitComponent = new RPGUnitComponent();
+	const rpgUnit = new RPGUnit();
 	const componentRegistry = getComponentRegistry();
-	if (componentRegistry) {
-		componentRegistry.registerComponent(context, rpgUnitComponent);
-	}
+	componentRegistry?.registerComponent(context, rpgUnit);
 
 	// Subscribe to IBM i connect and disconnect events
 	let connection: IBMi | undefined;

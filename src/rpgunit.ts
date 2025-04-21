@@ -9,15 +9,15 @@ import * as path from "path";
 import * as unzipper from "unzipper";
 import { Logger } from "./logger";
 
-export class RPGUnitComponent implements IBMiComponent {
+export class RPGUnit implements IBMiComponent {
     static ID: string = "RPGUnit";
     static MINIMUM_VERSION: string = '5.0.0'; // TODO: Set minimum version
     static VERSION_REGEX = /copyright information:\n\s*v(\S*)\s*-/i;
 
     getIdentification(): ComponentIdentification {
         return {
-            name: RPGUnitComponent.ID,
-            version: RPGUnitComponent.MINIMUM_VERSION,
+            name: RPGUnit.ID,
+            version: RPGUnit.MINIMUM_VERSION,
             userManaged: true
         };
     }
@@ -35,13 +35,13 @@ export class RPGUnitComponent implements IBMiComponent {
                 const versionResult = await connection.runCommand({ command: versionCommand, environment: `ile`, noLibList: true });
 
                 if (versionResult.code === 0) {
-                    const versionMatch = versionResult.stdout.match(RPGUnitComponent.VERSION_REGEX);
+                    const versionMatch = versionResult.stdout.match(RPGUnit.VERSION_REGEX);
                     if (versionMatch && versionMatch[1]) {
                         const installedVersion = versionMatch[1];
 
                         // Compare installed version with minimum version
-                        if (compareVersions(RPGUnitComponent.MINIMUM_VERSION, installedVersion) > 0) {
-                            Logger.log(LogLevel.Error, `Installed version of RPGUnit (${installedVersion}) is lower than minimum version (${RPGUnitComponent.MINIMUM_VERSION})`);
+                        if (compareVersions(RPGUnit.MINIMUM_VERSION, installedVersion) > 0) {
+                            Logger.log(LogLevel.Error, `Installed version of RPGUnit (${installedVersion}) is lower than minimum version (${RPGUnit.MINIMUM_VERSION})`);
                             return 'NeedsUpdate';
                         } else {
                             Logger.log(LogLevel.Info, `Installed version of RPGUnit is ${installedVersion}`);
@@ -68,7 +68,6 @@ export class RPGUnitComponent implements IBMiComponent {
     async update(connection: IBMi, installDirectory: string): Promise<ComponentState> {
         // TODO: Instead of getting tags, get the releases
         // TODO: Only show versions above the minimum
-        Logger.show();
 
         // Get current component state
         const state = await this.getRemoteState(connection, installDirectory);
@@ -96,6 +95,7 @@ export class RPGUnitComponent implements IBMiComponent {
             return state;
         }
 
+        Logger.show();
         const content = connection.getContent();
         const config = connection.getConfig();
 

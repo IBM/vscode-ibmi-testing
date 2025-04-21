@@ -1,4 +1,4 @@
-import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position } from "vscode";
+import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, window, ProgressLocation } from "vscode";
 import { IBMiTestData, IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
@@ -14,6 +14,7 @@ import { IBMiFileCoverage } from "./fileCoverage";
 import { IBMiTestStorage } from "./storage";
 import c from "ansi-colors";
 import { Utils } from "./utils";
+import { RPGUnit } from "./rpgunit";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
@@ -89,6 +90,38 @@ export class IBMiTestRunner {
 
     async runHandler(): Promise<void> {
         const run = this.manager.controller.createTestRun(this.request);
+
+        // Check if RPGUnit is installed
+        const ibmi = getInstance();
+        const connection = ibmi!.getConnection();
+        const rpgUnit = new RPGUnit();
+        const state = await rpgUnit.getRemoteState(connection, '');
+        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const installMessage = state === 'NeedsUpdate' ?
+            `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i.` :
+            (state !== 'Installed' ? `RPGUnit v${RPGUnit.MINIMUM_VERSION} must be installed on the IBM i.` : undefined);
+        const installQuestion = state === 'NeedsUpdate' ?
+            `Can it be updated in ${productLibrary}.LIB?` :
+            (state !== 'Installed' ? `Can it be installed into ${productLibrary}.LIB?` : undefined);
+
+        if (installMessage) {
+            // End test run
+            this.updateTestRunStatus(run, 'component', {
+                message: installMessage
+            });
+            run.end();
+
+            // Prompt user to install or update RPGUnit
+            window.showErrorMessage(`${installMessage} ${installQuestion}`, 'Install').then(async (value) => {
+                if (value === 'Install') {
+                    await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
+                        progress.report({ message: `Installing ${RPGUnit.ID}` });
+                        await rpgUnit.update(connection, '');
+                    });
+                }
+            });
+            return;
+        }
 
         // Get test queue
         const queue: { item: TestItem, data: IBMiTestData }[] = await this.getTestQueue(run);
@@ -398,8 +431,11 @@ export class IBMiTestRunner {
     }
 
     // TODO: Fix data to have a type instead of any
-    public updateTestRunStatus(run: TestRun, type: 'workspaceFolder' | 'testFile' | 'deployment' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
+    public updateTestRunStatus(run: TestRun, type: 'component' | 'workspaceFolder' | 'testFile' | 'deployment' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
         switch (type) {
+            case 'component':
+                run.appendOutput(c.red(data.message));
+                break;
             case 'workspaceFolder':
                 run.appendOutput(`${c.bgBlue(` WORKSPACE `)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);
                 Logger.log(LogLevel.Info, `Deploying ${data.item.label}`);
