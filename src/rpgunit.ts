@@ -68,6 +68,7 @@ export class RPGUnitComponent implements IBMiComponent {
     async update(connection: IBMi, installDirectory: string): Promise<ComponentState> {
         // TODO: Instead of getting tags, get the releases
         // TODO: Only show versions above the minimum
+        Logger.show();
 
         // Get current component state
         const state = await this.getRemoteState(connection, installDirectory);
@@ -91,6 +92,7 @@ export class RPGUnitComponent implements IBMiComponent {
             placeHolder: 'Version'
         });
         if (!selectedTag) {
+            Logger.logWithNotification(LogLevel.Error, `Installation aborted as version was not selected`);
             return state;
         }
 

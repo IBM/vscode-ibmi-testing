@@ -38,4 +38,8 @@ export class Logger {
             }
         });
     }
+
+    public static show() {
+        this.logOutputChannel.show();
+    }
 }
