@@ -16,15 +16,17 @@ export class TestFile {
     static COBOL_TEST_CASE_REGEX = /^PROGRAM-ID\. +(TEST.+)$/i;
     static textDecoder = new TextDecoder('utf-8');
     item: TestItem;
-    workspaceItem: TestItem;
+    workspaceItem?: TestItem;
+    libraryItem?: TestItem;
     isLoaded: boolean;
     isCompiled: boolean;
     content: string;
     isRPGLE: boolean;
 
-    constructor(item: TestItem, workspaceItem: TestItem) {
+    constructor(item: TestItem, parent: { workspaceItem?: TestItem, libraryItem?: TestItem } = {}) {
         this.item = item;
-        this.workspaceItem = workspaceItem;
+        this.workspaceItem = parent.workspaceItem;
+        this.libraryItem = parent.libraryItem;
         this.isLoaded = false;
         this.isCompiled = false;
         this.content = '';
@@ -48,32 +50,36 @@ export class TestFile {
                     const rawContent = await workspace.fs.readFile(this.item.uri!);
                     this.content = TestFile.textDecoder.decode(rawContent);
                 } catch (error: any) {
-                    Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to load test file`, error);
+                    Logger.getInstance().log(LogLevel.Error, `Failed to read test file ${this.item.label}: ${error}`);
                 }
             }
 
             // Load test cases
-            const childItems: TestItem[] = [];
-            const documentSymbols = await commands.executeCommand<DocumentSymbol[]>(`vscode.executeDocumentSymbolProvider`, this.item.uri) || [];
-            for (const documentSymbol of documentSymbols) {
-                const isTestCase = this.isRPGLE ?
-                    documentSymbol.kind === SymbolKind.Function && TestFile.RPGLE_TEST_CASE_REGEX.test(documentSymbol.name) :
-                    documentSymbol.kind === SymbolKind.Class && documentSymbol.name.match(TestFile.COBOL_TEST_CASE_REGEX)?.[1];
+            try {
+                const childItems: TestItem[] = [];
+                const documentSymbols = await commands.executeCommand<DocumentSymbol[]>(`vscode.executeDocumentSymbolProvider`, this.item.uri) || [];
+                for (const documentSymbol of documentSymbols) {
+                    const isTestCase = this.isRPGLE ?
+                        documentSymbol.kind === SymbolKind.Function && TestFile.RPGLE_TEST_CASE_REGEX.test(documentSymbol.name) :
+                        documentSymbol.kind === SymbolKind.Class && documentSymbol.name.match(TestFile.COBOL_TEST_CASE_REGEX)?.[1];
 
-                if (isTestCase) {
-                    const testCaseName = this.isRPGLE ?
-                        documentSymbol.name :
-                        documentSymbol.name.match(TestFile.COBOL_TEST_CASE_REGEX)![1];
-                    const childItem = manager!.controller.createTestItem(`${this.item.uri}/${testCaseName.toLocaleUpperCase()}`, testCaseName, this.item.uri);
-                    childItem.range = documentSymbol.range;
+                    if (isTestCase) {
+                        const testCaseName = this.isRPGLE ?
+                            documentSymbol.name :
+                            documentSymbol.name.match(TestFile.COBOL_TEST_CASE_REGEX)![1];
+                        const childItem = manager!.controller.createTestItem(`${this.item.uri}/${testCaseName.toLocaleUpperCase()}`, testCaseName, this.item.uri);
+                        childItem.range = documentSymbol.range;
 
-                    const data = new TestCase(childItem);
-                    manager!.testData.set(childItem, data);
-                    childItems.push(childItem);
+                        const data = new TestCase(childItem);
+                        manager!.testData.set(childItem, data);
+                        childItems.push(childItem);
+                    }
                 }
+                this.item.children.replace(childItems);
+                Logger.getInstance().log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases: ${childItems.map(item => item.label).join(', ')}`);
+            } catch (error) {
+                Logger.getInstance().log(LogLevel.Error, `Failed to load test cases from ${this.item.label}: ${error}`);
             }
-            this.item.children.replace(childItems);
-            Logger.getInstance().log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases: ${childItems.map(item => item.label).join(', ')}`);
         }
     }
 

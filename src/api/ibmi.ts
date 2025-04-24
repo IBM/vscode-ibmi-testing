@@ -1,6 +1,7 @@
 import { CodeForIBMi } from "@halcyontech/vscode-ibmi-types";
 import Instance from "@halcyontech/vscode-ibmi-types/Instance";
 import { DeployTools } from "@halcyontech/vscode-ibmi-types/filesystems/local/deployTools";
+import { VscodeTools } from "@halcyontech/vscode-ibmi-types/ui/Tools";
 import { Extension, extensions } from "vscode";
 
 let baseExtension: Extension<CodeForIBMi> | undefined;
@@ -18,5 +19,9 @@ export function getInstance(): Instance | undefined {
 }
 
 export function getDeployTools(): typeof DeployTools | undefined {
-  return (baseExtension && baseExtension.isActive && baseExtension.exports ? baseExtension.exports.deployTools : undefined);
+    return (baseExtension && baseExtension.isActive && baseExtension.exports ? baseExtension.exports.deployTools : undefined);
+}
+
+export function getVSCodeTools(): typeof VscodeTools | undefined {
+    return (baseExtension && baseExtension.isActive && baseExtension.exports ? baseExtension.exports.tools : undefined);
 }

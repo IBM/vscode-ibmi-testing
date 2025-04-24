@@ -1,7 +1,12 @@
 import { TestItem } from "vscode";
-import { IBMiTestData } from "./manager";
+import { TestFile } from "./testFile";
+import { TestCase } from "./testCase";
+import { TestDirectory } from "./testDirectory";
+import { TestObject } from "./testObject";
 
-export type TestQueue = { item: TestItem, data: IBMiTestData }[];
+export type IBMiTestData = TestDirectory | TestObject | TestFile | TestCase;
+
+export type TestQueue = { item: TestItem, data: TestFile | TestCase }[];
 
 export type CompilationStatus = 'success' | 'failed' | 'skipped';
 
