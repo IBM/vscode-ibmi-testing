@@ -14,7 +14,7 @@ import { IBMiFileCoverage } from "./fileCoverage";
 import { IBMiTestStorage } from "./storage";
 import c from "ansi-colors";
 import { Utils } from "./utils";
-import { RPGUnit } from "./rpgunit";
+import { RPGUnit } from "./components/rpgUnit";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;

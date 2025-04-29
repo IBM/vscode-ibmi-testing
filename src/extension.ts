@@ -4,7 +4,7 @@ import { getComponentRegistry, getInstance, loadBase } from "./api/ibmi";
 import { Configuration, Section } from "./configuration";
 import { Logger } from "./logger";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
-import { RPGUnit } from "./rpgunit";
+import { RPGUnit } from "./components/rpgUnit";
 
 export let manager: IBMiTestManager | undefined;
 

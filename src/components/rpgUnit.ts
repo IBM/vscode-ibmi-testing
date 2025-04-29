@@ -1,13 +1,13 @@
 import { ComponentIdentification, ComponentState, IBMiComponent } from "@halcyontech/vscode-ibmi-types/api/components/component";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
-import { Configuration, Section, defaultConfigurations } from "./configuration";
+import { Configuration, Section, defaultConfigurations } from "../configuration";
 import { compareVersions } from 'compare-versions';
-import { GitHub, Tag } from "./github";
+import { GitHub, Tag } from "../github";
 import { LogLevel, QuickPickItem, window } from "vscode";
 import * as tmp from "tmp";
 import * as path from "path";
 import * as unzipper from "unzipper";
-import { Logger } from "./logger";
+import { Logger } from "../logger";
 
 export class RPGUnit implements IBMiComponent {
     static ID: string = "RPGUnit";
