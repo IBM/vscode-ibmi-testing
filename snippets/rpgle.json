@@ -181,7 +181,7 @@
             "  msgInfo = getMonitoredMessage(*ON);",
             "endmon;",
             "",
-            "// ✅ Pass: Only runs if exception was caught",
+            "// ✅ Pass",
             "aEqual('MCH1211' : msgInfo.Id);"
         ],
         "body": "getMonitoredMessage(${1:*ON});"
