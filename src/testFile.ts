@@ -1,4 +1,4 @@
-import { commands, DocumentSymbol, LogLevel, SymbolKind, TestItem, TestRun, workspace } from "vscode";
+import { commands, DocumentSymbol, LogLevel, SymbolKind, TestItem, TestRun, workspace, WorkspaceFolder } from "vscode";
 import { TestCase } from "./testCase";
 import { manager } from "./extension";
 import { getDeployTools, getInstance } from "./api/ibmi";
@@ -83,6 +83,8 @@ export class TestFile {
         const content = connection.getContent();
         const config = connection.getConfig();
 
+        let workspaceFolder: WorkspaceFolder | undefined;
+
         let tstPgm: { name: string, library: string };
         let srcFile: { name: string, library: string } | undefined;
         let srcMbr: string | undefined;
@@ -91,7 +93,7 @@ export class TestFile {
 
         if (this.item.uri!.scheme === 'file') {
             // Get relative local path to test
-            const workspaceFolder = workspace.getWorkspaceFolder(this.item.uri!)!;
+            workspaceFolder = workspace.getWorkspaceFolder(this.item.uri!)!;
             const relativePathToTest = path.relative(workspaceFolder.uri.fsPath, this.item.uri!.fsPath).replace(/\\/g, '/');
 
             // Construct remote path to test
@@ -160,7 +162,8 @@ export class TestFile {
 
         let compileResult: any;
         try {
-            compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
+            const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
+            compileResult = await connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
         } catch (error: any) {
             runner.updateTestRunStatus(run, 'compilation', {
                 item: this.item,

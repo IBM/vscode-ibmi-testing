@@ -206,6 +206,8 @@ export class IBMiTestRunner {
         const content = connection.getContent();
         const config = connection.getConfig();
 
+        const workspaceFolder = item.uri?.scheme === 'file' ? workspace.getWorkspaceFolder(item.uri!) : undefined;
+
         const library = item.uri?.scheme === 'file' ? config.currentLibrary : connection.parserMemberPath(item.uri!.path).library;
         const data = this.manager.testData.get(item);
         const isTestCase = data instanceof TestCase;
@@ -261,8 +263,9 @@ export class IBMiTestRunner {
         Logger.getInstance().log(LogLevel.Info, `Running ${item.label}: ${testCommand}`);
 
         let testResult: any;
-        try {
-            testResult = await connection.runCommand({ command: testCommand, environment: `ile` });
+        try {            
+            const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
+            testResult = await connection.runCommand({ command: testCommand, environment: `ile`, env: env });
         } catch (error: any) {
             if (isTestCase) {
                 this.updateTestRunStatus(run, 'testCase', {
@@ -298,9 +301,9 @@ export class IBMiTestRunner {
                 const isStatementCoverage = this.request.profile!.label === IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL;
 
                 for (const fileCoverage of codeCoverageResults) {
-                    const workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
+                    // TODO: Fix mapping of code coverage results when adding support for source members
                     const deployTools = getDeployTools()!;
-                    const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
+                    const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder!)!;
 
                     let uri: Uri;
                     if (`/${fileCoverage.path}`.startsWith(deployDirectory)) {
@@ -308,7 +311,7 @@ export class IBMiTestRunner {
                         const relativePathToTest = path.posix.relative(deployDirectory, `/${fileCoverage.path}`);
 
                         // Construct local path to test
-                        const localPath = path.join(workspaceFolder.uri.fsPath, relativePathToTest);
+                        const localPath = path.join(workspaceFolder!.uri.fsPath, relativePathToTest);
                         uri = Uri.file(localPath);
                     } else {
                         uri = Uri.file(fileCoverage.localPath);
