@@ -17,6 +17,7 @@ export namespace IBMiTestStorage {
         ];
         for (const storage of testStorage) {
             await connection.sendCommand({ command: `mkdir -p ${storage}` });
+            await connection.sendCommand({ command: `chmod -R 777 ${storage}` });
         }
     }
 
