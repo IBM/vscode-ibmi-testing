@@ -112,7 +112,8 @@ export class TestFile {
                 Logger.getInstance().log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
             }
 
-            tstPgm = { library: config.currentLibrary, name: tstPgmName };
+            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+            tstPgm = { library: libraryList?.currentLibrary || config.currentLibrary, name: tstPgmName };
             testingConfig = await ConfigHandler.getLocalConfig(this.item.uri!);
         } else {
             const parsedPath = connection.parserMemberPath(this.item.uri!.path);

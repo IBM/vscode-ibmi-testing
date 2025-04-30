@@ -50,7 +50,7 @@ export namespace Utils {
      * 
      * Original Source: https://github.com/codefori/vscode-ibmi/blob/master/src/filesystems/local/env.ts#L20
      */
-    export async function getEnvConfig(workspaceFolder: WorkspaceFolder) {
+    export async function getEnvConfig(workspaceFolder: WorkspaceFolder, prefix: string = '&') {
         const env: Env = {};
 
         if (await envExists(workspaceFolder)) {
@@ -69,7 +69,7 @@ export namespace Utils {
                 if (!line.startsWith(`#`)) {
                     const [key, value] = line.split(`=`);
                     if (key.length > 0 && value.length > 0) {
-                        env[key.trim()] = value.trim();
+                        env[key.trim()] = `${prefix}${value.trim()}`;
                     }
                 }
             });

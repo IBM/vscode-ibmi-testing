@@ -207,8 +207,11 @@ export class IBMiTestRunner {
         const config = connection.getConfig();
 
         const workspaceFolder = item.uri?.scheme === 'file' ? workspace.getWorkspaceFolder(item.uri!) : undefined;
+        const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
 
-        const library = item.uri?.scheme === 'file' ? config.currentLibrary : connection.parserMemberPath(item.uri!.path).library;
+        const library = item.uri?.scheme === 'file' ?
+            (libraryList?.currentLibrary || config.currentLibrary)
+            : connection.parserMemberPath(item.uri!.path).library;
         const data = this.manager.testData.get(item);
         const isTestCase = data instanceof TestCase;
         let programName =
@@ -263,7 +266,7 @@ export class IBMiTestRunner {
         Logger.getInstance().log(LogLevel.Info, `Running ${item.label}: ${testCommand}`);
 
         let testResult: any;
-        try {            
+        try {
             const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
             testResult = await connection.runCommand({ command: testCommand, environment: `ile`, env: env });
         } catch (error: any) {
