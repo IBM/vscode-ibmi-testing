@@ -1,4 +1,4 @@
-import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position } from "vscode";
+import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, commands } from "vscode";
 import { IBMiTestData, IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
@@ -93,6 +93,9 @@ export class IBMiTestRunner {
         // Get test queue
         const queue: { item: TestItem, data: IBMiTestData }[] = await this.getTestQueue(run);
 
+        const clearErrorsBeforeBuild = workspace.getConfiguration('code-for-ibmi').get<boolean>('clearErrorsBeforeBuild');
+        let isDiagnosticsCleared: boolean = clearErrorsBeforeBuild ? false : true;
+
         const attemptedDeployments: { workspaceItem: TestItem, isDeployed: boolean }[] = [];
         const compiledTestFileItems: TestItem[] = [];
         for (const { item, data } of queue) {
@@ -161,6 +164,11 @@ export class IBMiTestRunner {
                         status: 'skipped'
                     });
                 } else {
+                    if (!isDiagnosticsCleared) {
+                        commands.executeCommand('code-for-ibmi.clearDiagnostics');
+                        isDiagnosticsCleared = true;
+                    }
+
                     await testFileData.compileMember(this, run);
                     compiledTestFileItems.push(testFileItem);
                 }

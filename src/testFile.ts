@@ -1,4 +1,4 @@
-import { commands, DocumentSymbol, LogLevel, SymbolKind, TestItem, TestRun, workspace } from "vscode";
+import { commands, DocumentSymbol, LogLevel, SymbolKind, TestItem, TestRun, workspace, WorkspaceFolder } from "vscode";
 import { TestCase } from "./testCase";
 import { manager } from "./extension";
 import { getDeployTools, getInstance } from "./api/ibmi";
@@ -83,6 +83,8 @@ export class TestFile {
         const content = connection.getContent();
         const config = connection.getConfig();
 
+        let workspaceFolder: WorkspaceFolder | undefined;
+
         let tstPgm: { name: string, library: string };
         let srcFile: { name: string, library: string } | undefined;
         let srcMbr: string | undefined;
@@ -91,7 +93,7 @@ export class TestFile {
 
         if (this.item.uri!.scheme === 'file') {
             // Get relative local path to test
-            const workspaceFolder = workspace.getWorkspaceFolder(this.item.uri!)!;
+            workspaceFolder = workspace.getWorkspaceFolder(this.item.uri!)!;
             const relativePathToTest = path.relative(workspaceFolder.uri.fsPath, this.item.uri!.fsPath).replace(/\\/g, '/');
 
             // Construct remote path to test
@@ -143,9 +145,14 @@ export class TestFile {
             };
         }
 
-        // Set TGTCCSID to 37 by default if not set
+        // Set TGTCCSID to 37 by default
         if (!compileParams.tgtCcsid) {
             compileParams.tgtCcsid = "37";
+        }
+
+        // SET COPTION to *EVEVENTF by default to be able to later get diagnostic messages
+        if (!compileParams.cOption) {
+            compileParams.cOption = "*EVENTF";
         }
 
         // Set DBGVIEW to *SOURCE by default for code coverage to get proper line numbers
@@ -169,6 +176,19 @@ export class TestFile {
             });
 
             return;
+        }
+
+        try {
+            // Retrieve diagnostics messages
+            if (compileParams.cOption === "*EVENTF") {
+                await commands.executeCommand('code-for-ibmi.openErrors', {
+                    qualifiedObject: compileParams.tstPgm,
+                    workspace: workspaceFolder,
+                    keepDiagnostics: true
+                });
+            }
+        } catch (error: any) {
+            Logger.getInstance().log(LogLevel.Error, `Failed to retrieve diagnostics messages: ${error}`);
         }
 
         if (compileResult.stderr.length > 0) {
