@@ -102,33 +102,33 @@ export class IBMiTestManager {
             await this.loadFileOrMember(uri, content);
         }
 
+        const ibmi = getInstance();
+        const connection = ibmi!.getConnection();
+
         // Load tests from library list
-        const workspaceFolder = workspace.workspaceFolders;
-        if (workspaceFolder && workspaceFolder.length > 0) {
-            const ibmi = getInstance();
-            const connection = ibmi!.getConnection();
-            const libraryList = await ibmi?.getLibraryList(connection, workspaceFolder[0]);
+        const workspaceFolders = workspace.workspaceFolders;
+        const workspaceFolder = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0] : undefined;
+        const libraryList = await ibmi?.getLibraryList(connection, workspaceFolder);
 
-            if (libraryList) {
-                const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
-                for await (const library of libraries) {
-                    const content = connection.getContent();
+        if (libraryList) {
+            const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
+            for await (const library of libraries) {
+                const content = connection.getContent();
 
-                    const testMembers = await content.getMemberList({
-                        library: library,
-                        sourceFile: "TEST",
-                        members: ".*_[Tt]",
-                        filterType: "regex",
-                        sort: { order: 'name' }
-                    });
+                const testMembers = await content.getMemberList({
+                    library: library,
+                    sourceFile: "TEST",
+                    members: ".*_[Tt]",
+                    filterType: "regex",
+                    sort: { order: 'name' }
+                });
 
-                    for (const testMember of testMembers) {
-                        const memberPath = testMember.asp ?
-                            path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :
-                            path.posix.join(testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`);
-                        const uri = Uri.from({ scheme: 'member', path: `/${memberPath}` });
-                        await this.loadFileOrMember(uri, undefined, false);
-                    }
+                for (const testMember of testMembers) {
+                    const memberPath = testMember.asp ?
+                        path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :
+                        path.posix.join(testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`);
+                    const uri = Uri.from({ scheme: 'member', path: `/${memberPath}` });
+                    await this.loadFileOrMember(uri, undefined, false);
                 }
             }
         }
