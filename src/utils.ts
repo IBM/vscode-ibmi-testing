@@ -71,7 +71,7 @@ export namespace Utils {
                 if (!line.startsWith(`#`)) {
                     const [key, value] = line.split(`=`);
                     if (key.length > 0 && value.length > 0) {
-                        env[key.trim()] = `${prefix}${value.trim()}`;
+                        env[`${prefix}${key.trim()}`] = value.trim();
                     }
                 }
             });
