@@ -1,0 +1,234 @@
+{
+    "RPGUnit: Test Case": {
+        "scope": "rpgle",
+        "prefix": "test",
+        "description": [
+            "Create an RPG Unit test case.",
+            "",
+            "Each test case is an exported procedure that starts with the name 'test'."
+        ],
+        "body": [
+            "dcl-proc test$1 export;",
+            "\tdcl-pi *n extproc(*dclcase) end-pi;",
+            "",
+            "\t$2",
+            "end-proc;"
+        ]
+    },
+    "RPGUnit: Setup Test Suite": {
+        "scope": "rpgle",
+        "prefix": "setUpSuite",
+        "description": [
+            "Used to set up a test suite before the first test case is started.",
+            "",
+            "This procedure can be used to set up test data or allocate resources before the first test case is started."
+        ],
+        "body": [
+            "dcl-proc setUpSuite export;",
+            "\t$0",
+            "end-proc;"
+        ]
+    },
+    "RPGUnit: Setup Test Case": {
+        "scope": "rpgle",
+        "prefix": "setUp",
+        "description": [
+            "Used to set up a test case before it is executed.",
+            "",
+            "This procedure is called for each test case."
+        ],
+        "body": [
+            "dcl-proc setUp export;",
+            "\t$0",
+            "end-proc;"
+        ]
+    },
+    "RPGUnit: Tear Down Test Suite": {
+        "scope": "rpgle",
+        "prefix": "tearDownSuite",
+        "description": [
+            "Used to tear down a test suite after the last test case has been executed.",
+            "",
+            "This procedure can be used to remove test data or deallocate resources after the last test case has been executed."
+        ],
+        "body": [
+            "dcl-proc tearDownSuite export;",
+            "\t$0",
+            "end-proc;"
+        ]
+    },
+    "RPGUnit: Tear Down Test Case": {
+        "scope": "rpgle",
+        "prefix": "tearDown",
+        "description": [
+            "Used to tear down a test case after it has been executed.",
+            "",
+            "This procedure is called for each test case."
+        ],
+        "body": [
+            "dcl-proc tearDown export;",
+            "\t$0",
+            "end-proc;"
+        ]
+    },
+    "RPGUnit: String Equal": {
+        "scope": "rpgle",
+        "prefix": "aEqual",
+        "description": [
+            "Compares the given String values 'expected' and 'actual'.",
+            "",
+            "The assertion fails, if both values are different.",
+            "If the 'fieldName' parameter is specified, the message is prefixed with 'fieldName:'.",
+            "",
+            "// ✅ Pass",
+            "aEqual( 'Hello' : 'Hello' );",
+            "",
+            "// ❌ Fail",
+            "aEqual( 'HelloWorld' : 'Hello' );"
+        ],
+        "body": "aEqual(${1:expected} : ${2:actual} : ${3:fieldName});"
+    },
+    "RPGUnit: Integer Equal": {
+        "scope": "rpgle",
+        "prefix": "iEqual",
+        "description": [
+            "Compares the given Integer values expected and actual.",
+            "",
+            "The assertion fails, if both values are different.",
+            "If the 'fieldName' parameter is specified, the message is prefixed with 'fieldName:'.",
+            "",
+            "// ✅ Pass",
+            "iEqual( 123 : 123 );",
+            "",
+            "// ❌ Fail",
+            "iEqual( 123 : 456 );"
+        ],
+        "body": "iEqual(${1:expected} : ${2:actual} : ${3:fieldName});"
+    },
+    "RPGUnit: Boolean Equal": {
+        "scope": "rpgle",
+        "prefix": "nEqual",
+        "description": [
+            "Compares the given Boolean values expected and actual.",
+            "",
+            "The assertion fails, if both values are different.",
+            "If the 'fieldName' parameter is specified, the message is prefixed with 'fieldName:'.",
+            "",
+            "// ✅ Pass",
+            "nEqual( *off : 1=2 );",
+            "",
+            "// ❌ Fail",
+            "nEqual( *on : 'ABC'='DEF' );"
+        ],
+        "body": "nEqual(${1:expected} : ${2:actual} : ${3:fieldName});"
+    },
+    "RPGUnit: Assert": {
+        "scope": "rpgle",
+        "prefix": "assert",
+        "description": [
+            "Checks the specified Boolean expression for true.",
+            "",
+            "The assertion fails if the expression evaluates to false.",
+            "When the assertion fails, the value of 'message' is added to the test report.",
+            "",
+            "// ✅ Pass",
+            "assert( 1=1 : 'Impossible to fail' );",
+            "",
+            "// ❌ Fail",
+            "rc = 1;",
+            "assert( rc=0 : 'Unexpected return code. Expected: 0' );"
+        ],
+        "body": "assert(${1:booleanExpression} : ${2:message});"
+    },
+    "RPGUnit: Fail": {
+        "scope": "rpgle",
+        "prefix": "fail",
+        "description": [
+            "Produces an error and appends the specified 'message' to the test report.",
+            "",
+            "The test case is terminated.",
+            "",
+            "monitor;",
+            "  produceAnException(doFailure);",
+            "",
+            "  // ❌ Fail: Only runs if exception was not caught",
+            "  fail('produceAnException(..) should have raised an error.');",
+            "on-error;",
+            "  // ✅ Pass: Only runs if exception was caught",
+            "endmon;"
+        ],
+        "body": "fail(${1:message});"
+    },
+    "RPGUnit: Get Monitored Message": {
+        "scope": "rpgle",
+        "prefix": "getMonitoredMessage",
+        "description": [
+            "Retrieves the latest *ESCAPE message from the job log. ",
+            "",
+            "Returns a data structure with the following information:",
+            "• id - Message ID",
+            "• text - First level text",
+            "• pgm - Sender: program name",
+            "• mod - Sender: module name",
+            "• proc - Sender: procedure name",
+            "• specNb - Sender: statement number",
+            "",
+            "Usually called within the 'on-error' section of a 'monitor' block.",
+            "",
+            "monitor;",
+            "  a = 10;",
+            "  b = 0;",
+            "  c = a / b;",
+            "",
+            "  // ❌ Fail: Only runs if exception was not caught",
+            "  fail('Division by zero did not raise an error.');",
+            "on-error;",
+            "  msgInfo = getMonitoredMessage(*ON);",
+            "endmon;",
+            "",
+            "// ✅ Pass",
+            "aEqual('MCH1211' : msgInfo.Id);"
+        ],
+        "body": "getMonitoredMessage(${1:*ON});"
+    },
+    "RPGUnit: Assert Job Log Contains": {
+        "scope": "rpgle",
+        "prefix": "assertJobLogContains",
+        "description": [
+            "Checks whether the job log contains the specified message ID between NOW and timeLimit.",
+            "",
+            "The value of timeLimit should be created with getFullTimeStamp().",
+            "",
+            "testStartTime = getFullTimeStamp();",
+            "sndMCH1211Msg();",
+            "",
+            "// ✅ Pass",
+            "assertJobLogContains('MCH1211' : testStartTime);"
+        ],
+        "body": "assertJobLogContains(${1:msgId} : ${2:timeLimit});"
+    },
+    "RPGUnit: Assert Message Queue Contains": {
+        "scope": "rpgle",
+        "prefix": "assertMessageQueueContains",
+        "description": [
+            "Checks whether a given message queue contains the specified message between NOW and timeLimit.",
+            "",
+            "The message is identified by any combination of ID, message text or message help where unused selection parameters must be omitted.",
+            "• Message ID can be set to *EMPTY to test whether a message queue is empty (all other parameters must be omitted).",
+            "• Message text and message help can be specified as *generic* strings values.",
+            "• The value of timeLimit should be created with getFullTimeStamp().",
+            "",
+            "testStartTime = getFullTimeStamp();",
+            "sndToMSGQ();",
+            "",
+            "// ✅ Pass",
+            "assertMessageQueueContains('QMSGQT' : 'QTEMP' : *omit : 'MSGQT - iRPGUnit' : *omit : testStartTime);",
+            "",
+            "testStartTime = getFullTimeStamp();",
+            "",
+            "// ✅ Pass",
+            "assertMessageQueueContains('QMSGQT' : 'QTEMP' : '*EMPTY' : *omit : *omit : testStartTime);"
+        ],
+        "body": "assertMessageQueueContains(${1:userOrQueue} : ${2:library} : ${3:msgId} : ${4:msgText} : ${5:msgHelp} : ${6:timeLimit});"
+    }
+}
