@@ -169,7 +169,7 @@ export class TestFile {
         try {
             compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
             if (compileParams.cOption === "*EVENTF") {
-                await commands.executeCommand('code-for-ibmi.openErrors', compileParams.tstPgm, workspaceFolder);
+                await commands.executeCommand('code-for-ibmi.openErrors', compileParams.tstPgm, { workspace: workspaceFolder, keepDiagnostics: true });
             }
         } catch (error: any) {
             runner.updateTestRunStatus(run, 'compilation', {
