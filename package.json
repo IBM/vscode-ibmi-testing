@@ -144,6 +144,12 @@
           }
         }
       }
+    ],
+    "snippets": [
+      {
+        "language": "rpgle",
+        "path": "./snippets/rpgle.json"
+      }
     ]
   },
   "scripts": {

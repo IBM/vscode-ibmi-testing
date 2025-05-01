@@ -1,4 +1,4 @@
-import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, window, ProgressLocation } from "vscode";
+import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, window, ProgressLocation, commands } from "vscode";
 import { IBMiTestData, IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
@@ -127,6 +127,9 @@ export class IBMiTestRunner {
         // Get test queue
         const queue: { item: TestItem, data: IBMiTestData }[] = await this.getTestQueue(run);
 
+        const clearErrorsBeforeBuild = workspace.getConfiguration('code-for-ibmi').get<boolean>('clearErrorsBeforeBuild');
+        let isDiagnosticsCleared: boolean = clearErrorsBeforeBuild ? false : true;
+
         const attemptedDeployments: { workspaceItem: TestItem, isDeployed: boolean }[] = [];
         const compiledTestFileItems: TestItem[] = [];
         for (const { item, data } of queue) {
@@ -195,6 +198,11 @@ export class IBMiTestRunner {
                         status: 'skipped'
                     });
                 } else {
+                    if (!isDiagnosticsCleared) {
+                        commands.executeCommand('code-for-ibmi.clearDiagnostics');
+                        isDiagnosticsCleared = true;
+                    }
+
                     await testFileData.compileMember(this, run);
                     compiledTestFileItems.push(testFileItem);
                 }
@@ -240,7 +248,12 @@ export class IBMiTestRunner {
         const content = connection.getContent();
         const config = connection.getConfig();
 
-        const library = item.uri?.scheme === 'file' ? config.currentLibrary : connection.parserMemberPath(item.uri!.path).library;
+        const workspaceFolder = item.uri?.scheme === 'file' ? workspace.getWorkspaceFolder(item.uri!) : undefined;
+        const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+
+        const library = item.uri?.scheme === 'file' ?
+            (libraryList?.currentLibrary || config.currentLibrary)
+            : connection.parserMemberPath(item.uri!.path).library;
         const data = this.manager.testData.get(item);
         const isTestCase = data instanceof TestCase;
         let programName =
@@ -296,7 +309,8 @@ export class IBMiTestRunner {
 
         let testResult: any;
         try {
-            testResult = await connection.runCommand({ command: testCommand, environment: `ile` });
+            const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
+            testResult = await connection.runCommand({ command: testCommand, environment: `ile`, env: env });
         } catch (error: any) {
             if (isTestCase) {
                 this.updateTestRunStatus(run, 'testCase', {
@@ -332,17 +346,17 @@ export class IBMiTestRunner {
                 const isStatementCoverage = this.request.profile!.label === IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL;
 
                 for (const fileCoverage of codeCoverageResults) {
-                    const workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
+                    // TODO: Fix mapping of code coverage results when adding support for source members
                     const deployTools = getDeployTools()!;
-                    const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
+                    const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder!)!;
 
                     let uri: Uri;
-                    if (fileCoverage.path.startsWith(deployDirectory)) {
+                    if (`/${fileCoverage.path}`.startsWith(deployDirectory)) {
                         // Get relative remote path to test
                         const relativePathToTest = path.posix.relative(deployDirectory, `/${fileCoverage.path}`);
 
                         // Construct local path to test
-                        const localPath = path.join(workspaceFolder.uri.fsPath, relativePathToTest);
+                        const localPath = path.join(workspaceFolder!.uri.fsPath, relativePathToTest);
                         uri = Uri.file(localPath);
                     } else {
                         uri = Uri.file(fileCoverage.localPath);
