@@ -146,9 +146,14 @@ export class TestFile {
             };
         }
 
-        // Set TGTCCSID to 37 by default if not set
+        // Set TGTCCSID to 37 by default
         if (!compileParams.tgtCcsid) {
             compileParams.tgtCcsid = "37";
+        }
+
+        // SET COPTION to *EVEVENTF by default to be able to later get diagnostic messages
+        if (!compileParams.cOption) {
+            compileParams.cOption = "*EVENTF";
         }
 
         // Set DBGVIEW to *SOURCE by default for code coverage to get proper line numbers
@@ -173,6 +178,19 @@ export class TestFile {
             });
 
             return;
+        }
+
+        try {
+            // Retrieve diagnostics messages
+            if (compileParams.cOption === "*EVENTF") {
+                await commands.executeCommand('code-for-ibmi.openErrors', {
+                    qualifiedObject: compileParams.tstPgm,
+                    workspace: workspaceFolder,
+                    keepDiagnostics: true
+                });
+            }
+        } catch (error: any) {
+            Logger.getInstance().log(LogLevel.Error, `Failed to retrieve diagnostics messages: ${error}`);
         }
 
         if (compileResult.stderr.length > 0) {
