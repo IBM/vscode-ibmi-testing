@@ -168,9 +168,6 @@ export class TestFile {
         let compileResult: any;
         try {
             compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
-            if (compileParams.cOption === "*EVENTF") {
-                await commands.executeCommand('code-for-ibmi.openErrors', compileParams.tstPgm, { workspace: workspaceFolder, keepDiagnostics: true });
-            }
         } catch (error: any) {
             runner.updateTestRunStatus(run, 'compilation', {
                 item: this.item,
@@ -179,6 +176,19 @@ export class TestFile {
             });
 
             return;
+        }
+
+        try {
+            // Retrieve diagnostics messages
+            if (compileParams.cOption === "*EVENTF") {
+                await commands.executeCommand('code-for-ibmi.openErrors', {
+                    qualifiedObject: compileParams.tstPgm,
+                    workspace: workspaceFolder,
+                    keepDiagnostics: true
+                });
+            }
+        } catch (error: any) {
+            Logger.getInstance().log(LogLevel.Error, `Failed to retrieve diagnostics messages: ${error}`);
         }
 
         if (compileResult.stderr.length > 0) {
