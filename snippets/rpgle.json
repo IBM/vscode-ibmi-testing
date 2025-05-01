@@ -78,6 +78,7 @@
             "Compares the given String values 'expected' and 'actual'.",
             "",
             "The assertion fails, if both values are different.",
+            "If the 'fieldName' parameter is specified, the message is prefixed with 'fieldName:'.",
             "",
             "// ✅ Pass",
             "aEqual( 'Hello' : 'Hello' );",
@@ -85,7 +86,7 @@
             "// ❌ Fail",
             "aEqual( 'HelloWorld' : 'Hello' );"
         ],
-        "body": "aEqual(${1:expected} : ${2:actual});"
+        "body": "aEqual(${1:expected} : ${2:actual} : ${3:fieldName});"
     },
     "RPGUnit: Integer Equal": {
         "scope": "rpgle",
@@ -94,6 +95,7 @@
             "Compares the given Integer values expected and actual.",
             "",
             "The assertion fails, if both values are different.",
+            "If the 'fieldName' parameter is specified, the message is prefixed with 'fieldName:'.",
             "",
             "// ✅ Pass",
             "iEqual( 123 : 123 );",
@@ -101,7 +103,7 @@
             "// ❌ Fail",
             "iEqual( 123 : 456 );"
         ],
-        "body": "iEqual(${1:expected} : ${2:actual});"
+        "body": "iEqual(${1:expected} : ${2:actual} : ${3:fieldName});"
     },
     "RPGUnit: Boolean Equal": {
         "scope": "rpgle",
@@ -110,6 +112,7 @@
             "Compares the given Boolean values expected and actual.",
             "",
             "The assertion fails, if both values are different.",
+            "If the 'fieldName' parameter is specified, the message is prefixed with 'fieldName:'.",
             "",
             "// ✅ Pass",
             "nEqual( *off : 1=2 );",
@@ -117,7 +120,7 @@
             "// ❌ Fail",
             "nEqual( *on : 'ABC'='DEF' );"
         ],
-        "body": "nEqual(${1:expected} : ${2:actual});"
+        "body": "nEqual(${1:expected} : ${2:actual} : ${3:fieldName});"
     },
     "RPGUnit: Assert": {
         "scope": "rpgle",
