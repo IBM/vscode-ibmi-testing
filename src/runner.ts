@@ -93,8 +93,10 @@ export class IBMiTestRunner {
         // Get test queue
         const queue: { item: TestItem, data: IBMiTestData }[] = await this.getTestQueue(run);
 
+        const clearErrorsBeforeBuild = workspace.getConfiguration('code-for-ibmi').get<boolean>('clearErrorsBeforeBuild');
+        let isDiagnosticsCleared: boolean = clearErrorsBeforeBuild ? false : true;
+
         const attemptedDeployments: { workspaceItem: TestItem, isDeployed: boolean }[] = [];
-        let isDiagnosticsCleared: boolean = false;
         const compiledTestFileItems: TestItem[] = [];
         for (const { item, data } of queue) {
             const testFileItem = data instanceof TestFile ? item : item.parent!;
