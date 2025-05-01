@@ -5,6 +5,7 @@ import { Configuration, Section } from "./configuration";
 import { Logger } from "./logger";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { RPGUnit } from "./components/rpgUnit";
+import { CodeCov } from "./components/codeCov";
 
 export let manager: IBMiTestManager | undefined;
 
@@ -33,8 +34,10 @@ export function activate(context: ExtensionContext) {
 
 	// Register component
 	const rpgUnit = new RPGUnit();
+	const codeCov = new CodeCov();
 	const componentRegistry = getComponentRegistry();
 	componentRegistry?.registerComponent(context, rpgUnit);
+	componentRegistry?.registerComponent(context, codeCov);
 
 	// Subscribe to IBM i connect and disconnect events
 	let connection: IBMi | undefined;
