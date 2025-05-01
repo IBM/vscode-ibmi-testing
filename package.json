@@ -170,7 +170,7 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "@halcyontech/vscode-ibmi-types": "file:C:\\Users\\SanjulaGanepola\\Git\\vscode-ibmi\\types",
+    "@halcyontech/vscode-ibmi-types": "^2.15",
     "@types/lodash": "^4.17.16",
     "@types/mocha": "^10.0.7",
     "@types/node": "20.x",
