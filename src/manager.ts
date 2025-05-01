@@ -4,7 +4,7 @@ import { TestCase } from "./testCase";
 import * as path from "path";
 import { IBMiTestRunner } from "./runner";
 import { TestDirectory } from "./testDirectory";
-import { Logger } from "./outputChannel";
+import { Logger } from "./logger";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { IBMiTestStorage } from "./storage";
 import { CodeCoverage } from "./codeCoverage";
@@ -194,7 +194,7 @@ export class IBMiTestManager {
                 let parentItem = deletedItem.parent;
                 parentItem?.children.delete(deletedItem.id);
                 this.testData.delete(deletedItem);
-                Logger.getInstance().log(LogLevel.Info, `Deleted file test item for ${uri.toString()}`);
+                Logger.log(LogLevel.Info, `Deleted file test item for ${uri.toString()}`);
 
                 // Recursively delete empty parents
                 while (parentItem && parentItem.children.size === 0) {
@@ -204,14 +204,14 @@ export class IBMiTestManager {
                         // Delete workspace item when no grandparent
                         this.controller.items.delete(parentItem.id);
                         this.testData.delete(parentItem);
-                        Logger.getInstance().log(LogLevel.Info, `Deleted workspace test item for ${parentItem.uri?.toString()}`);
+                        Logger.log(LogLevel.Info, `Deleted workspace test item for ${parentItem.uri?.toString()}`);
                         break;
                     }
 
                     grandParentItem.children.delete(parentItem.id);
                     this.testData.delete(parentItem);
                     parentItem = grandParentItem;
-                    Logger.getInstance().log(LogLevel.Info, `Deleted directory test item for ${parentItem.uri?.toString()}`);
+                    Logger.log(LogLevel.Info, `Deleted directory test item for ${parentItem.uri?.toString()}`);
                 }
             });
 
@@ -242,7 +242,7 @@ export class IBMiTestManager {
                     workspaceItem = this.controller.createTestItem(workspaceFolder.uri.toString(), path.parse(workspaceFolder.uri.path).base, workspaceFolder.uri);
                     workspaceItem.canResolveChildren = true;
                     this.controller.items.add(workspaceItem);
-                    Logger.getInstance().log(LogLevel.Info, `Created workspace test item for ${workspaceFolder.uri.toString()}`);
+                    Logger.log(LogLevel.Info, `Created workspace test item for ${workspaceFolder.uri.toString()}`);
 
                     const data = new TestDirectory(workspaceItem);
                     this.testData.set(workspaceItem, data);
@@ -259,7 +259,7 @@ export class IBMiTestManager {
                         directoryItem = this.controller.createTestItem(directoryUri.toString(), directoryName, directoryUri);
                         directoryItem.canResolveChildren = true;
                         parentItem.children.add(directoryItem);
-                        Logger.getInstance().log(LogLevel.Info, `Created directory test item for ${directoryUri.toString()}`);
+                        Logger.log(LogLevel.Info, `Created directory test item for ${directoryUri.toString()}`);
 
                         const data = new TestDirectory(directoryItem);
                         this.testData.set(directoryItem, data);
@@ -272,7 +272,7 @@ export class IBMiTestManager {
                 const fileItem = this.controller.createTestItem(uri.toString(), path.parse(uri.path).base, uri);
                 fileItem.canResolveChildren = true;
                 parentItem.children.add(fileItem);
-                Logger.getInstance().log(LogLevel.Info, `Created file test item for ${uri.toString()}`);
+                Logger.log(LogLevel.Info, `Created file test item for ${uri.toString()}`);
 
                 const data = new TestFile(fileItem, { workspaceItem });
                 this.testData.set(fileItem, data);
@@ -305,7 +305,7 @@ export class IBMiTestManager {
                             parentPartItem = partItem;
 
                             if (isMember) {
-                                Logger.getInstance().log(LogLevel.Info, `Created member test item for ${partUri.toString()}`);
+                                Logger.log(LogLevel.Info, `Created member test item for ${partUri.toString()}`);
 
                                 const data = new TestFile(partItem, { libraryItem: libraryItem });
                                 this.testData.set(partItem, data);
@@ -315,7 +315,7 @@ export class IBMiTestManager {
                                     data: data
                                 };
                             } else {
-                                Logger.getInstance().log(LogLevel.Info, `Created object test item for ${partUri.toString()}`);
+                                Logger.log(LogLevel.Info, `Created object test item for ${partUri.toString()}`);
                                 const data = new TestObject(partItem);
                                 this.testData.set(partItem, data);
 

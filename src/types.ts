@@ -4,6 +4,8 @@ import { TestCase } from "./testCase";
 import { TestDirectory } from "./testDirectory";
 import { TestObject } from "./testObject";
 
+export type Env = Record<string, string>;
+
 export type IBMiTestData = TestDirectory | TestObject | TestFile | TestCase;
 
 export type TestQueue = { item: TestItem, data: TestFile | TestCase }[];

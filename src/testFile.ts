@@ -1,4 +1,4 @@
-import { commands, DocumentSymbol, LogLevel, SymbolKind, TestItem, TestRun, workspace } from "vscode";
+import { commands, DocumentSymbol, LogLevel, SymbolKind, TestItem, TestRun, workspace, WorkspaceFolder } from "vscode";
 import { TestCase } from "./testCase";
 import { manager } from "./extension";
 import { getDeployTools, getInstance } from "./api/ibmi";
@@ -8,7 +8,7 @@ import { TestingConfig, RUCRTRPG, RUCRTCBL } from "./types";
 import * as path from "path";
 import { ConfigHandler } from "./config";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
-import { Logger } from "./outputChannel";
+import { Logger } from "./logger";
 import { Utils } from "./utils";
 
 export class TestFile {
@@ -50,7 +50,7 @@ export class TestFile {
                     const rawContent = await workspace.fs.readFile(this.item.uri!);
                     this.content = TestFile.textDecoder.decode(rawContent);
                 } catch (error: any) {
-                    Logger.getInstance().log(LogLevel.Error, `Failed to read test file ${this.item.label}: ${error}`);
+                    Logger.log(LogLevel.Error, `Failed to read test file ${this.item.label}: ${error}`);
                 }
             }
 
@@ -76,9 +76,9 @@ export class TestFile {
                     }
                 }
                 this.item.children.replace(childItems);
-                Logger.getInstance().log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases: ${childItems.map(item => item.label).join(', ')}`);
+                Logger.log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases: ${childItems.map(item => item.label).join(', ')}`);
             } catch (error) {
-                Logger.getInstance().log(LogLevel.Error, `Failed to load test cases from ${this.item.label}: ${error}`);
+                Logger.log(LogLevel.Error, `Failed to load test cases from ${this.item.label}: ${error}`);
             }
         }
     }
@@ -89,6 +89,8 @@ export class TestFile {
         const content = connection.getContent();
         const config = connection.getConfig();
 
+        let workspaceFolder: WorkspaceFolder | undefined;
+
         let tstPgm: { name: string, library: string };
         let srcFile: { name: string, library: string } | undefined;
         let srcMbr: string | undefined;
@@ -97,7 +99,7 @@ export class TestFile {
 
         if (this.item.uri!.scheme === 'file') {
             // Get relative local path to test
-            const workspaceFolder = workspace.getWorkspaceFolder(this.item.uri!)!;
+            workspaceFolder = workspace.getWorkspaceFolder(this.item.uri!)!;
             const relativePathToTest = path.relative(workspaceFolder.uri.fsPath, this.item.uri!.fsPath).replace(/\\/g, '/');
 
             // Construct remote path to test
@@ -113,10 +115,11 @@ export class TestFile {
                 .toLocaleUpperCase();
             const tstPgmName = Utils.getSystemName(originalTstPgmName);
             if (tstPgmName !== originalTstPgmName) {
-                Logger.getInstance().log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
+                Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
             }
 
-            tstPgm = { library: config.currentLibrary, name: tstPgmName };
+            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+            tstPgm = { library: libraryList?.currentLibrary || config.currentLibrary, name: tstPgmName };
             testingConfig = await ConfigHandler.getLocalConfig(this.item.uri!);
         } else {
             const parsedPath = connection.parserMemberPath(this.item.uri!.path);
@@ -149,9 +152,14 @@ export class TestFile {
             };
         }
 
-        // Set TGTCCSID to 37 by default if not set
+        // Set TGTCCSID to 37 by default
         if (!compileParams.tgtCcsid) {
             compileParams.tgtCcsid = "37";
+        }
+
+        // SET COPTION to *EVEVENTF by default to be able to later get diagnostic messages
+        if (!compileParams.cOption) {
+            compileParams.cOption = "*EVENTF";
         }
 
         // Set DBGVIEW to *SOURCE by default for code coverage to get proper line numbers
@@ -162,11 +170,12 @@ export class TestFile {
         const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
         const languageSpecificCommand = this.isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
         const compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, compileParams as any);
-        Logger.getInstance().log(LogLevel.Info, `Compiling ${this.item.label}: ${compileCommand}`);
+        Logger.log(LogLevel.Info, `Compiling ${this.item.label}: ${compileCommand}`);
 
         let compileResult: any;
         try {
-            compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
+            const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
+            compileResult = await connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
         } catch (error: any) {
             runner.updateTestRunStatus(run, 'compilation', {
                 item: this.item,
@@ -177,8 +186,21 @@ export class TestFile {
             return;
         }
 
+        try {
+            // Retrieve diagnostics messages
+            if (compileParams.cOption === "*EVENTF") {
+                await commands.executeCommand('code-for-ibmi.openErrors', {
+                    qualifiedObject: compileParams.tstPgm,
+                    workspace: workspaceFolder,
+                    keepDiagnostics: true
+                });
+            }
+        } catch (error: any) {
+            Logger.log(LogLevel.Error, `Failed to retrieve diagnostics messages: ${error}`);
+        }
+
         if (compileResult.stderr.length > 0) {
-            Logger.getInstance().log(LogLevel.Error, `${this.item.label} compile error(s):\n${compileResult.stderr}`);
+            Logger.log(LogLevel.Error, `${this.item.label} compile error(s):\n${compileResult.stderr}`);
         }
 
         if (compileResult.code === 0) {
