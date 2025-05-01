@@ -34,8 +34,7 @@ export class CodeCov implements IBMiComponent {
         }
     }
 
-    async update(connection: IBMi, installDirectory: string): Promise<ComponentState> {
-        const state = await this.getRemoteState(connection, installDirectory);
-        return state;
+    update(connection: IBMi, installDirectory: string): Promise<ComponentState> {
+        return this.getRemoteState(connection, installDirectory);
     }
 }
