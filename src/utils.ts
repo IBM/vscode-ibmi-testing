@@ -46,12 +46,14 @@ export namespace Utils {
     }
 
     /**
-     * Retrieve the environment variables defined in a workspace folder's .env file.
+     * Retrieve the environment variables defined in a workspace folder's `.env` file. This implementation
+     * is a modified version of the original source to include `&` as a prefix for each value.
      * 
      * Original Source: https://github.com/codefori/vscode-ibmi/blob/master/src/filesystems/local/env.ts#L20
      */
-    export async function getEnvConfig(workspaceFolder: WorkspaceFolder, prefix: string = '&') {
+    export async function getEnvConfig(workspaceFolder: WorkspaceFolder) {
         const env: Env = {};
+        const prefix = `&`;
 
         if (await envExists(workspaceFolder)) {
             const folderUri = workspaceFolder.uri;
@@ -79,7 +81,7 @@ export namespace Utils {
     }
 
     /**
-     * Check if a .env file exists in a workspace folder.
+     * Check if a `.env` file exists in a workspace folder.
      * 
      * Original Source: https://github.com/codefori/vscode-ibmi/blob/master/src/filesystems/local/env.ts#L8
      */
