@@ -47,7 +47,7 @@ export namespace Utils {
 
     /**
      * Retrieve the environment variables defined in a workspace folder's `.env` file. This implementation
-     * is a modified version of the original source to include `&` as a prefix for each value.
+     * is a modified version of the original source to include `&` as a prefix for each key.
      * 
      * Original Source: https://github.com/codefori/vscode-ibmi/blob/master/src/filesystems/local/env.ts#L20
      */
