@@ -50,7 +50,7 @@
       {
         "title": "IBM i Testing",
         "properties": {
-          "vscode-ibmi-testing.runOrder": {
+          "IBM i Testing.runOrder": {
             "order": 0,
             "type": "string",
             "default": "*API",
@@ -64,7 +64,7 @@
             ],
             "markdownDescription": "Specifies the order for running the test procedures. Useful to check that there is no dependencies between test procedures."
           },
-          "vscode-ibmi-testing.libraryList": {
+          "IBM i Testing.libraryList": {
             "order": 1,
             "type": "string",
             "default": "*CURRENT",
@@ -78,19 +78,19 @@
             ],
             "markdownDescription": "Specifies the library list for executing the specified unit test."
           },
-          "vscode-ibmi-testing.jobDescription": {
+          "IBM i Testing.jobDescription": {
             "order": 2,
             "type": "string",
             "default": "*DFT",
-            "markdownDescription": "Specifies the name of the job description that is used to set the library list, when parameter `#vscode-ibmi-testing.libraryList#` is set to `*JOBD`. `*DFT` can be used here to indicate the library of the unit test suite (service program) is searched for job description `RPGUNIT`."
+            "markdownDescription": "Specifies the name of the job description that is used to set the library list, when parameter `IBM i Testing: Library List` is set to `*JOBD`. `*DFT` can be used here to indicate the library of the unit test suite (service program) is searched for job description `RPGUNIT`."
           },
-          "vscode-ibmi-testing.jobDescriptionLibrary": {
+          "IBM i Testing.jobDescriptionLibrary": {
             "order": 3,
             "type": "string",
             "default": "",
             "markdownDescription": "Specifies the library that is searched for the job description. `*LIBL` can be used here to indicate all libraries in the user and system portions of the job's library list are searched until the first match is found."
           },
-          "vscode-ibmi-testing.reportDetail": {
+          "IBM i Testing.reportDetail": {
             "order": 4,
             "type": "string",
             "default": "*BASIC",
@@ -104,7 +104,7 @@
             ],
             "markdownDescription": "Specifies how detailed the test run report should be."
           },
-          "vscode-ibmi-testing.createReport": {
+          "IBM i Testing.createReport": {
             "order": 5,
             "type": "string",
             "default": "*ALLWAYS",
@@ -120,7 +120,7 @@
             ],
             "markdownDescription": "Specifies whether a report is created."
           },
-          "vscode-ibmi-testing.reclaimResources": {
+          "IBM i Testing.reclaimResources": {
             "order": 6,
             "type": "string",
             "default": "*NO",
@@ -136,7 +136,7 @@
             ],
             "markdownDescription": "Specifies when to reclaim resources. Resources, such as open files, can be reclaimed after each test case or at the end of the test suite. This option is useful if the test suite calls OPM programs, which do not set the `*INLR` indicator."
           },
-          "vscode-ibmi-testing.productLibrary": {
+          "IBM i Testing.productLibrary": {
             "order": 8,
             "type": "string",
             "default": "RPGUNIT",
@@ -162,7 +162,9 @@
   },
   "dependencies": {
     "ansi-colors": "^4.1.3",
+    "compare-versions": "^6.1.1",
     "lodash": "^4.17.21",
+    "octokit": "^4.1.2",
     "tmp": "^0.2.3",
     "unzipper": "^0.11.6",
     "xml2js": "^0.6.2"

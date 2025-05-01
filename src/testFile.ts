@@ -8,7 +8,7 @@ import { TestingConfig, RUCRTRPG, RUCRTCBL } from "./types";
 import * as path from "path";
 import { ConfigHandler } from "./config";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
-import { Logger } from "./outputChannel";
+import { Logger } from "./logger";
 import { Utils } from "./utils";
 
 export class TestFile {
@@ -48,7 +48,7 @@ export class TestFile {
                     const rawContent = await workspace.fs.readFile(this.item.uri!);
                     this.content = TestFile.textDecoder.decode(rawContent);
                 } catch (error: any) {
-                    Logger.getInstance().logWithErrorNotification(LogLevel.Error, `Failed to load test file`, error);
+                    Logger.logWithNotification(LogLevel.Error, `Failed to load test file`, error);
                 }
             }
 
@@ -73,7 +73,7 @@ export class TestFile {
                 }
             }
             this.item.children.replace(childItems);
-            Logger.getInstance().log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases: ${childItems.map(item => item.label).join(', ')}`);
+            Logger.log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases: ${childItems.map(item => item.label).join(', ')}`);
         }
     }
 
@@ -109,7 +109,7 @@ export class TestFile {
                 .toLocaleUpperCase();
             const tstPgmName = Utils.getSystemName(originalTstPgmName);
             if (tstPgmName !== originalTstPgmName) {
-                Logger.getInstance().log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
+                Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
             }
 
             const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
@@ -164,7 +164,7 @@ export class TestFile {
         const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
         const languageSpecificCommand = this.isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
         const compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, compileParams as any);
-        Logger.getInstance().log(LogLevel.Info, `Compiling ${this.item.label}: ${compileCommand}`);
+        Logger.log(LogLevel.Info, `Compiling ${this.item.label}: ${compileCommand}`);
 
         let compileResult: any;
         try {
@@ -194,7 +194,7 @@ export class TestFile {
         }
 
         if (compileResult.stderr.length > 0) {
-            Logger.getInstance().log(LogLevel.Error, `${this.item.label} compile error(s):\n${compileResult.stderr}`);
+            Logger.log(LogLevel.Error, `${this.item.label} compile error(s):\n${compileResult.stderr}`);
         }
 
         if (compileResult.code === 0) {

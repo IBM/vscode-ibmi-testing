@@ -1,5 +1,6 @@
 import { CodeForIBMi } from "@halcyontech/vscode-ibmi-types";
 import Instance from "@halcyontech/vscode-ibmi-types/Instance";
+import { ComponentRegistry } from "@halcyontech/vscode-ibmi-types/api/components/manager";
 import { DeployTools } from "@halcyontech/vscode-ibmi-types/filesystems/local/deployTools";
 import { Extension, extensions } from "vscode";
 
@@ -18,5 +19,9 @@ export function getInstance(): Instance | undefined {
 }
 
 export function getDeployTools(): typeof DeployTools | undefined {
-  return (baseExtension && baseExtension.isActive && baseExtension.exports ? baseExtension.exports.deployTools : undefined);
+    return (baseExtension && baseExtension.isActive && baseExtension.exports ? baseExtension.exports.deployTools : undefined);
+}
+
+export function getComponentRegistry(): ComponentRegistry | undefined {
+    return (baseExtension && baseExtension.isActive && baseExtension.exports ? baseExtension.exports.componentRegistry : undefined);
 }

@@ -1,4 +1,4 @@
-import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, commands } from "vscode";
+import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, window, ProgressLocation, commands } from "vscode";
 import { IBMiTestData, IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
@@ -8,12 +8,13 @@ import { CODECOV, RUCALLTST, TestQueue, TestMetrics } from "./types";
 import { Configuration, defaultConfigurations, Section } from "./configuration";
 import { TestCase } from "./testCase";
 import { TestDirectory } from "./testDirectory";
-import { Logger } from "./outputChannel";
+import { Logger } from "./logger";
 import { CodeCoverage } from "./codeCoverage";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { IBMiTestStorage } from "./storage";
 import c from "ansi-colors";
 import { Utils } from "./utils";
+import { RPGUnit } from "./components/rpgUnit";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
@@ -50,7 +51,7 @@ export class IBMiTestRunner {
             await this.processRequest(requestItem, run, queue);
         }
 
-        Logger.getInstance().log(LogLevel.Info, `${queue.length} test item(s) queued: ${queue.map((item) => item.item.label).join(', ')}`);
+        Logger.log(LogLevel.Info, `${queue.length} test item(s) queued: ${queue.map((item) => item.item.label).join(', ')}`);
         return queue;
     }
 
@@ -76,7 +77,7 @@ export class IBMiTestRunner {
             if (data.item.children.size !== 0) {
                 queue.push({ item, data });
             } else {
-                Logger.getInstance().log(LogLevel.Warning, `Test file ${data.item.label} not queued (no test cases found)`);
+                Logger.log(LogLevel.Warning, `Test file ${data.item.label} not queued (no test cases found)`);
             }
         } else if (data instanceof TestCase) {
             // Request is a test case so add to queue
@@ -89,6 +90,39 @@ export class IBMiTestRunner {
 
     async runHandler(): Promise<void> {
         const run = this.manager.controller.createTestRun(this.request);
+
+        // Check if RPGUnit is installed
+        const ibmi = getInstance();
+        const connection = ibmi!.getConnection();
+
+        const componentManager = connection?.getComponentManager();
+        const state = await componentManager?.getRemoteState(RPGUnit.ID);
+        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const installMessage = state === 'NeedsUpdate' ?
+            `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i.` :
+            (state !== 'Installed' ? `RPGUnit v${RPGUnit.MINIMUM_VERSION} must be installed on the IBM i.` : undefined);
+        const installQuestion = state === 'NeedsUpdate' ?
+            `Can it be updated in ${productLibrary}.LIB?` :
+            (state !== 'Installed' ? `Can it be installed into ${productLibrary}.LIB?` : undefined);
+
+        if (installMessage) {
+            // End test run
+            this.updateTestRunStatus(run, 'component', {
+                message: installMessage
+            });
+            run.end();
+
+            // Prompt user to install or update RPGUnit
+            window.showErrorMessage(`${installMessage} ${installQuestion}`, 'Install').then(async (value) => {
+                if (value === 'Install') {
+                    await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
+                        progress.report({ message: `Installing ${RPGUnit.ID}` });
+                        await componentManager.installComponent(RPGUnit.ID);
+                    });
+                }
+            });
+            return;
+        }
 
         // Get test queue
         const queue: { item: TestItem, data: IBMiTestData }[] = await this.getTestQueue(run);
@@ -237,7 +271,7 @@ export class IBMiTestRunner {
         const tstpgm = `${library}/${programName}`;
         const tstprc = isTestCase ? item.label : undefined;
         const testStorage = IBMiTestStorage.getTestStorage(`${programName}${tstprc ? `_${tstprc}` : ``}`);
-        Logger.getInstance().log(LogLevel.Info, `Test storage for ${item.label}: ${JSON.stringify(testStorage)}`);
+        Logger.log(LogLevel.Info, `Test storage for ${item.label}: ${JSON.stringify(testStorage)}`);
         const xmlStmf = testStorage.RPGUNIT;
 
         const testParams: RUCALLTST = {
@@ -271,7 +305,7 @@ export class IBMiTestRunner {
             };
             testCommand = `QDEVTOOLS/CODECOV CMD(${coverageParams.cmd}) MODULE(${coverageParams.module}) CCLVL(${coverageParams.ccLvl}) OUTSTMF('${coverageParams.outStmf}')`;
         }
-        Logger.getInstance().log(LogLevel.Info, `Running ${item.label}: ${testCommand}`);
+        Logger.log(LogLevel.Info, `Running ${item.label}: ${testCommand}`);
 
         let testResult: any;
         try {
@@ -300,10 +334,10 @@ export class IBMiTestRunner {
         }
 
         if (testResult.stdout.length > 0) {
-            Logger.getInstance().log(LogLevel.Info, `${item.label} execution output:\n${testResult.stdout}`);
+            Logger.log(LogLevel.Info, `${item.label} execution output:\n${testResult.stdout}`);
         }
         if (testResult.stderr.length > 0) {
-            Logger.getInstance().log(LogLevel.Error, `${item.label} execution error(s):\n${testResult.stderr}`);
+            Logger.log(LogLevel.Error, `${item.label} execution error(s):\n${testResult.stderr}`);
         }
 
         if (isCodeCoverageEnabled) {
@@ -412,11 +446,14 @@ export class IBMiTestRunner {
     }
 
     // TODO: Fix data to have a type instead of any
-    public updateTestRunStatus(run: TestRun, type: 'workspaceFolder' | 'testFile' | 'deployment' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
+    public updateTestRunStatus(run: TestRun, type: 'component' | 'workspaceFolder' | 'testFile' | 'deployment' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
         switch (type) {
+            case 'component':
+                run.appendOutput(c.red(data.message));
+                break;
             case 'workspaceFolder':
                 run.appendOutput(`${c.bgBlue(` WORKSPACE `)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);
-                Logger.getInstance().log(LogLevel.Info, `Deploying ${data.item.label}`);
+                Logger.log(LogLevel.Info, `Deploying ${data.item.label}`);
                 break;
             case 'testFile':
                 run.appendOutput(`${c.blue(`❯`)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);
@@ -424,22 +461,22 @@ export class IBMiTestRunner {
             case 'deployment':
                 if (data.success) {
                     run.appendOutput(` ${c.grey(`[ Deployment Successful ]`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Info, `Successfully deployed ${data.item.label}`);
+                    Logger.log(LogLevel.Info, `Successfully deployed ${data.item.label}`);
                 } else {
                     run.appendOutput(` ${c.red(`[ Deployment Failed ]`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Error, `Failed to deploy ${data.item.label}`);
+                    Logger.log(LogLevel.Error, `Failed to deploy ${data.item.label}`);
                 }
                 break;
             case 'compilation':
                 if (data.status === 'success') {
                     run.appendOutput(` ${c.grey(`[ Compilation Successful ]`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Info, `Successfully compiled ${data.item.label}`);
+                    Logger.log(LogLevel.Info, `Successfully compiled ${data.item.label}`);
                 } else if (data.status === 'failed') {
                     run.appendOutput(` ${c.yellow(`[ Compilation Error ]`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Error, `Failed to compile ${data.item.label}`);
+                    Logger.log(LogLevel.Error, `Failed to compile ${data.item.label}`);
                 } else if (data.status === 'skipped') {
                     run.appendOutput(` ${c.grey(`[ Compilation Skipped ]`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Warning, `Skipped compilation for ${data.item.label}`);
+                    Logger.log(LogLevel.Warning, `Skipped compilation for ${data.item.label}`);
                 }
                 if (data.messages) {
                     for (const message of data.messages) {
@@ -452,7 +489,7 @@ export class IBMiTestRunner {
                     this.metrics.testCasesPassed++;
                     run.passed(data.item, data.duration * 1000);
                     run.appendOutput(`\t${c.green(`✔`)}  ${data.item.label} ${c.grey(`${data.duration}s`)}\r\n`);
-                    Logger.getInstance().log(LogLevel.Info, `Test case ${data.item.label} passed in ${data.duration}s`);
+                    Logger.log(LogLevel.Info, `Test case ${data.item.label} passed in ${data.duration}s`);
                 } else if (data.status === 'failed') {
                     if (data.item?.label) {
                         this.metrics.testCasesFailed++;
@@ -475,7 +512,7 @@ export class IBMiTestRunner {
 
                     if (data.item) {
                         run.failed(data.item, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
-                        Logger.getInstance().log(LogLevel.Error, `Test case ${data.item.label} failed${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
+                        Logger.log(LogLevel.Error, `Test case ${data.item.label} failed${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
                     } else {
                         run.failed(data.fallbackTestFile, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
                     }
@@ -501,7 +538,7 @@ export class IBMiTestRunner {
 
                     if (data.item) {
                         run.errored(data.item, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
-                        Logger.getInstance().log(LogLevel.Error, `Test case ${data.item.label} errored${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
+                        Logger.log(LogLevel.Error, `Test case ${data.item.label} errored${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
                     } else {
                         run.errored(data.fallbackTestFile, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
                     }
