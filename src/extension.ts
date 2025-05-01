@@ -32,7 +32,7 @@ export function activate(context: ExtensionContext) {
 		}
 	});
 
-	// Register component
+	// Register components
 	const rpgUnit = new RPGUnit();
 	const codeCov = new CodeCov();
 	const componentRegistry = getComponentRegistry();
