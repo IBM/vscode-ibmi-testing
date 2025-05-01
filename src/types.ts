@@ -1,6 +1,8 @@
 import { TestItem } from "vscode";
 import { IBMiTestData } from "./manager";
 
+export type Env = Record<string, string>;
+
 export type TestQueue = { item: TestItem, data: IBMiTestData }[];
 
 export type CompilationStatus = 'success' | 'failed' | 'skipped';

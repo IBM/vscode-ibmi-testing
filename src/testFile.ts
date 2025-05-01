@@ -112,7 +112,8 @@ export class TestFile {
                 Logger.getInstance().log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
             }
 
-            tstPgm = { library: config.currentLibrary, name: tstPgmName };
+            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+            tstPgm = { library: libraryList?.currentLibrary || config.currentLibrary, name: tstPgmName };
             testingConfig = await ConfigHandler.getLocalConfig(this.item.uri!);
         } else {
             const parsedPath = connection.parserMemberPath(this.item.uri!.path);
@@ -167,7 +168,8 @@ export class TestFile {
 
         let compileResult: any;
         try {
-            compileResult = await connection.runCommand({ command: compileCommand, environment: `ile` });
+            const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
+            compileResult = await connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
         } catch (error: any) {
             runner.updateTestRunStatus(run, 'compilation', {
                 item: this.item,
