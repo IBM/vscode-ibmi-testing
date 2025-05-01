@@ -9,6 +9,8 @@
         ],
         "body": [
             "dcl-proc test$1 export;",
+            "\tdcl-pi *n extproc(*dclcase) end-pi;",
+            "",
             "\t$2",
             "end-proc;"
         ]
