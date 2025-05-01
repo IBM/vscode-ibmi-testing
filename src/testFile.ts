@@ -31,11 +31,8 @@ export class TestFile {
         this.isCompiled = false;
         this.content = '';
 
-        const rpgleTestSuffixes = [
-            IBMiTestManager.RPGLE_TEST_SUFFIX,
-            IBMiTestManager.SQLRPGLE_TEST_SUFFIX
-        ];
-        this.isRPGLE = rpgleTestSuffixes.some(suffix => item.uri!.path.toLocaleUpperCase().endsWith(suffix));
+        const rpgleTestSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: false });
+        this.isRPGLE = rpgleTestSuffixes.remote.some(suffix => item.uri!.path.toLocaleUpperCase().endsWith(suffix));
     }
 
     async load(content?: string): Promise<void> {
@@ -107,12 +104,14 @@ export class TestFile {
             const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
             srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
-            const originalTstPgmName = this.item.label
-                .replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), '')
-                .replace(new RegExp(IBMiTestManager.SQLRPGLE_TEST_SUFFIX, 'i'), '')
-                .replace(new RegExp(IBMiTestManager.COBOL_TEST_SUFFIX, 'i'), '')
-                .replace(new RegExp(IBMiTestManager.SQLCOBOL_TEST_SUFFIX, 'i'), '')
-                .toLocaleUpperCase();
+            // Construct test program name without any suffix and convert to system name
+            const originalTstPgmName = this.item.label;
+            const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
+            for (const suffix of testSuffixes.local) {
+                if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
+                    originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
+                }
+            }
             const tstPgmName = Utils.getSystemName(originalTstPgmName);
             if (tstPgmName !== originalTstPgmName) {
                 Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);

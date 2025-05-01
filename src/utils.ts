@@ -4,6 +4,37 @@ import { Env } from "./types";
 
 export namespace Utils {
     /**
+     * Get local and remote test suffixes. Local test suffixes are identical to remote ones,
+     * but include `.TEST` along with the file extension.
+     */
+    export function getTestSuffixes(options: { rpg: boolean, cobol: boolean }): { local: string[], remote: string[] } {
+        const localSuffix = '.TEST';
+
+        // Supported extensions
+        const rpgleExt = `.RPGLE`;
+        const sqlrpgleExt = `.SQLRPGLE`;
+        const cobolExt = `.CBLLE`;
+        const sqlcobolExt = `.SQLCBLLE`;
+
+        const testSuffixes: { local: string[], remote: string[] } = {
+            local: [],
+            remote: []
+        };
+
+        if (options.rpg) {
+            testSuffixes.remote.push(rpgleExt, sqlrpgleExt);
+        }
+
+        if (options.cobol) {
+            testSuffixes.remote.push(cobolExt, sqlcobolExt);
+        }
+
+        testSuffixes.local.push(...testSuffixes.remote.map(suffix => localSuffix + suffix));
+
+        return testSuffixes;
+    }
+
+    /**
      * Reuse logic used in Source Orbit to convert a given file name to a 10 character system name.
      * 
      * Explanation:     https://ibm.github.io/sourceorbit/#/./pages/general/rules?id=long-file-names

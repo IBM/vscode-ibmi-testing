@@ -11,6 +11,7 @@ import { CodeCoverage } from "./codeCoverage";
 import { TestObject } from "./testObject";
 import { getInstance } from "./api/ibmi";
 import { IBMiTestData } from "./types";
+import { Utils } from "./utils";
 
 export class IBMiTestManager {
     public static CONTROLLER_ID = 'ibmiTest';
@@ -18,11 +19,6 @@ export class IBMiTestManager {
     public static RUN_PROFILE_LABEL = 'Run Tests';
     public static LINE_COVERAGE_PROFILE_LABEL = 'Run Tests with Line Coverage';
     public static PROCEDURE_COVERAGE_PROFILE_LABEL = 'Run Tests with Procedure Coverage';
-    public static TEST_SUFFIX = '_T';
-    public static RPGLE_TEST_SUFFIX = `${IBMiTestManager.TEST_SUFFIX}.RPGLE`;
-    public static SQLRPGLE_TEST_SUFFIX = `${IBMiTestManager.TEST_SUFFIX}.SQLRPGLE`;
-    public static COBOL_TEST_SUFFIX = `${IBMiTestManager.TEST_SUFFIX}.CBLLE`;
-    public static SQLCOBOL_TEST_SUFFIX = `${IBMiTestManager.TEST_SUFFIX}.SQLCBLLE`;
     public context: ExtensionContext;
     public testData: WeakMap<TestItem, IBMiTestData>;
     public controller: TestController;
@@ -43,10 +39,7 @@ export class IBMiTestManager {
             }
         };
         this.controller.refreshHandler = async () => {
-            const workspaceTestPatterns = this.getWorkspaceTestPatterns();
-            for await (const workspaceTestPattern of workspaceTestPatterns) {
-                await this.findInitialFiles(workspaceTestPattern.pattern);
-            }
+            this.loadInitialTests();
         };
         const runProfile = this.controller.createRunProfile(IBMiTestManager.RUN_PROFILE_LABEL, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
             const runner = new IBMiTestRunner(this, request, token);
@@ -90,17 +83,24 @@ export class IBMiTestManager {
 
         IBMiTestStorage.setupTestStorage();
         CodeCoverage.setupCodeCoverage();
-
         this.loadInitialTests();
     }
 
     async loadInitialTests(): Promise<void> {
-        // Load tests from opened documents
+        // Load local tests from workspace folders
+        const workspaceTestPatterns = this.getWorkspaceTestPatterns();
+        for await (const workspaceTestPattern of workspaceTestPatterns) {
+            await this.findInitialFiles(workspaceTestPattern.pattern);
+        }
+
+        // Fully load test cases for opened documents
         for await (const document of workspace.textDocuments) {
             const uri = document.uri;
             const content = document.getText();
             await this.loadFileOrMember(uri, content);
         }
+
+        const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
 
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
@@ -109,7 +109,6 @@ export class IBMiTestManager {
         const workspaceFolders = workspace.workspaceFolders;
         const workspaceFolder = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0] : undefined;
         const libraryList = await ibmi?.getLibraryList(connection, workspaceFolder);
-
         if (libraryList) {
             const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
             for await (const library of libraries) {
@@ -117,9 +116,9 @@ export class IBMiTestManager {
 
                 const testMembers = await content.getMemberList({
                     library: library,
-                    sourceFile: "TEST",
-                    members: ".*_[Tt]",
-                    filterType: "regex",
+                    sourceFile: "QTESTSRC",
+                    extensions: testSuffixes.remote.join(',').slice(1),
+                    filterType: "simple",
                     sort: { order: 'name' }
                 });
 
@@ -140,17 +139,13 @@ export class IBMiTestManager {
             return [];
         }
 
-        const testSuffixes = [
-            IBMiTestManager.RPGLE_TEST_SUFFIX,
-            IBMiTestManager.SQLRPGLE_TEST_SUFFIX,
-            IBMiTestManager.COBOL_TEST_SUFFIX,
-            IBMiTestManager.SQLCOBOL_TEST_SUFFIX
-        ].flatMap(suffix => [suffix, suffix.toLowerCase()]).join(',');
+        const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
+        const pattern = testSuffixes.local.flatMap(suffix => [suffix, suffix.toLowerCase()]).join(',');
 
         return workspaceFolders.map((workspaceFolder: WorkspaceFolder) => {
             return {
                 workspaceFolder,
-                pattern: new RelativePattern(workspaceFolder, `**/*{${testSuffixes}}`)
+                pattern: new RelativePattern(workspaceFolder, `**/*{${pattern}}`)
             };
         });
     }
@@ -289,12 +284,17 @@ export class IBMiTestManager {
                 for (let index = 0; index < parts.length; index++) {
                     const part = parts[index];
                     if (part !== '') {
-                        // Create test item for part
+                        const isMember = (index === parts.length - 1);
+
+                        // Construct uri
                         partPath += '/' + part;
-                        let partItem = this.controller.items.get(partPath);
+                        const partUri = isMember ? uri : Uri.from({ scheme: 'object', path: partPath });
+
+                        // Create test item for part
+                        let partItem = parentPartItem ?
+                            parentPartItem.children.get(partUri.toString()) :
+                            this.controller.items.get(partUri.toString());
                         if (!partItem) {
-                            const isMember = (index === parts.length - 1);
-                            const partUri = isMember ? uri : Uri.from({ scheme: 'object', path: partPath });
                             partItem = this.controller.createTestItem(partUri.toString(), part, partUri);
                             partItem.canResolveChildren = true;
                             if (parentPartItem) {
@@ -323,6 +323,8 @@ export class IBMiTestManager {
                                     libraryItem = partItem;
                                 }
                             }
+                        } else {
+                            parentPartItem = partItem;
                         }
                     }
                 }
@@ -349,17 +351,19 @@ export class IBMiTestManager {
 
 
     private async loadFileOrMember(uri: Uri, content?: string, loadTestCases: boolean = true): Promise<void> {
-        if (!['file', 'member'].includes(uri.scheme)) {
+        // Get test suffixes based on the URI scheme
+        const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
+        let uriSpecificSuffixes: string[];
+        if (uri.scheme === 'file') {
+            uriSpecificSuffixes = testSuffixes.local;
+        } else if (uri.scheme === 'member') {
+            uriSpecificSuffixes = testSuffixes.remote;
+        } else {
             return;
         }
 
-        const testSuffixes = [
-            IBMiTestManager.RPGLE_TEST_SUFFIX,
-            IBMiTestManager.SQLRPGLE_TEST_SUFFIX,
-            IBMiTestManager.COBOL_TEST_SUFFIX,
-            IBMiTestManager.SQLCOBOL_TEST_SUFFIX
-        ];
-        if (!testSuffixes.some(suffix => uri.path.toLocaleUpperCase().endsWith(suffix))) {
+        // Check if the URI ends with any of the uri specific suffixes
+        if (!uriSpecificSuffixes.some(suffix => uri.path.toLocaleUpperCase().endsWith(suffix))) {
             return;
         }
 
