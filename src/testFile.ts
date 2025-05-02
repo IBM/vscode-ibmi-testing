@@ -195,8 +195,9 @@ export class TestFile {
         try {
             // Retrieve diagnostics messages
             if (compileParams.cOption === "*EVENTF") {
+                const ext = path.parse(this.item.uri!.path).ext;
                 await commands.executeCommand('code-for-ibmi.openErrors', {
-                    qualifiedObject: compileParams.tstPgm,
+                    qualifiedObject: `${compileParams.tstPgm}${ext}`,
                     workspace: workspaceFolder,
                     keepDiagnostics: true
                 });
