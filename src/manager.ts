@@ -33,12 +33,16 @@ export class IBMiTestManager {
                 return;
             }
 
-            const data = this.testData.get(item);
-            if (data instanceof TestFile) {
-                await data.load();
-            }
+            await this.loadFileOrMember(item.uri!, true);
         };
         this.controller.refreshHandler = async () => {
+            // Remove all existing test items
+            this.controller.items.forEach((item) => {
+                this.controller.items.delete(item.id);
+            });
+            this.testData = new WeakMap<TestItem, IBMiTestData>();
+
+            // Reload all test items
             this.loadInitialTests();
         };
         const runProfile = this.controller.createRunProfile(IBMiTestManager.RUN_PROFILE_LABEL, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
@@ -72,12 +76,12 @@ export class IBMiTestManager {
             workspace.onDidOpenTextDocument(async (document: TextDocument) => {
                 const uri = document.uri;
                 const content = document.getText();
-                await this.loadFileOrMember(uri, content);
+                await this.loadFileOrMember(uri, true, content);
             }),
             workspace.onDidChangeTextDocument(async (event: TextDocumentChangeEvent) => {
                 const uri = event.document.uri;
                 const content = event.document.getText();
-                await this.loadFileOrMember(uri, content);
+                await this.loadFileOrMember(uri, true, content);
             })
         );
 
@@ -90,14 +94,17 @@ export class IBMiTestManager {
         // Load local tests from workspace folders
         const workspaceTestPatterns = this.getWorkspaceTestPatterns();
         for await (const workspaceTestPattern of workspaceTestPatterns) {
-            await this.findInitialFiles(workspaceTestPattern.pattern);
+            const fileUris = await workspace.findFiles(workspaceTestPattern.pattern);
+            for (const uri of fileUris) {
+                await this.loadFileOrMember(uri, false);
+            }
         }
 
         // Fully load test cases for opened documents
         for await (const document of workspace.textDocuments) {
             const uri = document.uri;
             const content = document.getText();
-            await this.loadFileOrMember(uri, content);
+            await this.loadFileOrMember(uri, true, content);
         }
 
         const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
@@ -127,7 +134,7 @@ export class IBMiTestManager {
                         path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :
                         path.posix.join(testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`);
                     const uri = Uri.from({ scheme: 'member', path: `/${memberPath}` });
-                    await this.loadFileOrMember(uri, undefined, false);
+                    await this.loadFileOrMember(uri, false);
                 }
             }
         }
@@ -150,13 +157,6 @@ export class IBMiTestManager {
         });
     }
 
-    private async findInitialFiles(pattern: GlobPattern): Promise<void> {
-        const fileUris = await workspace.findFiles(pattern);
-        for (const uri of fileUris) {
-            this.getOrCreateFile(uri);
-        }
-    }
-
     private startWatchingWorkspace(): void {
         const workspaceTestPatterns = this.getWorkspaceTestPatterns();
 
@@ -165,10 +165,11 @@ export class IBMiTestManager {
             this.context.subscriptions.push(watcher);
 
             watcher.onDidCreate((uri: Uri) => {
-                this.getOrCreateFile(uri);
+                this.loadFileOrMember(uri, false);
             });
             // TODO: Handle remote source member changes
             watcher.onDidChange(async (uri: Uri) => {
+                // TODO: Replace with await this.loadFileOrMember(uri, false);
                 const result = this.getOrCreateFile(uri);
                 if (result) {
                     result.data.isLoaded = false;
@@ -209,8 +210,6 @@ export class IBMiTestManager {
                     Logger.log(LogLevel.Info, `Deleted directory test item for ${parentItem.uri?.toString()}`);
                 }
             });
-
-            this.findInitialFiles(workspaceTestPattern.pattern);
         }
     }
 
@@ -350,7 +349,7 @@ export class IBMiTestManager {
     }
 
 
-    private async loadFileOrMember(uri: Uri, content?: string, loadTestCases: boolean = true): Promise<void> {
+    private async loadFileOrMember(uri: Uri, loadTestCases: boolean, content?: string): Promise<void> {
         // Get test suffixes based on the URI scheme
         const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
         let uriSpecificSuffixes: string[];

@@ -2,7 +2,6 @@ import { commands, DocumentSymbol, LogLevel, SymbolKind, TestItem, TestRun, work
 import { TestCase } from "./testCase";
 import { manager } from "./extension";
 import { getDeployTools, getInstance } from "./api/ibmi";
-import { IBMiTestManager } from "./manager";
 import { IBMiTestRunner } from "./runner";
 import { TestingConfig, RUCRTRPG, RUCRTCBL } from "./types";
 import * as path from "path";
