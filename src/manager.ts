@@ -1,4 +1,4 @@
-import { CancellationToken, ExtensionContext, FileCoverage, GlobPattern, LogLevel, RelativePattern, StatementCoverage, TestController, TestItem, TestRun, TestRunProfileKind, TestRunRequest, tests, TextDocument, TextDocumentChangeEvent, Uri, workspace, WorkspaceFolder } from "vscode";
+import { CancellationToken, ExtensionContext, FileCoverage, GlobPattern, LogLevel, RelativePattern, StatementCoverage, TestController, TestItem, TestRun, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, workspace, WorkspaceFolder } from "vscode";
 import { TestFile } from "./testFile";
 import { TestCase } from "./testCase";
 import * as path from "path";
@@ -14,8 +14,8 @@ import { IBMiTestData } from "./types";
 import { Utils } from "./utils";
 
 export class IBMiTestManager {
-    public static CONTROLLER_ID = 'ibmiTest';
-    public static CONTROLLER_LABEL = 'IBM i Tests';
+    public static CONTROLLER_ID = 'IBMi';
+    public static CONTROLLER_LABEL = 'IBM i Testing';
     public static RUN_PROFILE_LABEL = 'Run Tests';
     public static LINE_COVERAGE_PROFILE_LABEL = 'Run Tests with Line Coverage';
     public static PROCEDURE_COVERAGE_PROFILE_LABEL = 'Run Tests with Procedure Coverage';
@@ -233,8 +233,7 @@ export class IBMiTestManager {
                 // Create workspace test item if it does not exist
                 let workspaceItem = this.controller.items.get(workspaceFolder.uri.toString());
                 if (!workspaceItem) {
-                    workspaceItem = this.controller.createTestItem(workspaceFolder.uri.toString(), path.parse(workspaceFolder.uri.path).base, workspaceFolder.uri);
-                    workspaceItem.canResolveChildren = true;
+                    workspaceItem = this.createTestItem(workspaceFolder.uri, path.parse(workspaceFolder.uri.path).base, true);
                     this.controller.items.add(workspaceItem);
                     Logger.log(LogLevel.Info, `Created workspace test item for ${workspaceFolder.uri.toString()}`);
 
@@ -250,8 +249,7 @@ export class IBMiTestManager {
                     const directoryUri = Uri.joinPath(workspaceFolder.uri, directoryName);
                     let directoryItem = parentItem.children.get(directoryUri.toString());
                     if (!directoryItem) {
-                        directoryItem = this.controller.createTestItem(directoryUri.toString(), directoryName, directoryUri);
-                        directoryItem.canResolveChildren = true;
+                        directoryItem = this.createTestItem(directoryUri, directoryName, true);
                         parentItem.children.add(directoryItem);
                         Logger.log(LogLevel.Info, `Created directory test item for ${directoryUri.toString()}`);
 
@@ -263,8 +261,7 @@ export class IBMiTestManager {
                 }
 
                 // Create file test item
-                const fileItem = this.controller.createTestItem(uri.toString(), path.parse(uri.path).base, uri);
-                fileItem.canResolveChildren = true;
+                const fileItem = this.createTestItem(uri, path.parse(uri.path).base, true);
                 parentItem.children.add(fileItem);
                 Logger.log(LogLevel.Info, `Created file test item for ${uri.toString()}`);
 
@@ -294,8 +291,7 @@ export class IBMiTestManager {
                             parentPartItem.children.get(partUri.toString()) :
                             this.controller.items.get(partUri.toString());
                         if (!partItem) {
-                            partItem = this.controller.createTestItem(partUri.toString(), part, partUri);
-                            partItem.canResolveChildren = true;
+                            partItem = this.createTestItem(partUri, part, false);
                             if (parentPartItem) {
                                 parentPartItem.children.add(partItem);
                             } else {
@@ -329,6 +325,19 @@ export class IBMiTestManager {
                 }
             }
         }
+    }
+
+    private createTestItem(uri: Uri, label: string, isLocal: boolean): TestItem {
+        const testItem = this.controller.createTestItem(uri.toString(), label, uri);
+        testItem.canResolveChildren = true;
+
+        if (isLocal) {
+            testItem.tags = [new TestTag('local')];
+        } else {
+            testItem.tags = [new TestTag('members')];
+        }
+
+        return testItem;
     }
 
     public getFlattenedTestItems(): TestItem[] {
