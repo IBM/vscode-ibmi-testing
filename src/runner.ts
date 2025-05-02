@@ -1,4 +1,4 @@
-import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, window, ProgressLocation, commands } from "vscode";
+import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, window, ProgressLocation, commands, WorkspaceFolder } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
@@ -95,6 +95,7 @@ export class IBMiTestRunner {
         // Check if RPGUnit is installed
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
+        const config = connection.getConfig();
 
         const componentManager = connection?.getComponentManager();
         const state = await componentManager?.getRemoteState(RPGUnit.ID);
@@ -149,7 +150,8 @@ export class IBMiTestRunner {
                     });
 
                     const deployTools = getDeployTools();
-                    const deployResult = await deployTools!.launchDeploy(workspaceFolder!.index);
+                    const defaultDeploymentMethod = config.defaultDeploymentMethod;
+                    const deployResult = await deployTools!.launchDeploy(workspaceFolder!.index, defaultDeploymentMethod || undefined);
                     attempt = { workspaceItem: testFileData.workspaceItem, isDeployed: deployResult ? true : false };
                     attemptedDeployments.push(attempt);
                     this.updateTestRunStatus(run, 'deployment', {
@@ -260,32 +262,41 @@ export class IBMiTestRunner {
         const content = connection.getContent();
         const config = connection.getConfig();
 
-        const workspaceFolder = item.uri?.scheme === 'file' ? workspace.getWorkspaceFolder(item.uri!) : undefined;
-        const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
-
-        const library = item.uri?.scheme === 'file' ?
-            (libraryList?.currentLibrary || config.currentLibrary)
-            : connection.parserMemberPath(item.uri!.path).library;
         const data = this.manager.testData.get(item);
         const isTestCase = data instanceof TestCase;
-        let programName =
-            isTestCase ?
-                item.parent!.label :
-                item.label;
-        const originalProgramName = item.uri?.scheme === 'file' ?
-            programName
-                .replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), '')
-                .replace(new RegExp(IBMiTestManager.SQLRPGLE_TEST_SUFFIX, 'i'), '')
-                .replace(new RegExp(IBMiTestManager.COBOL_TEST_SUFFIX, 'i'), '')
-                .replace(new RegExp(IBMiTestManager.SQLCOBOL_TEST_SUFFIX, 'i'), '')
-                .toLocaleUpperCase() :
-            programName
-                .toLocaleUpperCase();
-        programName = Utils.getSystemName(originalProgramName);
 
-        const tstpgm = `${library}/${programName}`;
+        let workspaceFolder: WorkspaceFolder | undefined;
+        let tstPgm: { name: string, library: string };
+
+        if (item.uri?.scheme === 'file') {
+            // Construct test program name without any suffix and convert to system name
+            let originalTstPgmName = isTestCase ? item.parent!.label : item.label;
+            const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
+            for (const suffix of testSuffixes.local) {
+                if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
+                    originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
+                }
+            }
+            originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
+            const tstPgmName = Utils.getSystemName(originalTstPgmName);
+
+            // Use current library as the test library
+            const workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
+            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+
+            tstPgm = { name: tstPgmName, library: tstLibrary };
+        } else {
+            const parsedPath = connection.parserMemberPath(item.uri!.path);
+            const tstPgmName = parsedPath.name.toLocaleUpperCase();
+            const tstLibrary = parsedPath.library;
+
+            tstPgm = { name: tstPgmName, library: tstLibrary };
+        }
+
+        const tstpgm = `${tstPgm.library}/${tstPgm.name}`;
         const tstprc = isTestCase ? item.label : undefined;
-        const testStorage = IBMiTestStorage.getTestStorage(`${programName}${tstprc ? `_${tstprc}` : ``}`);
+        const testStorage = IBMiTestStorage.getTestStorage(`${tstPgm.name}${tstprc ? `_${tstprc}` : ``}`);
         Logger.log(LogLevel.Info, `Test storage for ${item.label}: ${JSON.stringify(testStorage)}`);
         const xmlStmf = testStorage.RPGUNIT;
 
@@ -361,20 +372,38 @@ export class IBMiTestRunner {
                 const isStatementCoverage = this.request.profile!.label === IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL;
 
                 for (const fileCoverage of codeCoverageResults) {
-                    // TODO: Fix mapping of code coverage results when adding support for source members
-                    const deployTools = getDeployTools()!;
-                    const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder!)!;
-
                     let uri: Uri;
-                    if (`/${fileCoverage.path}`.startsWith(deployDirectory)) {
-                        // Get relative remote path to test
-                        const relativePathToTest = path.posix.relative(deployDirectory, `/${fileCoverage.path}`);
+                    if (workspaceFolder) {
+                        // Map code coverage results from deploy directory to local workspace
+                        const deployTools = getDeployTools()!;
+                        const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
 
-                        // Construct local path to test
-                        const localPath = path.join(workspaceFolder!.uri.fsPath, relativePathToTest);
-                        uri = Uri.file(localPath);
+                        if (`/${fileCoverage.path}`.startsWith(deployDirectory)) {
+                            // Get relative remote path to test
+                            const relativePathToTest = path.posix.relative(deployDirectory, `/${fileCoverage.path}`);
+
+                            // Construct local path to test
+                            const localPath = path.join(workspaceFolder.uri.fsPath, relativePathToTest);
+                            uri = Uri.file(localPath);
+                        } else {
+                            uri = Uri.file(fileCoverage.localPath);
+                        }
                     } else {
-                        uri = Uri.file(fileCoverage.localPath);
+                        // Map code coverage results to source members
+                        let memberPath: string = '';
+                        const parts = fileCoverage.path.split('/');
+                        for (let index = 0; index < parts.length; index++) {
+                            if (index !== parts.length - 1) {
+                                const partName = parts[index].split('.');
+                                if (partName.length > 0) {
+                                    memberPath += `/${partName[0]}`;
+                                }
+                            } else {
+                                memberPath += `/${parts[index]}`;
+                            }
+                        }
+
+                        uri = Uri.from({ scheme: 'member', path: memberPath });
                     }
 
                     run.addCoverage(new IBMiFileCoverage(uri, fileCoverage, isStatementCoverage));

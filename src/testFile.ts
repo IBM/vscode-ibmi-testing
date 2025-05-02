@@ -87,7 +87,6 @@ export class TestFile {
         const config = connection.getConfig();
 
         let workspaceFolder: WorkspaceFolder | undefined;
-
         let tstPgm: { name: string, library: string };
         let srcFile: { name: string, library: string } | undefined;
         let srcMbr: string | undefined;
@@ -95,8 +94,26 @@ export class TestFile {
         let testingConfig: TestingConfig | undefined;
 
         if (this.item.uri!.scheme === 'file') {
-            // Get relative local path to test
+            // Construct test program name without any suffix and convert to system name
+            let originalTstPgmName = this.item.label;
+            const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
+            for (const suffix of testSuffixes.local) {
+                if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
+                    originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
+                }
+            }
+            originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
+            const tstPgmName = Utils.getSystemName(originalTstPgmName);
+            if (tstPgmName !== originalTstPgmName) {
+                Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
+            }
+
+            // Use current library as the test library
             workspaceFolder = workspace.getWorkspaceFolder(this.item.uri!)!;
+            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+
+            // Get relative local path to test
             const relativePathToTest = path.relative(workspaceFolder.uri.fsPath, this.item.uri!.fsPath).replace(/\\/g, '/');
 
             // Construct remote path to test
@@ -104,26 +121,16 @@ export class TestFile {
             const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
             srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
-            // Construct test program name without any suffix and convert to system name
-            const originalTstPgmName = this.item.label;
-            const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
-            for (const suffix of testSuffixes.local) {
-                if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
-                    originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
-                }
-            }
-            const tstPgmName = Utils.getSystemName(originalTstPgmName);
-            if (tstPgmName !== originalTstPgmName) {
-                Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
-            }
-
-            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
-            tstPgm = { library: libraryList?.currentLibrary || config.currentLibrary, name: tstPgmName };
+            tstPgm = { name: tstPgmName, library: tstLibrary };
             testingConfig = await ConfigHandler.getLocalConfig(this.item.uri!);
         } else {
             const parsedPath = connection.parserMemberPath(this.item.uri!.path);
-            tstPgm = { name: parsedPath.name.toLocaleUpperCase(), library: parsedPath.library };
-            srcFile = { name: parsedPath.file, library: parsedPath.library };
+            const tstPgmName = parsedPath.name.toLocaleUpperCase();
+            const tstLibrary = parsedPath.library;
+            const srcFileName = parsedPath.file;
+
+            tstPgm = { name: tstPgmName, library: tstLibrary };
+            srcFile = { name: srcFileName, library: tstLibrary };
             srcMbr = '*TSTPGM';
             testingConfig = await ConfigHandler.getRemoteConfig(this.item.uri!);
         }
