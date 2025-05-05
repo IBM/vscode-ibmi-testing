@@ -5,7 +5,7 @@ import { getDeployTools, getInstance } from "./api/ibmi";
 import * as path from "path";
 import { parseStringPromise } from "xml2js";
 import { CODECOV, RUCALLTST, TestQueue, TestMetrics } from "./types";
-import { Configuration, defaultConfigurations, Section } from "./configuration";
+import { Configuration, Section } from "./configuration";
 import { TestCase } from "./testCase";
 import { TestDirectory } from "./testDirectory";
 import { Logger } from "./logger";

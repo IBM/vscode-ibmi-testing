@@ -1,71 +1,63 @@
 import { Octokit } from "octokit";
-import * as fs from "fs";
-import { pipeline } from "stream/promises";
+import * as fs from 'fs/promises';
+import { components } from "@octokit/openapi-types";
+import fetch from "node-fetch";
+import * as path from "path";
 
 export interface Response<T> {
     data: T,
     error?: string
 }
-
-export interface Tag {
-    name: string;
-    commit: {
-        sha: string;
-        url: string;
-    };
-    zipball_url: string;
-    tarball_url: string;
-    node_id: string;
-}
+export type Release = components["schemas"]["release"];
+export type ReleaseAsset = components["schemas"]["release-asset"];
 
 export namespace GitHub {
     export const OWNER = 'tools-400';
     export const REPO = 'irpgunit';
+    export const ASSET_NAME = 'RPGUNIT.SAVF';
 
-    export async function getTags(): Promise<Response<Tag[]>> {
-        const tags: Response<Tag[]> = {
+    export async function getReleases(): Promise<Response<Release[]>> {
+        const releases: Response<Release[]> = {
             data: []
         };
 
         try {
             const octokit = new Octokit();
-            const response = await octokit.rest.repos.listTags({
+            const response = await octokit.rest.repos.listReleases({
                 owner: OWNER,
-                repo: REPO,
+                repo: REPO
             });
 
             if (response.status === 200) {
-                tags.data = response.data;
+                releases.data = response.data;
             } else {
-                tags.error = `Failed to retrieve tags with status code ${response.status}`;
+                releases.error = response.status;
             }
         } catch (error: any) {
-            tags.error = error.message ? error.message : error;
+            releases.error = error.message ? error.message : error;
         }
 
-        return tags;
+        return releases;
     }
 
-    export async function downloadTag(tag: Tag, downloadTo: string): Promise<Response<boolean>> {
+    export async function downloadReleaseAsset(asset: ReleaseAsset, downloadDirectory: string): Promise<Response<boolean>> {
         const isDownloaded: Response<boolean> = {
             data: false
         };
 
         try {
-            const octokit = new Octokit();
-            const response = await octokit.rest.repos.downloadZipballArchive({
-                owner: OWNER,
-                repo: REPO,
-                ref: tag.commit.sha,
-                request: {
-                    parseSuccessResponseBody: false
-                }
-            });
-            await pipeline(
-                response.data as any,
-                fs.createWriteStream(downloadTo)
-            );
-            isDownloaded.data = true;
+            // Fetch asset
+            const response = await fetch(asset.browser_download_url);
+            const buffer = await response.arrayBuffer();
+
+            // Download asset to specified path
+            if (response.status === 200) {
+                const filePath = path.join(downloadDirectory, asset.name);
+                await fs.writeFile(filePath, Buffer.from(buffer));
+                isDownloaded.data = true;
+            } else {
+                isDownloaded.error = response.statusText;
+            }
         } catch (error: any) {
             isDownloaded.error = error.message ? error.message : error;
         }
