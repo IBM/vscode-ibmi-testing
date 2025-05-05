@@ -8,7 +8,7 @@
             "Each test case is an exported procedure that starts with the name 'test'."
         ],
         "body": [
-            "dcl-proc test$1 export;",
+            "dcl-proc test_$1 export;",
             "\tdcl-pi *n extproc(*dclcase) end-pi;",
             "",
             "\t$2",
