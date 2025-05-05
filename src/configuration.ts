@@ -13,7 +13,7 @@ export enum Section {
     productLibrary = 'productLibrary'
 }
 
-export const defaultConfigurations: { [T in Section]: any } = {
+export const defaultConfigurations: { [T in Section]: string | string[] } = {
     [Section.testSourceFiles]: ['QTESTSRC'],
     [Section.runOrder]: '*API',
     [Section.libraryList]: '*CURRENT',
@@ -29,11 +29,11 @@ export namespace Configuration {
     export const group: string = 'IBM i Testing';
 
     export async function initialize(): Promise<void> {
-        const configurations: { [key: string]: any } = {};
+        const configurations: { [key: string]: string | string[] } = {};
 
         for (const section of Object.values(Section)) {
-            let value = Configuration.get<string>(section);
-            if (!value) {
+            let value = Configuration.get<string | string[]>(section);
+            if (!value || (Array.isArray(value) && value.length === 0)) {
                 value = defaultConfigurations[section];
                 await Configuration.set(section, value);
             }
