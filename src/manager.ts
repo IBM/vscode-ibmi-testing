@@ -121,27 +121,25 @@ export class IBMiTestManager {
         // Load tests from library list
         const workspaceFolders = workspace.workspaceFolders;
         const workspaceFolder = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0] : undefined;
-        const libraryList = await ibmi?.getLibraryList(connection, workspaceFolder);
-        if (libraryList) {
-            const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles);
-            const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
-            for await (const library of libraries) {
-                for await (const testSourceFile of testSourceFiles) {
-                    const testMembers = await content.getMemberList({
-                        library: library,
-                        sourceFile: testSourceFile,
-                        extensions: testSuffixes.remote.join(',').slice(1),
-                        filterType: 'simple',
-                        sort: { order: 'name' }
-                    });
+        const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+        const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles);
+        const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
+        for await (const library of libraries) {
+            for await (const testSourceFile of testSourceFiles) {
+                const testMembers = await content.getMemberList({
+                    library: library,
+                    sourceFile: testSourceFile,
+                    extensions: testSuffixes.remote.join(',').slice(1),
+                    filterType: 'simple',
+                    sort: { order: 'name' }
+                });
 
-                    for (const testMember of testMembers) {
-                        const memberPath = testMember.asp ?
-                            path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :
-                            path.posix.join(testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`);
-                        const uri = Uri.from({ scheme: 'member', path: `/${memberPath}` });
-                        await this.loadFileOrMember(uri, false);
-                    }
+                for (const testMember of testMembers) {
+                    const memberPath = testMember.asp ?
+                        path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :
+                        path.posix.join(testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`);
+                    const uri = Uri.from({ scheme: 'member', path: `/${memberPath}` });
+                    await this.loadFileOrMember(uri, false);
                 }
             }
         }

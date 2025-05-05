@@ -1,5 +1,5 @@
 import path from "path";
-import { WorkspaceFolder, workspace } from "vscode";
+import { ConfigurationChangeEvent, WorkspaceFolder, workspace } from "vscode";
 import { Env } from "./types";
 
 export namespace Utils {
@@ -126,5 +126,19 @@ export namespace Utils {
         } catch (err) {
             return false;
         }
+    }
+
+    /**
+     * Subscribe to Code for IBM i configuration changes.
+     * 
+     * Original Source: https://github.com/codefori/vscode-ibmi/blob/master/src/config/Configuration.ts#L5
+     */
+    export function onCodeForIBMiConfigurationChange<T>(props: string | string[], todo: (value: ConfigurationChangeEvent) => void) {
+        const keys = (Array.isArray(props) ? props : Array.of(props)).map(key => `code-for-ibmi.${key}`);
+        return workspace.onDidChangeConfiguration(async event => {
+            if (keys.some(key => event.affectsConfiguration(key))) {
+                todo(event);
+            }
+        });
     }
 }
