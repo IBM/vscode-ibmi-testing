@@ -9,7 +9,7 @@ import { CodeCov } from "./components/codeCov";
 import { Utils } from "./utils";
 
 export let manager: IBMiTestManager | undefined;
-let libraryList: string[] | undefined;
+let userLibraryList: string[] | undefined;
 
 export function activate(context: ExtensionContext) {
 	console.log('Congratulations, your extension "vscode-ibmi-testing" is now active!');
@@ -46,9 +46,9 @@ export function activate(context: ExtensionContext) {
 			const config = connection.getConfig();
 			const newLibraryList = config.libraryList;
 
-			if (newLibraryList !== libraryList) {
-				Logger.log(LogLevel.Info, `Library list changed: ${libraryList}`);
-				libraryList = newLibraryList;
+			if (newLibraryList !== userLibraryList) {
+				Logger.log(LogLevel.Info, `Library list changed: ${userLibraryList}`);
+				userLibraryList = newLibraryList;
 
 				if (manager) {
 					await manager.refreshTests();
@@ -75,7 +75,7 @@ export function activate(context: ExtensionContext) {
 		}
 
 		const config = connection.getConfig();
-		libraryList = config.libraryList;
+		userLibraryList = config.libraryList;
 	});
 	ibmi!.subscribe(context, 'disconnected', 'Dispose IBM i Test Manager', async () => {
 		if (connection) {
@@ -89,7 +89,7 @@ export function activate(context: ExtensionContext) {
 		}
 
 		// Clean up cache
-		libraryList = undefined;
+		userLibraryList = undefined;
 
 		// TODO: Handle disposing of tests mid execution
 	});
