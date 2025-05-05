@@ -34,20 +34,16 @@ export class TestFile {
         this.isRPGLE = rpgleTestSuffixes.remote.some(suffix => item.uri!.path.toLocaleUpperCase().endsWith(suffix));
     }
 
-    async load(content?: string): Promise<void> {
+    async load(): Promise<void> {
         if (!this.isLoaded) {
             this.isLoaded = true;
 
             // Load test file content
-            if (content) {
-                this.content = content;
-            } else {
-                try {
-                    const rawContent = await workspace.fs.readFile(this.item.uri!);
-                    this.content = TestFile.textDecoder.decode(rawContent);
-                } catch (error: any) {
-                    Logger.log(LogLevel.Error, `Failed to read test file ${this.item.label}: ${error}`);
-                }
+            try {
+                const rawContent = await workspace.fs.readFile(this.item.uri!);
+                this.content = TestFile.textDecoder.decode(rawContent);
+            } catch (error: any) {
+                Logger.log(LogLevel.Error, `Failed to read test file ${this.item.label}: ${error}`);
             }
 
             // Load test cases

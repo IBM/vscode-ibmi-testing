@@ -75,13 +75,11 @@ export class IBMiTestManager {
             this.controller,
             workspace.onDidOpenTextDocument(async (document: TextDocument) => {
                 const uri = document.uri;
-                const content = document.getText();
-                await this.loadFileOrMember(uri, true, content);
+                await this.loadFileOrMember(uri, true);
             }),
             workspace.onDidChangeTextDocument(async (event: TextDocumentChangeEvent) => {
                 const uri = event.document.uri;
-                const content = event.document.getText();
-                await this.loadFileOrMember(uri, true, content);
+                await this.loadFileOrMember(uri, true);
             })
         );
 
@@ -103,8 +101,7 @@ export class IBMiTestManager {
         // Fully load test cases for opened documents
         for await (const document of workspace.textDocuments) {
             const uri = document.uri;
-            const content = document.getText();
-            await this.loadFileOrMember(uri, true, content);
+            await this.loadFileOrMember(uri, true);
         }
 
         const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
@@ -358,7 +355,7 @@ export class IBMiTestManager {
     }
 
 
-    private async loadFileOrMember(uri: Uri, loadTestCases: boolean, content?: string): Promise<void> {
+    private async loadFileOrMember(uri: Uri, loadTestCases: boolean): Promise<void> {
         // Get test suffixes based on the URI scheme
         const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
         let uriSpecificSuffixes: string[];
@@ -377,7 +374,7 @@ export class IBMiTestManager {
 
         const result = this.getOrCreateFile(uri);
         if (result && loadTestCases) {
-            await result.data.load(content);
+            await result.data.load();
         }
     }
 }
