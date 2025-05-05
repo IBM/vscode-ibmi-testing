@@ -17,10 +17,11 @@ export namespace CodeCoverage {
         const tmpDir = tmp.dirSync({ unsafeCleanup: true });
         const xml = await downloadCczip(outputZipPath, tmpDir);
 
-        // Parse XML to get coverage data
-        const coverageData = await getCoverageData(xml, tmpDir);
-
-        return coverageData;
+        if(xml) {
+            // Parse XML to get coverage data
+            const coverageData = await getCoverageData(xml, tmpDir);
+            return coverageData;
+        }
     }
 
     async function downloadCczip(outputZipPath: string, tmpDir: tmp.DirResult): Promise<any> {

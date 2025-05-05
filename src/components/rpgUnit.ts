@@ -27,7 +27,7 @@ export class RPGUnit implements IBMiComponent {
 
         try {
             // Check if product library exists
-            const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+            const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
             const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
             if (productLibraryExists) {
                 // Get installed version of RPGUnit
@@ -40,12 +40,12 @@ export class RPGUnit implements IBMiComponent {
                         const installedVersion = versionMatch[1];
 
                         // Compare installed version with minimum version
-                        if (compareVersions(RPGUnit.MINIMUM_VERSION, installedVersion) > 0) {
-                            Logger.log(LogLevel.Error, `Installed version of RPGUnit (${installedVersion}) is lower than minimum version (${RPGUnit.MINIMUM_VERSION})`);
-                            return 'NeedsUpdate';
-                        } else {
+                        if (compareVersions(installedVersion, RPGUnit.MINIMUM_VERSION) >= 0) {
                             Logger.log(LogLevel.Info, `Installed version of RPGUnit is ${installedVersion}`);
                             return 'Installed';
+                        } else {
+                            Logger.log(LogLevel.Error, `Installed version of RPGUnit (${installedVersion}) is lower than minimum version (${RPGUnit.MINIMUM_VERSION})`);
+                            return 'NeedsUpdate';
                         }
                     } else {
                         Logger.log(LogLevel.Error, `Failed to parse installed version of RPGUnit`);
@@ -100,7 +100,7 @@ export class RPGUnit implements IBMiComponent {
         const config = connection.getConfig();
 
         // Check if product library exists
-        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
         if (productLibraryExists) {
             const result = await window.showInformationMessage('Delete product library',

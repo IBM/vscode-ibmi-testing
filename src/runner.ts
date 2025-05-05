@@ -1,5 +1,5 @@
-import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, window, ProgressLocation, commands } from "vscode";
-import { IBMiTestData, IBMiTestManager } from "./manager";
+import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, window, ProgressLocation, commands, WorkspaceFolder } from "vscode";
+import { IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
 import * as path from "path";
@@ -14,6 +14,7 @@ import { IBMiFileCoverage } from "./fileCoverage";
 import { IBMiTestStorage } from "./storage";
 import c from "ansi-colors";
 import { Utils } from "./utils";
+import { TestObject } from "./testObject";
 import { RPGUnit } from "./components/rpgUnit";
 
 export class IBMiTestRunner {
@@ -61,8 +62,8 @@ export class IBMiTestRunner {
         }
 
         const data = this.manager.testData.get(item)!;
-        if (data instanceof TestDirectory) {
-            // Request is a test directory so process children
+        if (data instanceof TestDirectory || data instanceof TestObject) {
+            // Request is a test directory or test object so process children
             const childRequestItems: any = [];
             item.children.forEach((item) => {
                 childRequestItems.push(item);
@@ -94,10 +95,11 @@ export class IBMiTestRunner {
         // Check if RPGUnit is installed
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
+        const config = connection.getConfig();
 
         const componentManager = connection?.getComponentManager();
         const state = await componentManager?.getRemoteState(RPGUnit.ID);
-        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         const installMessage = state === 'NeedsUpdate' ?
             `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i.` :
             (state !== 'Installed' ? `RPGUnit v${RPGUnit.MINIMUM_VERSION} must be installed on the IBM i.` : undefined);
@@ -125,64 +127,76 @@ export class IBMiTestRunner {
         }
 
         // Get test queue
-        const queue: { item: TestItem, data: IBMiTestData }[] = await this.getTestQueue(run);
+        const queue: TestQueue = await this.getTestQueue(run);
 
         const clearErrorsBeforeBuild = workspace.getConfiguration('code-for-ibmi').get<boolean>('clearErrorsBeforeBuild');
         let isDiagnosticsCleared: boolean = clearErrorsBeforeBuild ? false : true;
 
         const attemptedDeployments: { workspaceItem: TestItem, isDeployed: boolean }[] = [];
+        const attemptedLibraries: TestItem[] = [];
+
         const compiledTestFileItems: TestItem[] = [];
         for (const { item, data } of queue) {
             const testFileItem = data instanceof TestFile ? item : item.parent!;
             const testFileData = data instanceof TestFile ? data : this.manager.testData.get(testFileItem)! as TestFile;
 
-            // Deploy workspace folder associated with test file if not already attemptted
-            // TODO: Handle remote case where deploy is ignored (maybe track remote or local in TestFile?)
-            const workspaceFolder = workspace.getWorkspaceFolder(testFileData.workspaceItem.uri!);
-            let attempt = attemptedDeployments.find((attempt) => attempt.workspaceItem.uri?.toString() === workspaceFolder!.uri.toString());
-            if (!attempt) {
-                this.updateTestRunStatus(run, 'workspaceFolder', {
-                    item: testFileData.workspaceItem
-                });
-
-                const deployTools = getDeployTools();
-                const deployResult = await deployTools!.launchDeploy(workspaceFolder!.index);
-                attempt = { workspaceItem: testFileData.workspaceItem, isDeployed: deployResult ? true : false };
-                attemptedDeployments.push(attempt);
-                this.updateTestRunStatus(run, 'deployment', {
-                    item: testFileData.workspaceItem,
-                    success: deployResult ? true : false
-                });
-            }
-
-            // Error out children if workspace folder not deployed
-            // TODO: Fix test file name and directory not being displayed in test results view
-            if (!attempt.isDeployed) {
-                this.updateTestRunStatus(run, 'testFile', {
-                    item: testFileItem
-                });
-                this.updateTestRunStatus(run, 'compilation', {
-                    item: testFileItem,
-                    status: 'skipped'
-                });
-
-                if (data instanceof TestCase) {
-                    this.updateTestRunStatus(run, 'testCase', {
-                        item: item,
-                        status: 'errored'
+            if (testFileData.workspaceItem) {
+                // Deploy workspace folder associated with test file if not already attemptted
+                const workspaceFolder = workspace.getWorkspaceFolder(testFileData.workspaceItem.uri!);
+                let attempt = attemptedDeployments.find((attempt) => attempt.workspaceItem.uri?.toString() === workspaceFolder!.uri.toString());
+                if (!attempt) {
+                    this.updateTestRunStatus(run, 'workspaceFolder', {
+                        item: testFileData.workspaceItem
                     });
-                } else {
-                    item.children.forEach((childItem) => {
-                        if (!this.request.exclude?.includes(childItem)) {
-                            this.updateTestRunStatus(run, 'testCase', {
-                                item: childItem,
-                                status: 'errored'
-                            });
-                        }
+
+                    const deployTools = getDeployTools();
+                    const defaultDeploymentMethod = config.defaultDeploymentMethod;
+                    const deployResult = await deployTools!.launchDeploy(workspaceFolder!.index, defaultDeploymentMethod || undefined);
+                    attempt = { workspaceItem: testFileData.workspaceItem, isDeployed: deployResult ? true : false };
+                    attemptedDeployments.push(attempt);
+                    this.updateTestRunStatus(run, 'deployment', {
+                        item: testFileData.workspaceItem,
+                        success: deployResult ? true : false
                     });
                 }
 
-                continue;
+                // Error out children if workspace folder not deployed
+                // TODO: Fix test file name and directory not being displayed in test results view
+                if (!attempt.isDeployed) {
+                    this.updateTestRunStatus(run, 'testFile', {
+                        item: testFileItem
+                    });
+                    this.updateTestRunStatus(run, 'compilation', {
+                        item: testFileItem,
+                        status: 'skipped'
+                    });
+
+                    if (data instanceof TestCase) {
+                        this.updateTestRunStatus(run, 'testCase', {
+                            item: item,
+                            status: 'errored'
+                        });
+                    } else {
+                        item.children.forEach((childItem) => {
+                            if (!this.request.exclude?.includes(childItem)) {
+                                this.updateTestRunStatus(run, 'testCase', {
+                                    item: childItem,
+                                    status: 'errored'
+                                });
+                            }
+                        });
+                    }
+
+                    continue;
+                }
+            } else if (testFileData.libraryItem) {
+                const attempt = attemptedLibraries.find((attempt) => attempt.uri?.toString() === testFileData.libraryItem?.uri?.toString());
+                if (!attempt) {
+                    this.updateTestRunStatus(run, 'library', {
+                        item: testFileItem
+                    });
+                    attemptedLibraries.push(testFileData.libraryItem);
+                }
             }
 
             // Compile test file if not already compiled
@@ -248,29 +262,41 @@ export class IBMiTestRunner {
         const content = connection.getContent();
         const config = connection.getConfig();
 
-        const workspaceFolder = item.uri?.scheme === 'file' ? workspace.getWorkspaceFolder(item.uri!) : undefined;
-        const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
-
-        const library = item.uri?.scheme === 'file' ?
-            (libraryList?.currentLibrary || config.currentLibrary)
-            : connection.parserMemberPath(item.uri!.path).library;
         const data = this.manager.testData.get(item);
         const isTestCase = data instanceof TestCase;
-        let programName =
-            isTestCase ?
-                item.parent!.label :
-                item.label;
-        const originalProgramName = programName
-            .replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), '')
-            .replace(new RegExp(IBMiTestManager.SQLRPGLE_TEST_SUFFIX, 'i'), '')
-            .replace(new RegExp(IBMiTestManager.COBOL_TEST_SUFFIX, 'i'), '')
-            .replace(new RegExp(IBMiTestManager.SQLCOBOL_TEST_SUFFIX, 'i'), '')
-            .toLocaleUpperCase();
-        programName = Utils.getSystemName(originalProgramName);
 
-        const tstpgm = `${library}/${programName}`;
+        let workspaceFolder: WorkspaceFolder | undefined;
+        let tstPgm: { name: string, library: string };
+
+        if (item.uri?.scheme === 'file') {
+            // Construct test program name without any suffix and convert to system name
+            let originalTstPgmName = isTestCase ? item.parent!.label : item.label;
+            const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
+            for (const suffix of testSuffixes.local) {
+                if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
+                    originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
+                }
+            }
+            originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
+            const tstPgmName = Utils.getSystemName(originalTstPgmName);
+
+            // Use current library as the test library
+            const workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
+            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+
+            tstPgm = { name: tstPgmName, library: tstLibrary };
+        } else {
+            const parsedPath = connection.parserMemberPath(item.uri!.path);
+            const tstPgmName = parsedPath.name.toLocaleUpperCase();
+            const tstLibrary = parsedPath.library;
+
+            tstPgm = { name: tstPgmName, library: tstLibrary };
+        }
+
+        const tstpgm = `${tstPgm.library}/${tstPgm.name}`;
         const tstprc = isTestCase ? item.label : undefined;
-        const testStorage = IBMiTestStorage.getTestStorage(`${programName}${tstprc ? `_${tstprc}` : ``}`);
+        const testStorage = IBMiTestStorage.getTestStorage(`${tstPgm.name}${tstprc ? `_${tstprc}` : ``}`);
         Logger.log(LogLevel.Info, `Test storage for ${item.label}: ${JSON.stringify(testStorage)}`);
         const xmlStmf = testStorage.RPGUNIT;
 
@@ -287,7 +313,7 @@ export class IBMiTestRunner {
         };
 
         // Build RUCALLTST command
-        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         let testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
 
         // Build CODECOV command if code coverage is enabled
@@ -346,20 +372,38 @@ export class IBMiTestRunner {
                 const isStatementCoverage = this.request.profile!.label === IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL;
 
                 for (const fileCoverage of codeCoverageResults) {
-                    // TODO: Fix mapping of code coverage results when adding support for source members
-                    const deployTools = getDeployTools()!;
-                    const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder!)!;
-
                     let uri: Uri;
-                    if (`/${fileCoverage.path}`.startsWith(deployDirectory)) {
-                        // Get relative remote path to test
-                        const relativePathToTest = path.posix.relative(deployDirectory, `/${fileCoverage.path}`);
+                    if (workspaceFolder) {
+                        // Map code coverage results from deploy directory to local workspace
+                        const deployTools = getDeployTools()!;
+                        const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
 
-                        // Construct local path to test
-                        const localPath = path.join(workspaceFolder!.uri.fsPath, relativePathToTest);
-                        uri = Uri.file(localPath);
+                        if (`/${fileCoverage.path}`.startsWith(deployDirectory)) {
+                            // Get relative remote path to test
+                            const relativePathToTest = path.posix.relative(deployDirectory, `/${fileCoverage.path}`);
+
+                            // Construct local path to test
+                            const localPath = path.join(workspaceFolder.uri.fsPath, relativePathToTest);
+                            uri = Uri.file(localPath);
+                        } else {
+                            uri = Uri.file(fileCoverage.localPath);
+                        }
                     } else {
-                        uri = Uri.file(fileCoverage.localPath);
+                        // Map code coverage results to source members
+                        let memberPath: string = '';
+                        const parts = fileCoverage.path.split('/');
+                        for (let index = 0; index < parts.length; index++) {
+                            if (index !== parts.length - 1) {
+                                const partName = parts[index].split('.');
+                                if (partName.length > 0) {
+                                    memberPath += `/${partName[0]}`;
+                                }
+                            } else {
+                                memberPath += `/${parts[index]}`;
+                            }
+                        }
+
+                        uri = Uri.from({ scheme: 'member', path: memberPath });
                     }
 
                     run.addCoverage(new IBMiFileCoverage(uri, fileCoverage, isStatementCoverage));
@@ -446,7 +490,7 @@ export class IBMiTestRunner {
     }
 
     // TODO: Fix data to have a type instead of any
-    public updateTestRunStatus(run: TestRun, type: 'component' | 'workspaceFolder' | 'testFile' | 'deployment' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
+    public updateTestRunStatus(run: TestRun, type: 'component' | 'workspaceFolder' | 'library' | 'testFile' | 'deployment' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
         switch (type) {
             case 'component':
                 run.appendOutput(c.red(data.message));
@@ -454,6 +498,10 @@ export class IBMiTestRunner {
             case 'workspaceFolder':
                 run.appendOutput(`${c.bgBlue(` WORKSPACE `)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);
                 Logger.log(LogLevel.Info, `Deploying ${data.item.label}`);
+                break;
+            case 'library':
+                run.appendOutput(`${c.bgBlue(` LIBRARY `)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}\r\n`);
+                Logger.log(LogLevel.Info, `Running tests in ${data.item.label}`);
                 break;
             case 'testFile':
                 run.appendOutput(`${c.blue(`❯`)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);

@@ -2,6 +2,7 @@ import { ConfigurationTarget, LogLevel, workspace } from "vscode";
 import { Logger } from "./logger";
 
 export enum Section {
+    testSourceFiles = 'testSourceFiles',
     runOrder = 'runOrder',
     libraryList = 'libraryList',
     jobDescription = 'jobDescription',
@@ -12,7 +13,8 @@ export enum Section {
     productLibrary = 'productLibrary'
 }
 
-export const defaultConfigurations: { [T in Section]: string } = {
+export const defaultConfigurations: { [T in Section]: string | string[] } = {
+    [Section.testSourceFiles]: ['QTESTSRC'],
     [Section.runOrder]: '*API',
     [Section.libraryList]: '*CURRENT',
     [Section.jobDescription]: '*DFT',
@@ -27,11 +29,11 @@ export namespace Configuration {
     export const group: string = 'IBM i Testing';
 
     export async function initialize(): Promise<void> {
-        const configurations: { [key: string]: string } = {};
+        const configurations: { [key: string]: string | string[] } = {};
 
         for (const section of Object.values(Section)) {
-            let value = Configuration.get<string>(section);
-            if (!value) {
+            let value = Configuration.get<string | string[]>(section);
+            if (!value || (Array.isArray(value) && value.length === 0)) {
                 value = defaultConfigurations[section];
                 await Configuration.set(section, value);
             }
@@ -44,6 +46,15 @@ export namespace Configuration {
 
     export function get<T>(section: Section): T | undefined {
         return workspace.getConfiguration(Configuration.group).get(section) as T;
+    }
+
+    export function getOrFallback<T>(section: Section): T {
+        const value = get<T>(section);
+        if (value === undefined) {
+            return defaultConfigurations[section] as T;
+        }
+
+        return value;
     }
 
     export async function set(section: Section, value: any): Promise<void> {

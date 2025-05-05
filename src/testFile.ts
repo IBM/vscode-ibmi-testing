@@ -2,7 +2,6 @@ import { commands, DocumentSymbol, LogLevel, SymbolKind, TestItem, TestRun, work
 import { TestCase } from "./testCase";
 import { manager } from "./extension";
 import { getDeployTools, getInstance } from "./api/ibmi";
-import { IBMiTestManager } from "./manager";
 import { IBMiTestRunner } from "./runner";
 import { TestingConfig, RUCRTRPG, RUCRTCBL } from "./types";
 import * as path from "path";
@@ -16,64 +15,63 @@ export class TestFile {
     static COBOL_TEST_CASE_REGEX = /^PROGRAM-ID\. +(TEST.+)$/i;
     static textDecoder = new TextDecoder('utf-8');
     item: TestItem;
-    workspaceItem: TestItem;
+    workspaceItem?: TestItem;
+    libraryItem?: TestItem;
     isLoaded: boolean;
     isCompiled: boolean;
     content: string;
     isRPGLE: boolean;
 
-    constructor(item: TestItem, workspaceItem: TestItem) {
+    constructor(item: TestItem, parent: { workspaceItem?: TestItem, libraryItem?: TestItem } = {}) {
         this.item = item;
-        this.workspaceItem = workspaceItem;
+        this.workspaceItem = parent.workspaceItem;
+        this.libraryItem = parent.libraryItem;
         this.isLoaded = false;
         this.isCompiled = false;
         this.content = '';
 
-        const rpgleTestSuffixes = [
-            IBMiTestManager.RPGLE_TEST_SUFFIX,
-            IBMiTestManager.SQLRPGLE_TEST_SUFFIX
-        ];
-        this.isRPGLE = rpgleTestSuffixes.some(suffix => item.uri!.path.toLocaleUpperCase().endsWith(suffix));
+        const rpgleTestSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: false });
+        this.isRPGLE = rpgleTestSuffixes.remote.some(suffix => item.uri!.path.toLocaleUpperCase().endsWith(suffix));
     }
 
-    async load(content?: string): Promise<void> {
+    async load(): Promise<void> {
         if (!this.isLoaded) {
             this.isLoaded = true;
 
             // Load test file content
-            if (content) {
-                this.content = content;
-            } else {
-                try {
-                    const rawContent = await workspace.fs.readFile(this.item.uri!);
-                    this.content = TestFile.textDecoder.decode(rawContent);
-                } catch (error: any) {
-                    Logger.logWithNotification(LogLevel.Error, `Failed to load test file`, error);
-                }
+            try {
+                const rawContent = await workspace.fs.readFile(this.item.uri!);
+                this.content = TestFile.textDecoder.decode(rawContent);
+            } catch (error: any) {
+                Logger.log(LogLevel.Error, `Failed to read test file ${this.item.label}: ${error}`);
             }
 
             // Load test cases
-            const childItems: TestItem[] = [];
-            const documentSymbols = await commands.executeCommand<DocumentSymbol[]>(`vscode.executeDocumentSymbolProvider`, this.item.uri) || [];
-            for (const documentSymbol of documentSymbols) {
-                const isTestCase = this.isRPGLE ?
-                    documentSymbol.kind === SymbolKind.Function && TestFile.RPGLE_TEST_CASE_REGEX.test(documentSymbol.name) :
-                    documentSymbol.kind === SymbolKind.Class && documentSymbol.name.match(TestFile.COBOL_TEST_CASE_REGEX)?.[1];
+            try {
+                const childItems: TestItem[] = [];
+                const documentSymbols = await commands.executeCommand<DocumentSymbol[]>(`vscode.executeDocumentSymbolProvider`, this.item.uri) || [];
+                for (const documentSymbol of documentSymbols) {
+                    const isTestCase = this.isRPGLE ?
+                        documentSymbol.kind === SymbolKind.Function && TestFile.RPGLE_TEST_CASE_REGEX.test(documentSymbol.name) :
+                        documentSymbol.kind === SymbolKind.Class && documentSymbol.name.match(TestFile.COBOL_TEST_CASE_REGEX)?.[1];
 
-                if (isTestCase) {
-                    const testCaseName = this.isRPGLE ?
-                        documentSymbol.name :
-                        documentSymbol.name.match(TestFile.COBOL_TEST_CASE_REGEX)![1];
-                    const childItem = manager!.controller.createTestItem(`${this.item.uri}/${testCaseName.toLocaleUpperCase()}`, testCaseName, this.item.uri);
-                    childItem.range = documentSymbol.range;
+                    if (isTestCase) {
+                        const testCaseName = this.isRPGLE ?
+                            documentSymbol.name :
+                            documentSymbol.name.match(TestFile.COBOL_TEST_CASE_REGEX)![1];
+                        const childItem = manager!.controller.createTestItem(`${this.item.uri}/${testCaseName.toLocaleUpperCase()}`, testCaseName, this.item.uri);
+                        childItem.range = documentSymbol.range;
 
-                    const data = new TestCase(childItem);
-                    manager!.testData.set(childItem, data);
-                    childItems.push(childItem);
+                        const data = new TestCase(childItem);
+                        manager!.testData.set(childItem, data);
+                        childItems.push(childItem);
+                    }
                 }
+                this.item.children.replace(childItems);
+                Logger.log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases: ${childItems.map(item => item.label).join(', ')}`);
+            } catch (error) {
+                Logger.log(LogLevel.Error, `Failed to load test cases from ${this.item.label}: ${error}`);
             }
-            this.item.children.replace(childItems);
-            Logger.log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases: ${childItems.map(item => item.label).join(', ')}`);
         }
     }
 
@@ -84,7 +82,6 @@ export class TestFile {
         const config = connection.getConfig();
 
         let workspaceFolder: WorkspaceFolder | undefined;
-
         let tstPgm: { name: string, library: string };
         let srcFile: { name: string, library: string } | undefined;
         let srcMbr: string | undefined;
@@ -92,8 +89,26 @@ export class TestFile {
         let testingConfig: TestingConfig | undefined;
 
         if (this.item.uri!.scheme === 'file') {
-            // Get relative local path to test
+            // Construct test program name without any suffix and convert to system name
+            let originalTstPgmName = this.item.label;
+            const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
+            for (const suffix of testSuffixes.local) {
+                if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
+                    originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
+                }
+            }
+            originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
+            const tstPgmName = Utils.getSystemName(originalTstPgmName);
+            if (tstPgmName !== originalTstPgmName) {
+                Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
+            }
+
+            // Use current library as the test library
             workspaceFolder = workspace.getWorkspaceFolder(this.item.uri!)!;
+            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+
+            // Get relative local path to test
             const relativePathToTest = path.relative(workspaceFolder.uri.fsPath, this.item.uri!.fsPath).replace(/\\/g, '/');
 
             // Construct remote path to test
@@ -101,24 +116,16 @@ export class TestFile {
             const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
             srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
-            const originalTstPgmName = this.item.label
-                .replace(new RegExp(IBMiTestManager.RPGLE_TEST_SUFFIX, 'i'), '')
-                .replace(new RegExp(IBMiTestManager.SQLRPGLE_TEST_SUFFIX, 'i'), '')
-                .replace(new RegExp(IBMiTestManager.COBOL_TEST_SUFFIX, 'i'), '')
-                .replace(new RegExp(IBMiTestManager.SQLCOBOL_TEST_SUFFIX, 'i'), '')
-                .toLocaleUpperCase();
-            const tstPgmName = Utils.getSystemName(originalTstPgmName);
-            if (tstPgmName !== originalTstPgmName) {
-                Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
-            }
-
-            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
-            tstPgm = { library: libraryList?.currentLibrary || config.currentLibrary, name: tstPgmName };
+            tstPgm = { name: tstPgmName, library: tstLibrary };
             testingConfig = await ConfigHandler.getLocalConfig(this.item.uri!);
         } else {
             const parsedPath = connection.parserMemberPath(this.item.uri!.path);
-            tstPgm = { name: parsedPath.name.toLocaleUpperCase(), library: parsedPath.library };
-            srcFile = { name: parsedPath.file, library: parsedPath.library };
+            const tstPgmName = parsedPath.name.toLocaleUpperCase();
+            const tstLibrary = parsedPath.library;
+            const srcFileName = parsedPath.file;
+
+            tstPgm = { name: tstPgmName, library: tstLibrary };
+            srcFile = { name: srcFileName, library: tstLibrary };
             srcMbr = '*TSTPGM';
             testingConfig = await ConfigHandler.getRemoteConfig(this.item.uri!);
         }
@@ -161,7 +168,7 @@ export class TestFile {
             compileParams.dbgView = "*SOURCE";
         }
 
-        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         const languageSpecificCommand = this.isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
         const compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, compileParams as any);
         Logger.log(LogLevel.Info, `Compiling ${this.item.label}: ${compileCommand}`);
@@ -183,14 +190,15 @@ export class TestFile {
         try {
             // Retrieve diagnostics messages
             if (compileParams.cOption === "*EVENTF") {
+                const ext = path.parse(this.item.uri!.path).ext;
                 await commands.executeCommand('code-for-ibmi.openErrors', {
-                    qualifiedObject: compileParams.tstPgm,
+                    qualifiedObject: `${compileParams.tstPgm}${ext}`,
                     workspace: workspaceFolder,
                     keepDiagnostics: true
                 });
             }
         } catch (error: any) {
-            Logger.getInstance().log(LogLevel.Error, `Failed to retrieve diagnostics messages: ${error}`);
+            Logger.log(LogLevel.Error, `Failed to retrieve diagnostics messages: ${error}`);
         }
 
         if (compileResult.stderr.length > 0) {
