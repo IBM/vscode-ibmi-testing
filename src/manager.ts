@@ -179,37 +179,7 @@ export class IBMiTestManager {
                 await this.loadFileOrMember(uri, true, true);
             });
             watcher.onDidDelete((uri: Uri) => {
-                const allTestItems = this.getFlattenedTestItems();
-                const deletedItem = allTestItems.find((item) => item.uri?.toString() === uri.toString());
-
-                if (!deletedItem) {
-                    // File not found in test collection
-                    return;
-                }
-
-                // Delete item associated with the file
-                let parentItem = deletedItem.parent;
-                parentItem?.children.delete(deletedItem.id);
-                this.testData.delete(deletedItem);
-                Logger.log(LogLevel.Info, `Deleted file test item for ${uri.toString()}`);
-
-                // Recursively delete empty parents
-                while (parentItem && parentItem.children.size === 0) {
-                    const grandParentItem = parentItem.parent;
-
-                    if (!grandParentItem) {
-                        // Delete workspace item when no grandparent
-                        this.controller.items.delete(parentItem.id);
-                        this.testData.delete(parentItem);
-                        Logger.log(LogLevel.Info, `Deleted workspace test item for ${parentItem.uri?.toString()}`);
-                        break;
-                    }
-
-                    grandParentItem.children.delete(parentItem.id);
-                    this.testData.delete(parentItem);
-                    parentItem = grandParentItem;
-                    Logger.log(LogLevel.Info, `Deleted directory test item for ${parentItem.uri?.toString()}`);
-                }
+                this.deleteTestItem(uri);
             });
         }
     }
@@ -341,6 +311,43 @@ export class IBMiTestManager {
         return testItem;
     }
 
+    private deleteTestItem(uri: Uri) {
+        const allTestItems = this.getFlattenedTestItems();
+        const deletedItem = allTestItems.find((item) => item.uri?.toString() === uri.toString());
+
+        if (!deletedItem) {
+            // File not found in test collection
+            return;
+        }
+
+        // Delete item associated with the file
+        let parentItem = deletedItem.parent;
+        parentItem?.children.delete(deletedItem.id);
+        this.testData.delete(deletedItem);
+        Logger.log(LogLevel.Info, `Deleted file test item for ${uri.toString()}`);
+
+        // Recursively delete empty parents
+        while (parentItem && parentItem.children.size === 0) {
+
+            const grandParentItem = parentItem.parent;
+            if (!grandParentItem) {
+                // Delete workspace item when no grandparent
+                this.controller.items.delete(parentItem.id);
+                this.testData.delete(parentItem);
+
+                const rootType = parentItem.uri?.scheme === 'file' ? 'workspace' : 'object';
+                Logger.log(LogLevel.Info, `Deleted ${rootType} test item for ${parentItem.uri?.toString()}`);
+                break;
+            }
+
+            grandParentItem.children.delete(parentItem.id);
+            this.testData.delete(parentItem);
+            parentItem = grandParentItem;
+            const intermediateType = parentItem.uri?.scheme === 'file' ? 'directory' : 'object';
+            Logger.log(LogLevel.Info, `Deleted ${intermediateType} test item for ${parentItem.uri?.toString()}`);
+        }
+    }
+
     public getFlattenedTestItems(): TestItem[] {
         const result: TestItem[] = [];
 
@@ -378,12 +385,12 @@ export class IBMiTestManager {
 
         const result = this.getOrCreateFile(uri);
         if (result) {
-            if(isChanged) {
+            if (isChanged) {
                 result.data.isLoaded = false;
                 result.data.isCompiled = false;
             }
 
-            if(loadTestCases) {
+            if (loadTestCases) {
                 await result.data.load();
             }
         }
