@@ -25,10 +25,17 @@ export function activate(context: ExtensionContext) {
 			Logger.log(LogLevel.Info, `Configuration change detected`);
 			await Configuration.initialize();
 		}
+
 		if (event.affectsConfiguration(`${Configuration.group}.${Section.productLibrary}`)) {
 			const connection = ibmi?.getConnection();
 			const componentManager = connection?.getComponentManager();
 			await componentManager?.getRemoteState(RPGUnit.ID);
+		}
+
+		if(event.affectsConfiguration(`${Configuration.group}.${Section.testSourceFiles}`)) {
+			if(manager) {
+				await manager.refreshTests();
+			}
 		}
 	});
 

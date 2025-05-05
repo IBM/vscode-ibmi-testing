@@ -1,6 +1,5 @@
-import { CancellationToken, ExtensionContext, FileCoverage, GlobPattern, LogLevel, RelativePattern, StatementCoverage, TestController, TestItem, TestRun, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, workspace, WorkspaceFolder } from "vscode";
+import { CancellationToken, ExtensionContext, FileCoverage, LogLevel, RelativePattern, TestController, TestItem, TestRun, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, window, workspace, WorkspaceFolder } from "vscode";
 import { TestFile } from "./testFile";
-import { TestCase } from "./testCase";
 import * as path from "path";
 import { IBMiTestRunner } from "./runner";
 import { TestDirectory } from "./testDirectory";
@@ -12,6 +11,7 @@ import { TestObject } from "./testObject";
 import { getInstance } from "./api/ibmi";
 import { IBMiTestData } from "./types";
 import { Utils } from "./utils";
+import { Configuration, Section } from "./configuration";
 
 export class IBMiTestManager {
     public static CONTROLLER_ID = 'IBMi';
@@ -36,14 +36,7 @@ export class IBMiTestManager {
             await this.loadFileOrMember(item.uri!, true);
         };
         this.controller.refreshHandler = async () => {
-            // Remove all existing test items
-            this.controller.items.forEach((item) => {
-                this.controller.items.delete(item.id);
-            });
-            this.testData = new WeakMap<TestItem, IBMiTestData>();
-
-            // Reload all test items
-            this.loadInitialTests();
+            await this.refreshTests();
         };
         const runProfile = this.controller.createRunProfile(IBMiTestManager.RUN_PROFILE_LABEL, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
             const runner = new IBMiTestRunner(this, request, token);
@@ -88,6 +81,17 @@ export class IBMiTestManager {
         this.loadInitialTests();
     }
 
+    async refreshTests(): Promise<void> {
+        // Remove all existing test items
+        this.controller.items.forEach((item) => {
+            this.controller.items.delete(item.id);
+        });
+        this.testData = new WeakMap<TestItem, IBMiTestData>();
+
+        // Reload all test items
+        await this.loadInitialTests();
+    }
+
     async loadInitialTests(): Promise<void> {
         // Load local tests from workspace folders
         const workspaceTestPatterns = this.getWorkspaceTestPatterns();
@@ -99,39 +103,45 @@ export class IBMiTestManager {
         }
 
         // Fully load test cases for opened documents
+        const visibleTextEditors = window.visibleTextEditors;
         for await (const document of workspace.textDocuments) {
-            const uri = document.uri;
-            await this.loadFileOrMember(uri, true);
+            const isVisible = visibleTextEditors.some((editor) => editor.document.uri.toString() === document.uri.toString());
+            if (isVisible) {
+                const uri = document.uri;
+                await this.loadFileOrMember(uri, true);
+            }
         }
 
         const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
 
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
+        const content = connection.getContent();
 
         // Load tests from library list
         const workspaceFolders = workspace.workspaceFolders;
         const workspaceFolder = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0] : undefined;
         const libraryList = await ibmi?.getLibraryList(connection, workspaceFolder);
         if (libraryList) {
+            const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles);
             const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
             for await (const library of libraries) {
-                const content = connection.getContent();
+                for await (const testSourceFile of testSourceFiles) {
+                    const testMembers = await content.getMemberList({
+                        library: library,
+                        sourceFile: testSourceFile,
+                        extensions: testSuffixes.remote.join(',').slice(1),
+                        filterType: 'simple',
+                        sort: { order: 'name' }
+                    });
 
-                const testMembers = await content.getMemberList({
-                    library: library,
-                    sourceFile: "QTESTSRC",
-                    extensions: testSuffixes.remote.join(',').slice(1),
-                    filterType: "simple",
-                    sort: { order: 'name' }
-                });
-
-                for (const testMember of testMembers) {
-                    const memberPath = testMember.asp ?
-                        path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :
-                        path.posix.join(testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`);
-                    const uri = Uri.from({ scheme: 'member', path: `/${memberPath}` });
-                    await this.loadFileOrMember(uri, false);
+                    for (const testMember of testMembers) {
+                        const memberPath = testMember.asp ?
+                            path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :
+                            path.posix.join(testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`);
+                        const uri = Uri.from({ scheme: 'member', path: `/${memberPath}` });
+                        await this.loadFileOrMember(uri, false);
+                    }
                 }
             }
         }

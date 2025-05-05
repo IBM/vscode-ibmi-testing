@@ -168,7 +168,7 @@ export class TestFile {
             compileParams.dbgView = "*SOURCE";
         }
 
-        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         const languageSpecificCommand = this.isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
         const compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, compileParams as any);
         Logger.log(LogLevel.Info, `Compiling ${this.item.label}: ${compileCommand}`);

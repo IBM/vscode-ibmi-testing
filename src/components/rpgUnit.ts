@@ -27,7 +27,7 @@ export class RPGUnit implements IBMiComponent {
 
         try {
             // Check if product library exists
-            const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+            const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
             const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
             if (productLibraryExists) {
                 // Get installed version of RPGUnit
@@ -100,7 +100,7 @@ export class RPGUnit implements IBMiComponent {
         const config = connection.getConfig();
 
         // Check if product library exists
-        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
         if (productLibraryExists) {
             const result = await window.showInformationMessage('Delete product library',

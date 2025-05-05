@@ -99,7 +99,7 @@ export class IBMiTestRunner {
 
         const componentManager = connection?.getComponentManager();
         const state = await componentManager?.getRemoteState(RPGUnit.ID);
-        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         const installMessage = state === 'NeedsUpdate' ?
             `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i.` :
             (state !== 'Installed' ? `RPGUnit v${RPGUnit.MINIMUM_VERSION} must be installed on the IBM i.` : undefined);
@@ -313,7 +313,7 @@ export class IBMiTestRunner {
         };
 
         // Build RUCALLTST command
-        const productLibrary = Configuration.get<string>(Section.productLibrary) || defaultConfigurations[Section.productLibrary];
+        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         let testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
 
         // Build CODECOV command if code coverage is enabled

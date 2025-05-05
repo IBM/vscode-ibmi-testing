@@ -41,7 +41,8 @@
     "jsonValidation": [
       {
         "fileMatch": [
-          "testing.json"
+          "testing.json",
+          "TESTING.JSON"
         ],
         "url": "./schemas/testing.json"
       }
@@ -50,8 +51,20 @@
       {
         "title": "IBM i Testing",
         "properties": {
-          "IBM i Testing.runOrder": {
+          "IBM i Testing.testSourceFiles": {
             "order": 0,
+            "type": "array",
+            "default": [
+              "QTESTSRC"
+            ],
+            "items": {
+              "type": "string",
+              "description": "The name of a source file containing tests."
+            },
+            "markdownDescription": "A set of source files to search for tests in the library list."
+          },
+          "IBM i Testing.runOrder": {
+            "order": 1,
             "type": "string",
             "default": "*API",
             "enum": [
@@ -65,7 +78,7 @@
             "markdownDescription": "Specifies the order for running the test procedures. Useful to check that there is no dependencies between test procedures."
           },
           "IBM i Testing.libraryList": {
-            "order": 1,
+            "order": 2,
             "type": "string",
             "default": "*CURRENT",
             "enum": [
@@ -79,19 +92,19 @@
             "markdownDescription": "Specifies the library list for executing the specified unit test."
           },
           "IBM i Testing.jobDescription": {
-            "order": 2,
+            "order": 3,
             "type": "string",
             "default": "*DFT",
             "markdownDescription": "Specifies the name of the job description that is used to set the library list, when parameter `IBM i Testing: Library List` is set to `*JOBD`. `*DFT` can be used here to indicate the library of the unit test suite (service program) is searched for job description `RPGUNIT`."
           },
           "IBM i Testing.jobDescriptionLibrary": {
-            "order": 3,
+            "order": 4,
             "type": "string",
             "default": "",
             "markdownDescription": "Specifies the library that is searched for the job description. `*LIBL` can be used here to indicate all libraries in the user and system portions of the job's library list are searched until the first match is found."
           },
           "IBM i Testing.reportDetail": {
-            "order": 4,
+            "order": 5,
             "type": "string",
             "default": "*BASIC",
             "enum": [
@@ -105,7 +118,7 @@
             "markdownDescription": "Specifies how detailed the test run report should be."
           },
           "IBM i Testing.createReport": {
-            "order": 5,
+            "order": 6,
             "type": "string",
             "default": "*ALLWAYS",
             "enum": [
@@ -121,7 +134,7 @@
             "markdownDescription": "Specifies whether a report is created."
           },
           "IBM i Testing.reclaimResources": {
-            "order": 6,
+            "order": 7,
             "type": "string",
             "default": "*NO",
             "enum": [
