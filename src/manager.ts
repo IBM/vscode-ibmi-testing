@@ -72,7 +72,7 @@ export class IBMiTestManager {
             }),
             workspace.onDidChangeTextDocument(async (event: TextDocumentChangeEvent) => {
                 const uri = event.document.uri;
-                await this.loadFileOrMember(uri, true);
+                await this.loadFileOrMember(uri, true, true);
             })
         );
 
@@ -171,18 +171,12 @@ export class IBMiTestManager {
             const watcher = workspace.createFileSystemWatcher(workspaceTestPattern.pattern);
             this.context.subscriptions.push(watcher);
 
-            watcher.onDidCreate((uri: Uri) => {
-                this.loadFileOrMember(uri, false);
+            watcher.onDidCreate(async (uri: Uri) => {
+                await this.loadFileOrMember(uri, false);
             });
             // TODO: Handle remote source member changes
             watcher.onDidChange(async (uri: Uri) => {
-                // TODO: Replace with await this.loadFileOrMember(uri, false);
-                const result = this.getOrCreateFile(uri);
-                if (result) {
-                    result.data.isLoaded = false;
-                    result.data.isCompiled = false;
-                    await result.data.load();
-                }
+                await this.loadFileOrMember(uri, true, true);
             });
             watcher.onDidDelete((uri: Uri) => {
                 const allTestItems = this.getFlattenedTestItems();
@@ -365,7 +359,7 @@ export class IBMiTestManager {
     }
 
 
-    private async loadFileOrMember(uri: Uri, loadTestCases: boolean): Promise<void> {
+    private async loadFileOrMember(uri: Uri, loadTestCases: boolean, isChanged: boolean = false): Promise<void> {
         // Get test suffixes based on the URI scheme
         const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
         let uriSpecificSuffixes: string[];
@@ -383,8 +377,15 @@ export class IBMiTestManager {
         }
 
         const result = this.getOrCreateFile(uri);
-        if (result && loadTestCases) {
-            await result.data.load();
+        if (result) {
+            if(isChanged) {
+                result.data.isLoaded = false;
+                result.data.isCompiled = false;
+            }
+
+            if(loadTestCases) {
+                await result.data.load();
+            }
         }
     }
 }
