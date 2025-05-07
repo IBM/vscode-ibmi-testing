@@ -3,7 +3,7 @@
         "scope": "rpgle",
         "prefix": "test",
         "description": [
-            "Create an RPG Unit test case.",
+            "Create an RPGUnit test case.",
             "",
             "Each test case is an exported procedure that starts with the name 'test'."
         ],
