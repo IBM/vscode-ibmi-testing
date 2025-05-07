@@ -141,7 +141,7 @@ export class TestFile {
         if (this.isRPGLE) {
             compileParams = {
                 ...compileParams,
-                ...testingConfig?.RUCRTRPG
+                ...testingConfig?.RPGUnit?.RUCRTRPG
             };
 
             if (!(compileParams as RUCRTRPG).rpgPpOpt) {
@@ -150,7 +150,7 @@ export class TestFile {
         } else {
             compileParams = {
                 ...compileParams,
-                ...testingConfig?.RUCRTCBL
+                ...testingConfig?.RPGUnit?.RUCRTCBL
             };
         }
 

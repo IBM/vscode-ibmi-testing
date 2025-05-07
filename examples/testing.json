@@ -1,8 +1,10 @@
 {
-    "RUCRTRPG": {
-        "text": "Root testing.json"
-    },
-    "RUCRTCBL": {
-        "text": "Root testing.json"
+    "RPGUnit": {
+        "RUCRTRPG": {
+            "text": "Root testing.json"
+        },
+        "RUCRTCBL": {
+            "text": "Root testing.json"
+        }
     }
 }

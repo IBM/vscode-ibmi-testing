@@ -27,8 +27,10 @@ export interface TestMetrics {
 }
 
 export interface TestingConfig {
-    RUCRTRPG?: RUCRTRPG,
-    RUCRTCBL?: RUCRTCBL
+    RPGUnit?: {
+        RUCRTRPG?: RUCRTRPG,
+        RUCRTCBL?: RUCRTCBL
+    }
 }
 
 export interface RUCRTRPG {

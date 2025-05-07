@@ -1,8 +1,10 @@
 {
-    "RUCRTRPG": {
-        "text": "Sub testing.json"
-    },
-    "RUCRTCBL": {
-        "text": "Sub testing.json"
+    "RPGUnit": {
+        "RUCRTRPG": {
+            "text": "Sub testing.json"
+        },
+        "RUCRTCBL": {
+            "text": "Sub testing.json"
+        }
     }
 }
