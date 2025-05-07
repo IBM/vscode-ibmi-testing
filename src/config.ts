@@ -74,6 +74,7 @@ export namespace ConfigHandler {
             await workspace.fs.stat(testingConfigUri);
         } catch (error: any) {
             Logger.log(LogLevel.Info, `No ${type} testing configuration found at ${testingConfigUri.toString()}`);
+            return;
         }
 
         try {
