@@ -403,8 +403,20 @@
         {
             "label": "RPGUnit Test Configuration",
             "body": {
-                "RUCRTRPG": {},
-                "RUCRTCBL": {}
+                "RUCRTRPG": {
+                    "tgtCcsid": 37,
+                    "dbgView": "*SOURCE",
+                    "cOption": [
+                        "*EVENTF"
+                    ]
+                },
+                "RUCRTCBL": {
+                    "tgtCcsid": 37,
+                    "dbgView": "*SOURCE",
+                    "cOption": [
+                        "*EVENTF"
+                    ]
+                }
             }
         }
     ]
