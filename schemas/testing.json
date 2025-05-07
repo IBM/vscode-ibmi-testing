@@ -2,170 +2,405 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "properties": {
-        "RUCRTRPG": {
+        "RPGUnit": {
             "type": "object",
-            "markdownDescription": "The Create RPG Test Suite (RUCRTRPG) command compiles RPGLE and SQLRPGLE source members containing test procedures into a iRPGUnit test suite service program.",
+            "markdownDescription": "RPGUnit Test Configuration",
             "properties": {
-                "text": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Text description\n\nAllows you to enter text that briefly describes the RPGUnit test case and its function."
+                "RUCRTRPG": {
+                    "type": "object",
+                    "markdownDescription": "The Create RPG Test Suite (`RUCRTRPG`) command compiles RPGLE and SQLRPGLE source members containing test procedures into a iRPGUnit test suite service program.",
+                    "properties": {
+                        "text": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Text description\n\nAllows you to enter text that briefly describes the RPGUnit test case and its function."
+                        },
+                        "cOption": {
+                            "type": "array",
+                            "default": [
+                                "*EVENTF"
+                            ],
+                            "items": {
+                                "type": "string",
+                                "default": "*EVENTF",
+                                "enum": [
+                                    "*XREF",
+                                    "*NOXREF",
+                                    "*SECLVL",
+                                    "*NOSECLVL",
+                                    "*SHOWCPY",
+                                    "*NOSHOWCPY",
+                                    "*EXPDDS",
+                                    "*NOEXPDDS",
+                                    "*EXT",
+                                    "*NOEXT",
+                                    "*NOSHOWSKP",
+                                    "*SHOWSKP",
+                                    "*NOSRCSTMT",
+                                    "*SRCSTMT",
+                                    "*DEBUGIO",
+                                    "*NODEBUGIO",
+                                    "*UNREF",
+                                    "*NOUNREF",
+                                    "*NOEVENTF",
+                                    "*EVENTF"
+                                ]
+                            },
+                            "markdownDescription": "Compile options\n\nRefer to the `OPTION` parameter in `CRTRPGMOD` command help."
+                        },
+                        "dbgView": {
+                            "type": "string",
+                            "default": "*SOURCE",
+                            "enum": [
+                                "*STMT",
+                                "*SOURCE",
+                                "*LIST",
+                                "*COPY",
+                                "*ALL",
+                                "*NONE"
+                            ],
+                            "markdownDescription": "Debugging views\n\nRefer to the `DBGVIEW` parameter in `CRTRPGMOD` command help."
+                        },
+                        "bndSrvPgm": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Bind service program\n\nRefer to the `BNDSRVPGM` parameter in `CRTSRVPGM` command help."
+                        },
+                        "bndDir": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Binding directory\n\nRefer to the `BNDDIR` parameter in `CRTSRVPGM` command help."
+                        },
+                        "bOption": {
+                            "type": "string",
+                            "default": "",
+                            "enum": [
+                                "*DUPPROC",
+                                "*DUPVAR"
+                            ],
+                            "markdownDescription": "Binding options\n\nRefer to the `OPTION` parameter in `CRTSRVPGM` command help."
+                        },
+                        "define": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Define condition names\n\nSpecifies condition names that are defined before the compilation begins. Using the parameter `DEFINE(condition-name)` is equivalent to coding the `/DEFINE` condition-name directive on the first line of the source file."
+                        },
+                        "dltSplf": {
+                            "type": "string",
+                            "default": "",
+                            "enum": [
+                                "*YES",
+                                "*NO"
+                            ],
+                            "markdownDescription": "Delete spooled files\n\nSpecifies if all spooled files (compile listing) created by the object creations commands are deleted on success."
+                        },
+                        "actGrp": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Activation group\n\nRefer to the `ACTGRP` parameter in `CRTSRVPGM` command help."
+                        },
+                        "module": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Module\n\nRefer to the `MODULE` parameter in `CRTSRVPGM` command help."
+                        },
+                        "rpgPpOpt": {
+                            "type": "string",
+                            "default": "",
+                            "enum": [
+                                "*DEFAULT",
+                                "*NONE",
+                                "*LVL1",
+                                "*LVL2"
+                            ],
+                            "markdownDescription": "Pre-compiler RPGPPOPT\n\nRefer to the `RPGPPOPT` parameter in `CRTSRVPGM` command."
+                        },
+                        "pOption": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": "",
+                                "enum": [
+                                    "*XREF",
+                                    "*NOXREF",
+                                    "*COMMA",
+                                    "*PERIOD",
+                                    "*JOB",
+                                    "*SYSVAL",
+                                    "*SECLVL",
+                                    "*NOSECLVL",
+                                    "*SEQSRC",
+                                    "*NOSEQSRC",
+                                    "*CVTDAT",
+                                    "*NOCVTDAT",
+                                    "*SQL",
+                                    "*SYS",
+                                    "*OPTLOB",
+                                    "*NOOPTLOB",
+                                    "*NOEXTIND",
+                                    "*EXTIND",
+                                    "*EVENTF",
+                                    "*NOEVENTF"
+                                ]
+                            },
+                            "markdownDescription": "Pre-compiler OPTIONS\n\nRefer to the `OPTION` parameter in `CRTSQLRPGI` command help."
+                        },
+                        "compileOpt": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Pre-Compiler COMPILEOPT\n\nRefer to the `COMPILEOPT` parameter in `CRTSQLRPGI` command help."
+                        },
+                        "tgtRls": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Target release\n\nRefer to the `TGTRLS` parameter in `CRTSRVPGM` command help."
+                        },
+                        "incDir": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
+                        },
+                        "tgtCcsid": {
+                            "type": "number",
+                            "default": 37,
+                            "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
+                        }
+                    }
                 },
-                "cOption": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Compile options\n\nRefer to the `OPTION` parameter in `CRTRPGMOD` command help."
-                },
-                "dbgView": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Debugging views\n\nRefer to the `DBGVIEW` parameter in `CRTRPGMOD` command help."
-                },
-                "bndSrvPgm": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Bind service program\n\nRefer to the `BNDSRVPGM` parameter in `CRTSRVPGM` command help."
-                },
-                "bndDir": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Binding directory\n\nRefer to the `BNDDIR` parameter in `CRTSRVPGM` command help."
-                },
-                "bOption": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Binding options\n\nRefer to the `OPTION` parameter in `CRTSRVPGM` command help."
-                },
-                "define": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Define condition names\n\nSpecifies condition names that are defined before the compilation begins. Using the parameter `DEFINE(condition-name)` is equivalent to coding the `/DEFINE` condition-name directive on the first line of the source file."
-                },
-                "dltSplf": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Delete spooled files\n\nSpecifies if all spooled files (compile listing) created by the object creations commands are deleted on success."
-                },
-                "actGrp": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Activation group\n\nRefer to the `ACTGRP` parameter in `CRTSRVPGM` command help."
-                },
-                "module": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Module\n\nRefer to the `MODULE` parameter in `CRTSRVPGM` command help."
-                },
-                "rpgPpOpt": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Pre-compiler RPGPPOPT\n\nRefer to the `RPGPPOPT` parameter in `CRTSRVPGM` command."
-                },
-                "option": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Pre-compiler OPTIONS\n\nRefer to the `OPTION` parameter in `CRTSQLRPGI` command help."
-                },
-                "compileOpt": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Pre-Compiler COMPILEOPT\n\nRefer to the `COMPILEOPT` parameter in `CRTSQLRPGI` command help."
-                },
-                "tgtRls": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Target release\n\nRefer to the `TGTRLS` parameter in `CRTSRVPGM` command help."
-                },
-                "incDir": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
-                },
-                "tgtCcsid": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
-                }
-            }
-        },
-        "RUCRTCBL": {
-            "type": "object",
-            "markdownDescription": "The Create COBOL Test Suite (RUCRTCBL) command compiles CBLLE and SQLCBLLE source members containing test procedures into a iRPGUnit test suite service program.",
-            "properties": {
-                "text": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Text description\n\nAllows you to enter text that briefly describes the RPGUnit test case and its function."
-                },
-                "cOption": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Compile options\n\nRefer to the `OPTION` parameter in `CRTCBLMOD` command help."
-                },
-                "dbgView": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Debugging views\n\nRefer to the `DBGVIEW` parameter in `CRTCBLMOD` command help."
-                },
-                "bndSrvPgm": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Bind service program\n\nRefer to the `BNDSRVPGM` parameter in `CRTSRVPGM` command help."
-                },
-                "bndDir": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Binding directory\n\nRefer to the `BNDDIR` parameter in `CRTSRVPGM` command help."
-                },
-                "bOption": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Binding options\n\nRefer to the `OPTION` parameter in `CRTSRVPGM` command help."
-                },
-                "define": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Define condition names\n\nSpecifies condition names that are defined before the compilation begins. Using the parameter `DEFINE(condition-name)` is equivalent to coding the `/DEFINE` condition-name directive on the first line of the source file."
-                },
-                "dltSplf": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Delete spooled files\n\nSpecifies if all spooled files (compile listing) created by the object creations commands are deleted on success."
-                },
-                "actGrp": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Activation group\n\nRefer to the `ACTGRP` parameter in `CRTSRVPGM` command help."
-                },
-                "module": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Module\n\nRefer to the `MODULE` parameter in `CRTSRVPGM` command help."
-                },
-                "option": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Pre-compiler OPTIONS\n\nRefer to the `OPTION` parameter in `CRTSQLCBLI` command help."
-                },
-                "compileOpt": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Pre-Compiler COMPILEOPT\n\nRefer to the `COMPILEOPT` parameter in `CRTSQLCBLI` command help."
-                },
-                "tgtRls": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Target release\n\nRefer to the `TGTRLS` parameter in `CRTSRVPGM` command help."
-                },
-                "incDir": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
-                },
-                "tgtCcsid": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
+                "RUCRTCBL": {
+                    "type": "object",
+                    "markdownDescription": "The Create COBOL Test Suite (`RUCRTCBL`) command compiles CBLLE and SQLCBLLE source members containing test procedures into a iRPGUnit test suite service program.",
+                    "properties": {
+                        "text": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Text description\n\nAllows you to enter text that briefly describes the RPGUnit test case and its function."
+                        },
+                        "cOption": {
+                            "type": "array",
+                            "default": [
+                                "*EVENTF"
+                            ],
+                            "items": {
+                                "type": "string",
+                                "default": "*EVENTF",
+                                "enum": [
+                                    "*SOURCE",
+                                    "*NOSOURCE",
+                                    "*SRC",
+                                    "*NOSRC",
+                                    "*NOXREF",
+                                    "*XREF",
+                                    "*GEN",
+                                    "*NOGEN",
+                                    "*NOSEQUENCE",
+                                    "*SEQUENCE",
+                                    "*NOVBSUM",
+                                    "*VBSUM",
+                                    "*NONUMBER",
+                                    "*NUMBER",
+                                    "*LINENUMBER",
+                                    "*NOMAP",
+                                    "*MAP",
+                                    "*NOOPTIONS",
+                                    "*OPTIONS",
+                                    "*QUOTE",
+                                    "*APOST",
+                                    "*NOSECLVL",
+                                    "*SECLVL",
+                                    "*PRTCORR",
+                                    "*NOPRTCORR",
+                                    "*MONOPRC",
+                                    "*NOMONOPRC",
+                                    "*RANGE",
+                                    "*NORANGE",
+                                    "*NOUNREF",
+                                    "*UNREF",
+                                    "*NOSYNC",
+                                    "*SYNC",
+                                    "*NOCRTF",
+                                    "*CRTF",
+                                    "*NODUPKEYCHK",
+                                    "*DUPKEYCHK",
+                                    "*NOINZDLT",
+                                    "*INZDLT",
+                                    "*NOBLK",
+                                    "*BLK",
+                                    "*STDINZ",
+                                    "*NOSTDINZ",
+                                    "*STDINZHEX00",
+                                    "*NODDSFILLER",
+                                    "*DDSFILLER",
+                                    "*NOIMBEDERR",
+                                    "*IMBEDERR",
+                                    "*STDTRUNC",
+                                    "*NOSTDTRUNC",
+                                    "*NOCHGPOSSGN",
+                                    "*CHGPOSSGN",
+                                    "*NOEVENTF",
+                                    "*EVENTF",
+                                    "*MONOPIC",
+                                    "*NOMONOPIC",
+                                    "*NOCRTARKIDX",
+                                    "*CRTARKIDX"
+                                ]
+                            },
+                            "markdownDescription": "Compile options\n\nRefer to the `OPTION` parameter in `CRTCBLMOD` command help."
+                        },
+                        "dbgView": {
+                            "type": "string",
+                            "default": "*SOURCE",
+                            "enum": [
+                                "*STMT",
+                                "*SOURCE",
+                                "*LIST",
+                                "*ALL",
+                                "*NONE"
+                            ],
+                            "markdownDescription": "Debugging views\n\nRefer to the `DBGVIEW` parameter in `CRTCBLMOD` command help."
+                        },
+                        "bndSrvPgm": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Bind service program\n\nRefer to the `BNDSRVPGM` parameter in `CRTSRVPGM` command help."
+                        },
+                        "bndDir": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Binding directory\n\nRefer to the `BNDDIR` parameter in `CRTSRVPGM` command help."
+                        },
+                        "bOption": {
+                            "type": "string",
+                            "default": "",
+                            "enum": [
+                                "*DUPPROC",
+                                "*DUPVAR"
+                            ],
+                            "markdownDescription": "Binding options\n\nRefer to the `OPTION` parameter in `CRTSRVPGM` command help."
+                        },
+                        "define": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Define condition names\n\nSpecifies condition names that are defined before the compilation begins. Using the parameter `DEFINE(condition-name)` is equivalent to coding the `/DEFINE` condition-name directive on the first line of the source file."
+                        },
+                        "dltSplf": {
+                            "type": "string",
+                            "default": "",
+                            "enum": [
+                                "*YES",
+                                "*NO"
+                            ],
+                            "markdownDescription": "Delete spooled files\n\nSpecifies if all spooled files (compile listing) created by the object creations commands are deleted on success."
+                        },
+                        "actGrp": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Activation group\n\nRefer to the `ACTGRP` parameter in `CRTSRVPGM` command help."
+                        },
+                        "module": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Module\n\nRefer to the `MODULE` parameter in `CRTSRVPGM` command help."
+                        },
+                        "pOption": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": "",
+                                "enum": [
+                                    "*XREF",
+                                    "*NOXREF",
+                                    "*GEN",
+                                    "*NOGEN",
+                                    "*COMMA",
+                                    "*PERIOD",
+                                    "*JOB",
+                                    "*SYSVAL",
+                                    "*QUOTESQL",
+                                    "*APOSTSQL",
+                                    "*QUOTE",
+                                    "*APOST",
+                                    "*SECLVL",
+                                    "*NOSECLVL",
+                                    "*EVENTF",
+                                    "*NOEVENTF",
+                                    "*CVTDT",
+                                    "*NOCVTDT",
+                                    "*SQL",
+                                    "*SYS",
+                                    "*OPTLOB",
+                                    "*NOOPTLOB",
+                                    "*NOEXTIND",
+                                    "*EXTIND",
+                                    "*SYSTIME",
+                                    "*NOSYSTIME"
+                                ]
+                            },
+                            "markdownDescription": "Pre-compiler OPTIONS\n\nRefer to the `OPTION` parameter in `CRTSQLCBLI` command help."
+                        },
+                        "compileOpt": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Pre-Compiler COMPILEOPT\n\nRefer to the `COMPILEOPT` parameter in `CRTSQLCBLI` command help."
+                        },
+                        "tgtRls": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Target release\n\nRefer to the `TGTRLS` parameter in `CRTSRVPGM` command help."
+                        },
+                        "incDir": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
+                        },
+                        "tgtCcsid": {
+                            "type": "number",
+                            "default": 37,
+                            "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
+                        }
+                    }
                 }
             }
         }
@@ -174,8 +409,22 @@
         {
             "label": "RPGUnit Test Configuration",
             "body": {
-                "RUCRTRPG": {},
-                "RUCRTCBL": {}
+                "RPGUnit": {
+                    "RUCRTRPG": {
+                        "tgtCcsid": 37,
+                        "dbgView": "*SOURCE",
+                        "cOption": [
+                            "*EVENTF"
+                        ]
+                    },
+                    "RUCRTCBL": {
+                        "tgtCcsid": 37,
+                        "dbgView": "*SOURCE",
+                        "cOption": [
+                            "*EVENTF"
+                        ]
+                    }
+                }
             }
         }
     ]
