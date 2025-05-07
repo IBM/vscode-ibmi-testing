@@ -37,21 +37,21 @@ export interface RUCRTRPG {
     srcMbr?: string,
     srcStmf?: string,
     text?: string,
-    cOption?: string,
+    cOption?: string[],
     dbgView?: string,
-    bndSrvPgm?: string,
-    bndDir?: string,
+    bndSrvPgm?: string[],
+    bndDir?: string[],
     bOption?: string,
-    define?: string,
+    define?: string[],
     dltSplf?: string,
     actGrp?: string,
-    module?: string,
+    module?: string[],
     rpgPpOpt?: string,
-    option?: string,
+    pOption?: string[],
     compileOpt?: string,
     tgtRls?: string
-    incDir?: string,
-    tgtCcsid?: string
+    incDir?: string[],
+    tgtCcsid?: number
 }
 
 export interface RUCRTCBL {
@@ -60,20 +60,20 @@ export interface RUCRTCBL {
     srcMbr?: string,
     srcStmf?: string,
     text?: string,
-    cOption?: string,
+    cOption?: string[],
     dbgView?: string,
-    bndSrvPgm?: string,
-    bndDir?: string,
+    bndSrvPgm?: string[],
+    bndDir?: string[],
     bOption?: string,
-    define?: string,
+    define?: string[],
     dltSplf?: string,
     actGrp?: string,
-    module?: string,
-    option?: string,
+    module?: string[],
+    pOption?: string[],
     compileOpt?: string,
     tgtRls?: string
-    incDir?: string,
-    tgtCcsid?: string
+    incDir?: string[],
+    tgtCcsid?: number
 }
 
 export interface RUCALLTST {

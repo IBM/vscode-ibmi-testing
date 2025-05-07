@@ -82,6 +82,7 @@ export class TestFile {
         const config = connection.getConfig();
 
         let workspaceFolder: WorkspaceFolder | undefined;
+        let deployDirectory: string | undefined;
         let tstPgm: { name: string, library: string };
         let srcFile: { name: string, library: string } | undefined;
         let srcMbr: string | undefined;
@@ -113,7 +114,7 @@ export class TestFile {
 
             // Construct remote path to test
             const deployTools = getDeployTools()!;
-            const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
+            deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
             srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
             tstPgm = { name: tstPgmName, library: tstLibrary };
@@ -155,12 +156,12 @@ export class TestFile {
 
         // Set TGTCCSID to 37 by default
         if (!compileParams.tgtCcsid) {
-            compileParams.tgtCcsid = "37";
+            compileParams.tgtCcsid = 37;
         }
 
         // SET COPTION to *EVEVENTF by default to be able to later get diagnostic messages
-        if (!compileParams.cOption) {
-            compileParams.cOption = "*EVENTF";
+        if (!compileParams.cOption || compileParams.cOption.length === 0) {
+            compileParams.cOption = ["*EVENTF"];
         }
 
         // Set DBGVIEW to *SOURCE by default for code coverage to get proper line numbers
@@ -168,9 +169,39 @@ export class TestFile {
             compileParams.dbgView = "*SOURCE";
         }
 
+        if (compileParams.incDir) {
+            // Resolve relative include directories with the deploy directory for local files
+            if (workspaceFolder && deployDirectory) {
+                const resolvedIncDir: string[] = [];
+                for (const incDir of compileParams.incDir) {
+                    if (!path.isAbsolute(incDir)) {
+                        resolvedIncDir.push(path.posix.join(deployDirectory, incDir));
+                    } else {
+                        resolvedIncDir.push(incDir);
+                    }
+                }
+
+                compileParams.incDir = resolvedIncDir;
+            }
+
+            // Wrap all include directories in quotes
+            compileParams.incDir = compileParams.incDir.map((dir) => `'${dir}'`);
+        }
+
+        // Flatten compile parameters and convert to strings
+        const flattenedCompileParams: any = { ...compileParams };
+        for (const key of Object.keys(compileParams) as (keyof typeof compileParams)[]) {
+            const value = compileParams[key];
+            if (Array.isArray(value)) {
+                flattenedCompileParams[key] = value.join(' ');
+            } else if (typeof value === 'number') {
+                flattenedCompileParams[key] = value.toString();
+            }
+        }
+
         const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         const languageSpecificCommand = this.isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
-        const compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, compileParams as any);
+        const compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, flattenedCompileParams as any);
         Logger.log(LogLevel.Info, `Compiling ${this.item.label}: ${compileCommand}`);
 
         let compileResult: any;
@@ -189,7 +220,7 @@ export class TestFile {
 
         try {
             // Retrieve diagnostics messages
-            if (compileParams.cOption === "*EVENTF") {
+            if (compileParams.cOption.includes('*EVENTF')) {
                 const ext = path.parse(this.item.uri!.path).ext;
                 await commands.executeCommand('code-for-ibmi.openErrors', {
                     qualifiedObject: `${compileParams.tstPgm}${ext}`,
