@@ -102,7 +102,7 @@ export class IBMiTestRunner {
         const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         const installMessage = state === 'NeedsUpdate' ?
             `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i.` :
-            (state !== 'Installed' ? `RPGUnit v${RPGUnit.MINIMUM_VERSION} must be installed on the IBM i.` : undefined);
+            (state !== 'Installed' ? `RPGUnit must be installed with at least v${RPGUnit.MINIMUM_VERSION} on the IBM i.` : undefined);
         const installQuestion = state === 'NeedsUpdate' ?
             `Can it be updated in ${productLibrary}.LIB?` :
             (state !== 'Installed' ? `Can it be installed into ${productLibrary}.LIB?` : undefined);
