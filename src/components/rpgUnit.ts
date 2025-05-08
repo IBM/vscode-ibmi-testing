@@ -210,7 +210,7 @@ export class RPGUnit implements IBMiComponent {
         await connection.runCommand({ command: `rm -rf ${remotePath}` });
 
         const newState = await this.getRemoteState(connection, installDirectory);
-        if (state === 'Installed') {
+        if (newState === 'Installed') {
             Logger.logWithNotification(LogLevel.Info, `RPGUnit ${selectedRelease.release.name} installed successfully into ${productLibrary}.LIB`);
         } else {
             Logger.logWithNotification(LogLevel.Error, `RPGUnit ${selectedRelease.release.name} failed to install into ${productLibrary}.LIB`);
