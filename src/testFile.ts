@@ -99,7 +99,7 @@ export class TestFile {
                 }
             }
             originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
-            const tstPgmName = Utils.getSystemName(originalTstPgmName);
+            const tstPgmName = Utils.getSystemName(`T_${originalTstPgmName}`);
             if (tstPgmName !== originalTstPgmName) {
                 Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
             }

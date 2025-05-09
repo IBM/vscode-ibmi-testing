@@ -278,7 +278,7 @@ export class IBMiTestRunner {
                 }
             }
             originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
-            const tstPgmName = Utils.getSystemName(originalTstPgmName);
+            const tstPgmName = Utils.getSystemName(`T_${originalTstPgmName}`);
 
             // Use current library as the test library
             workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
