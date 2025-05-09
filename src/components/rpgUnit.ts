@@ -40,10 +40,10 @@ export class RPGUnit implements IBMiComponent {
 
                         // Compare installed version with minimum version
                         if (this.compareVersions(installedVersion, RPGUnit.MINIMUM_VERSION) >= 0) {
-                            Logger.log(LogLevel.Info, `Installed version of RPGUnit is ${installedVersion}`);
+                            Logger.log(LogLevel.Info, `Installed version of RPGUnit is v${installedVersion}`);
                             return 'Installed';
                         } else {
-                            Logger.log(LogLevel.Error, `Installed version of RPGUnit (${installedVersion}) is lower than minimum version (${RPGUnit.MINIMUM_VERSION})`);
+                            Logger.log(LogLevel.Error, `Installed version of RPGUnit (v${installedVersion}) is lower than minimum version (v${RPGUnit.MINIMUM_VERSION})`);
                             return 'NeedsUpdate';
                         }
                     } else {

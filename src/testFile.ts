@@ -95,11 +95,11 @@ export class TestFile {
             const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
             for (const suffix of testSuffixes.local) {
                 if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
-                    originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
+                    originalTstPgmName = originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
                 }
             }
             originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
-            const tstPgmName = Utils.getSystemName(originalTstPgmName);
+            const tstPgmName = Utils.getSystemName(`T_${originalTstPgmName}`);
             if (tstPgmName !== originalTstPgmName) {
                 Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
             }
@@ -183,10 +183,17 @@ export class TestFile {
 
                 compileParams.incDir = resolvedIncDir;
             }
-
-            // Wrap all include directories in quotes
-            compileParams.incDir = compileParams.incDir.map((dir) => `'${dir}'`);
+        } else {
+            compileParams.incDir = [];
         }
+
+        // Add the deploy directory to the include directories
+        if (deployDirectory) {
+            compileParams.incDir.push(deployDirectory);
+        }
+
+        // Wrap all include directories in quotes
+        compileParams.incDir = compileParams.incDir.map((dir) => `'${dir}'`);
 
         // Flatten compile parameters and convert to strings
         const flattenedCompileParams: any = { ...compileParams };

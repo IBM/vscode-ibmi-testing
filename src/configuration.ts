@@ -2,6 +2,7 @@ import { ConfigurationTarget, LogLevel, workspace } from "vscode";
 import { Logger } from "./logger";
 
 export enum Section {
+    productLibrary = 'productLibrary',
     testSourceFiles = 'testSourceFiles',
     runOrder = 'runOrder',
     libraryList = 'libraryList',
@@ -9,11 +10,11 @@ export enum Section {
     jobDescriptionLibrary = 'jobDescriptionLibrary',
     reportDetail = 'reportDetail',
     createReport = 'createReport',
-    reclaimResources = 'reclaimResources',
-    productLibrary = 'productLibrary'
+    reclaimResources = 'reclaimResources'
 }
 
 export const defaultConfigurations: { [T in Section]: string | string[] } = {
+    [Section.productLibrary]: 'RPGUNIT',
     [Section.testSourceFiles]: ['QTESTSRC'],
     [Section.runOrder]: '*API',
     [Section.libraryList]: '*CURRENT',
@@ -21,8 +22,7 @@ export const defaultConfigurations: { [T in Section]: string | string[] } = {
     [Section.jobDescriptionLibrary]: '',
     [Section.reportDetail]: '*BASIC',
     [Section.createReport]: '*ALLWAYS',
-    [Section.reclaimResources]: '*NO',
-    [Section.productLibrary]: 'RPGUNIT'
+    [Section.reclaimResources]: '*NO'
 };
 
 export namespace Configuration {

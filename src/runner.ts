@@ -274,14 +274,14 @@ export class IBMiTestRunner {
             const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
             for (const suffix of testSuffixes.local) {
                 if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
-                    originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
+                    originalTstPgmName = originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
                 }
             }
             originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
-            const tstPgmName = Utils.getSystemName(originalTstPgmName);
+            const tstPgmName = Utils.getSystemName(`T_${originalTstPgmName}`);
 
             // Use current library as the test library
-            const workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
+            workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
             const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
             const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
