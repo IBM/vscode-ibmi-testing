@@ -125,7 +125,7 @@ export class IBMiTestManager {
         const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
         const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles);
         const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
-        Logger.log(LogLevel.Info, `Searching for tests in library list: ${libraries.join(', ')}.LIB`);
+        Logger.log(LogLevel.Info, `Searching for tests in library list: ${libraries.join('.LIB, ')}.LIB`);
         for await (const library of libraries) {
             for await (const testSourceFile of testSourceFiles) {
                 const testMembers = await content.getMemberList({
