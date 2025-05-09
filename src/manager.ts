@@ -96,6 +96,7 @@ export class IBMiTestManager {
         // Load local tests from workspace folders
         const workspaceTestPatterns = this.getWorkspaceTestPatterns();
         for await (const workspaceTestPattern of workspaceTestPatterns) {
+            Logger.log(LogLevel.Info, `Searching for tests in workspace folder: ${workspaceTestPattern.workspaceFolder.name}`);
             const fileUris = await workspace.findFiles(workspaceTestPattern.pattern);
             for (const uri of fileUris) {
                 await this.loadFileOrMember(uri, false);
@@ -124,6 +125,7 @@ export class IBMiTestManager {
         const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
         const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles);
         const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
+        Logger.log(LogLevel.Info, `Searching for tests in library list: ${libraries.join(', ')}.LIB`);
         for await (const library of libraries) {
             for await (const testSourceFile of testSourceFiles) {
                 const testMembers = await content.getMemberList({

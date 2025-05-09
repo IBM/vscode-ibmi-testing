@@ -5,6 +5,12 @@ export class Logger {
 
     public static log(level: LogLevel, message: string): void {
         switch (level) {
+            case LogLevel.Trace:
+                this.logOutputChannel.trace(message);
+                break;
+            case LogLevel.Debug:
+                this.logOutputChannel.debug(message);
+                break;
             case LogLevel.Info:
                 this.logOutputChannel.info(message);
                 break;
