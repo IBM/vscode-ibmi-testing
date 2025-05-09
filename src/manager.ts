@@ -131,7 +131,7 @@ export class IBMiTestManager {
                 const testMembers = await content.getMemberList({
                     library: library,
                     sourceFile: testSourceFile,
-                    extensions: testSuffixes.remote.join(',').slice(1),
+                    extensions: testSuffixes.remote.map((suffix) => suffix.slice(1)).join(','),
                     filterType: 'simple',
                     sort: { order: 'name' }
                 });
