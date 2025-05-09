@@ -274,7 +274,7 @@ export class IBMiTestRunner {
             const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
             for (const suffix of testSuffixes.local) {
                 if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
-                    originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
+                    originalTstPgmName = originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
                 }
             }
             originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
