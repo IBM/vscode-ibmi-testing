@@ -281,7 +281,7 @@ export class IBMiTestRunner {
             const tstPgmName = Utils.getSystemName(originalTstPgmName);
 
             // Use current library as the test library
-            const workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
+            workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
             const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
             const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
