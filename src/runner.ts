@@ -117,12 +117,14 @@ export class IBMiTestRunner {
             run.end();
 
             // Prompt user to install or update RPGUnit
-            window.showErrorMessage(`${installMessage} ${installQuestion}`, 'Install').then(async (value) => {
+            window.showErrorMessage(`${installMessage} ${installQuestion}`, 'Install', 'Configure Product Library').then(async (value) => {
                 if (value === 'Install') {
                     await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
                         progress.report({ message: `Installing ${RPGUnit.ID}` });
                         await componentManager.installComponent(RPGUnit.ID);
                     });
+                } else if (value === 'Configure Product Library') {
+                    await commands.executeCommand('workbench.action.openSettings', '@ext:IBM.vscode-ibmi-testing');
                 }
             });
             return;
