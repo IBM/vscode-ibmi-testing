@@ -21,11 +21,13 @@ export class IBMiTestRunner {
     private manager: IBMiTestManager;
     private request: TestRunRequest;
     private metrics: TestMetrics;
+    private forceCompile: boolean;
     private token: CancellationToken; // TODO: This is should be accounted for during test execution
 
-    constructor(manager: IBMiTestManager, request: TestRunRequest, token: CancellationToken) {
+    constructor(manager: IBMiTestManager, request: TestRunRequest, forceCompile: boolean, token: CancellationToken) {
         this.manager = manager;
         this.request = request;
+        this.forceCompile = forceCompile;
         this.token = token;
         this.metrics = {
             testCasesPassed: 0,
@@ -115,12 +117,14 @@ export class IBMiTestRunner {
             run.end();
 
             // Prompt user to install or update RPGUnit
-            window.showErrorMessage(`${installMessage} ${installQuestion}`, 'Install').then(async (value) => {
+            window.showErrorMessage(`${installMessage} ${installQuestion}`, 'Install', 'Configure Product Library').then(async (value) => {
                 if (value === 'Install') {
                     await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
                         progress.report({ message: `Installing ${RPGUnit.ID}` });
                         await componentManager.installComponent(RPGUnit.ID);
                     });
+                } else if (value === 'Configure Product Library') {
+                    await commands.executeCommand('workbench.action.openSettings', '@ext:IBM.vscode-ibmi-testing');
                 }
             });
             return;
@@ -206,7 +210,7 @@ export class IBMiTestRunner {
                     item: testFileItem
                 });
 
-                if (testFileData.isCompiled) {
+                if (testFileData.isCompiled && !this.forceCompile) {
                     this.updateTestRunStatus(run, 'compilation', {
                         item: testFileItem,
                         status: 'skipped'

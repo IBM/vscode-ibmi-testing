@@ -1,10 +1,11 @@
-import { DeclarationCoverage, FileCoverage, Position, StatementCoverage, TestCoverageCount, Uri } from "vscode";
+import { CancellationToken, DeclarationCoverage, FileCoverage, Position, StatementCoverage, TestCoverageCount, TestRun, Uri } from "vscode";
 import { CoverageData } from "./types";
 
 export class IBMiFileCoverage extends FileCoverage {
     public isStatementCoverage: boolean;
     public readonly lines: StatementCoverage[] = [];
     public readonly procedures: DeclarationCoverage[] = [];
+
     constructor(uri: Uri, coverageData: CoverageData, isStatementCoverage: boolean) {
         super(uri, new TestCoverageCount(0, 0));
         this.isStatementCoverage = isStatementCoverage;
@@ -26,4 +27,16 @@ export class IBMiFileCoverage extends FileCoverage {
             }
         }
     }
+
+    static async loadDetailedCoverage(testRun: TestRun, fileCoverage: FileCoverage, token: CancellationToken) {
+        if (fileCoverage instanceof IBMiFileCoverage) {
+            if (fileCoverage.isStatementCoverage) {
+                return fileCoverage.lines;
+            } else if (fileCoverage.procedures.length > 0) {
+                return fileCoverage.procedures;
+            }
+        }
+
+        return [];
+    };
 }

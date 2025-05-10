@@ -68,7 +68,7 @@ export function activate(context: ExtensionContext) {
 	let connection: IBMi | undefined;
 	ibmi!.subscribe(context, 'connected', 'Load IBM i Test Manager', async () => {
 		connection = ibmi!.getConnection();
-		Logger.log(LogLevel.Info, `Connected to ${connection.currentUser}@${connection.currentHost}`);
+		Logger.log(LogLevel.Debug, `Connected to ${connection.currentUser}@${connection.currentHost}`);
 
 		if (!manager) {
 			manager = new IBMiTestManager(context);
@@ -79,7 +79,7 @@ export function activate(context: ExtensionContext) {
 	});
 	ibmi!.subscribe(context, 'disconnected', 'Dispose IBM i Test Manager', async () => {
 		if (connection) {
-			Logger.log(LogLevel.Info, `Disconnected from ${connection.currentUser}@${connection.currentHost}`);
+			Logger.log(LogLevel.Debug, `Disconnected from ${connection.currentUser}@${connection.currentHost}`);
 		}
 
 		// Clean up test manager

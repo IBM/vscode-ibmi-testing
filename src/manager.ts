@@ -17,8 +17,11 @@ export class IBMiTestManager {
     public static CONTROLLER_ID = 'IBMi';
     public static CONTROLLER_LABEL = 'IBM i Testing';
     public static RUN_PROFILE_LABEL = 'Run Tests';
+    public static COMPILE_AND_RUN_PROFILE_LABEL = 'Run Tests (Compile)';
     public static LINE_COVERAGE_PROFILE_LABEL = 'Run Tests with Line Coverage';
+    public static COMPILE_AND_LINE_COVERAGE_PROFILE_LABEL = 'Run Tests with Line Coverage (Compile)';
     public static PROCEDURE_COVERAGE_PROFILE_LABEL = 'Run Tests with Procedure Coverage';
+    public static COMPILE_AND_PROCEDURE_COVERAGE_PROFILE_LABEL = 'Run Tests with Procedure Coverage (Compile)';
     public context: ExtensionContext;
     public testData: WeakMap<TestItem, IBMiTestData>;
     public controller: TestController;
@@ -38,31 +41,35 @@ export class IBMiTestManager {
         this.controller.refreshHandler = async () => {
             await this.refreshTests();
         };
-        const runProfile = this.controller.createRunProfile(IBMiTestManager.RUN_PROFILE_LABEL, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
-            const runner = new IBMiTestRunner(this, request, token);
-            await runner.runHandler();
-        }, true, undefined, false);
-        const lineCoverageProfile = this.controller.createRunProfile(IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-            const runner = new IBMiTestRunner(this, request, token);
-            await runner.runHandler();
-        }, true, undefined, false);
-        const procedureCoverageProfile = this.controller.createRunProfile(IBMiTestManager.PROCEDURE_COVERAGE_PROFILE_LABEL, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-            const runner = new IBMiTestRunner(this, request, token);
-            await runner.runHandler();
-        }, false, undefined, false);
-        const loadDetailedCoverage = async (testRun: TestRun, fileCoverage: FileCoverage, token: CancellationToken) => {
-            if (fileCoverage instanceof IBMiFileCoverage) {
-                if (fileCoverage.isStatementCoverage) {
-                    return fileCoverage.lines;
-                } else if (fileCoverage.procedures.length > 0) {
-                    return fileCoverage.procedures;
-                }
-            }
 
-            return [];
-        };
-        lineCoverageProfile.loadDetailedCoverage = loadDetailedCoverage;
-        procedureCoverageProfile.loadDetailedCoverage = loadDetailedCoverage;
+        // Profiles for running tests
+        [IBMiTestManager.RUN_PROFILE_LABEL, IBMiTestManager.COMPILE_AND_RUN_PROFILE_LABEL].forEach((profile, index) => {
+            const forceCompile = index === 1;
+            this.controller.createRunProfile(profile, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
+                const runner = new IBMiTestRunner(this, request, forceCompile, token);
+                await runner.runHandler();
+            }, !forceCompile, undefined, false);
+        });
+
+        // Profiles for running tests with line coverage
+        [IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL, IBMiTestManager.COMPILE_AND_LINE_COVERAGE_PROFILE_LABEL].forEach((profile, index) => {
+            const forceCompile = index === 1;
+            const lineCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
+                const runner = new IBMiTestRunner(this, request, forceCompile, token);
+                await runner.runHandler();
+            }, !forceCompile, undefined, false);
+            lineCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
+        });
+
+        // Profiles for running tests with procedure coverage
+        [IBMiTestManager.PROCEDURE_COVERAGE_PROFILE_LABEL, IBMiTestManager.COMPILE_AND_PROCEDURE_COVERAGE_PROFILE_LABEL].forEach((profile, index) => {
+            const forceCompile = index === 1;
+            const procedureCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
+                const runner = new IBMiTestRunner(this, request, forceCompile, token);
+                await runner.runHandler();
+            }, false, undefined, false);
+            procedureCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
+        });
 
         context.subscriptions.push(
             this.controller,
@@ -96,6 +103,7 @@ export class IBMiTestManager {
         // Load local tests from workspace folders
         const workspaceTestPatterns = this.getWorkspaceTestPatterns();
         for await (const workspaceTestPattern of workspaceTestPatterns) {
+            Logger.log(LogLevel.Info, `Searching for tests in workspace folder: ${workspaceTestPattern.workspaceFolder.name}`);
             const fileUris = await workspace.findFiles(workspaceTestPattern.pattern);
             for (const uri of fileUris) {
                 await this.loadFileOrMember(uri, false);
@@ -124,12 +132,13 @@ export class IBMiTestManager {
         const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
         const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles);
         const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
+        Logger.log(LogLevel.Info, `Searching for tests in library list: ${libraries.join('.LIB, ')}.LIB`);
         for await (const library of libraries) {
             for await (const testSourceFile of testSourceFiles) {
                 const testMembers = await content.getMemberList({
                     library: library,
                     sourceFile: testSourceFile,
-                    extensions: testSuffixes.remote.join(',').slice(1),
+                    extensions: testSuffixes.remote.map((suffix) => suffix.slice(1)).join(','),
                     filterType: 'simple',
                     sort: { order: 'name' }
                 });

@@ -33,7 +33,7 @@ export namespace Configuration {
 
         for (const section of Object.values(Section)) {
             let value = Configuration.get<string | string[]>(section);
-            if (!value || (Array.isArray(value) && value.length === 0)) {
+            if (value === undefined || (Array.isArray(value) && value.length === 0)) {
                 value = defaultConfigurations[section];
                 await Configuration.set(section, value);
             }
