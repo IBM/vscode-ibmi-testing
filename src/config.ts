@@ -3,7 +3,7 @@ import { TestingConfig } from "./types";
 import * as path from "path";
 import lodash from "lodash";
 import { Logger } from "./logger";
-import { getInstance } from "./api/ibmi";
+import { getInstance } from "./extensions/ibmi";
 
 export namespace ConfigHandler {
     const TESTING_CONFIG_FILE = 'testing.json';

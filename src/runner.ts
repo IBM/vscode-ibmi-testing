@@ -1,7 +1,7 @@
 import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, window, ProgressLocation, commands, WorkspaceFolder } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
-import { getDeployTools, getInstance } from "./api/ibmi";
+import { getDeployTools, getInstance } from "./extensions/ibmi";
 import * as path from "path";
 import { parseStringPromise } from "xml2js";
 import { CODECOV, RUCALLTST, TestQueue, TestMetrics } from "./types";

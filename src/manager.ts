@@ -8,7 +8,7 @@ import { IBMiFileCoverage } from "./fileCoverage";
 import { IBMiTestStorage } from "./storage";
 import { CodeCoverage } from "./codeCoverage";
 import { TestObject } from "./testObject";
-import { getInstance } from "./api/ibmi";
+import { getInstance } from "./extensions/ibmi";
 import { IBMiTestData } from "./types";
 import { Utils } from "./utils";
 import { Configuration, Section } from "./configuration";
