@@ -396,14 +396,23 @@ export class IBMiTestRunner {
                         // Map code coverage results to source members
                         let memberPath: string = '';
                         const parts = fileCoverage.path.split('/');
-                        for (let index = 0; index < parts.length; index++) {
-                            if (index !== parts.length - 1) {
-                                const partName = parts[index].split('.');
-                                if (partName.length > 0) {
-                                    memberPath += `/${partName[0]}`;
+
+                        if (parts.length === 3 && parts[1].toLocaleUpperCase().endsWith('.FILE')) {
+                            // This is a temporary hack due to https://github.com/IBM/vscode-ibmi-testing/issues/70
+                            const library = parts[1].split('.')[0];
+                            const sourceFile = parts[0];
+                            const member = parts[2];
+                            memberPath = `/${library}/${sourceFile}/${member}`;
+                        } else {
+                            for (let index = 0; index < parts.length; index++) {
+                                if (index !== parts.length - 1) {
+                                    const partName = parts[index].split('.');
+                                    if (partName.length > 0) {
+                                        memberPath += `/${partName[0]}`;
+                                    }
+                                } else {
+                                    memberPath += `/${parts[index]}`;
                                 }
-                            } else {
-                                memberPath += `/${parts[index]}`;
                             }
                         }
 
