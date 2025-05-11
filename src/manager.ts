@@ -6,7 +6,7 @@ import { TestDirectory } from "./testDirectory";
 import { Logger } from "./logger";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { TestObject } from "./testObject";
-import { getInstance } from "./extensions/ibmi";
+import { getInstance } from "./api/ibmi";
 import { IBMiTestData } from "./types";
 import { Utils } from "./utils";
 import { Configuration, Section } from "./configuration";

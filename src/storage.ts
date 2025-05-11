@@ -1,4 +1,4 @@
-import { getInstance } from "./extensions/ibmi";
+import { getInstance } from "./api/ibmi";
 import { TestStorage } from "./types";
 
 export namespace IBMiTestStorage {
