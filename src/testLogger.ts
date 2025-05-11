@@ -98,7 +98,6 @@ export namespace TestLogger {
     }
 
     export function logArbitraryTestCaseFailed(run: TestRun, testCaseName: string, testFileItem: TestItem, metrics: TestMetrics, duration?: number, assertions?: number, messages?: { line?: number, message: string }[]) {
-        metrics.testCases.failed++;
         if (duration) {
             metrics.duration += duration;
         }
@@ -151,7 +150,6 @@ export namespace TestLogger {
     }
 
     export function logArbitraryTestCaseErrored(run: TestRun, testCaseName: string, testFileItem: TestItem, metrics: TestMetrics, duration?: number, assertions?: number, messages?: { line?: number, message: string }[]) {
-        metrics.testCases.errored++;
         if (duration) {
             metrics.duration += duration;
         }
@@ -191,6 +189,7 @@ export namespace TestLogger {
         const testCaseResult = `Test Cases:   ${c.green(`${metrics.testCases.passed} passed`)} | ${c.red(`${metrics.testCases.failed} failed`)} | ${c.yellow(`${metrics.testCases.errored} errored`)} ${c.grey(`(${totalTestCases})`)}`;
         const assertionResult = `Assertions:   ${metrics.assertions}`;
         const durationResult = `Duration:     ${metrics.duration}s`;
+        const finalResult = (metrics.testFiles.failed > 0 || metrics.testCases.failed > 0) ? c.bgRed(` FAIL `) : (metrics.testFiles.errored || metrics.testCases.errored) > 0 ? c.bgYellow(` ERROR `) : c.bgGreen(` PASS `);
 
         // Calculate box width
         const maxContentWidth = Math.max(
@@ -201,7 +200,8 @@ export namespace TestLogger {
             c.stripColor(testFileResult).length,
             c.stripColor(testCaseResult).length,
             c.stripColor(assertionResult).length,
-            c.stripColor(durationResult).length
+            c.stripColor(durationResult).length,
+            c.stripColor(finalResult).length
         );
         const boxWidth = maxContentWidth + 2;
 
@@ -228,6 +228,8 @@ export namespace TestLogger {
         run.appendOutput(`${addPadding(testCaseResult)}\r\n`);
         run.appendOutput(`${addPadding(assertionResult)}\r\n`);
         run.appendOutput(`${addPadding(durationResult)}\r\n`);
+        run.appendOutput(`${addPadding('')}\r\n`);
+        run.appendOutput(`${addPadding(finalResult)}\r\n`);
         run.appendOutput(borderBottom);
     }
 }
