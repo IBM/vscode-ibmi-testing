@@ -26,6 +26,20 @@ export interface TestMetrics {
     duration: number
 }
 
+export interface TestCaseResult {
+    name: string,
+    status: TestStatus,
+    time?: number,
+    failure?: {
+        line?: number,
+        message: string
+    }[],
+    error?: {
+        line?: number,
+        message: string
+    }[]
+}
+
 export interface TestingConfig {
     RPGUnit?: {
         RUCRTRPG?: RUCRTRPG,

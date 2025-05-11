@@ -1,10 +1,10 @@
-import { TestRunRequest, TestItem, TestMessage, Location, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, Position, window, ProgressLocation, commands, WorkspaceFolder } from "vscode";
+import { TestRunRequest, TestItem, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, window, ProgressLocation, commands, WorkspaceFolder } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./extensions/ibmi";
 import * as path from "path";
 import { parseStringPromise } from "xml2js";
-import { CODECOV, RUCALLTST, TestQueue, TestMetrics } from "./types";
+import { CODECOV, RUCALLTST, TestQueue, TestMetrics, TestCaseResult } from "./types";
 import { Configuration, Section } from "./configuration";
 import { TestCase } from "./testCase";
 import { TestDirectory } from "./testDirectory";
@@ -12,10 +12,11 @@ import { Logger } from "./logger";
 import { CodeCoverage } from "./codeCoverage";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { IBMiTestStorage } from "./storage";
-import c from "ansi-colors";
 import { Utils } from "./utils";
 import { TestObject } from "./testObject";
 import { RPGUnit } from "./components/rpgUnit";
+import { TestLogger } from "./testLogger";
+import { XMLParser } from "./xmlParser";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
@@ -111,9 +112,7 @@ export class IBMiTestRunner {
 
         if (installMessage) {
             // End test run
-            this.updateTestRunStatus(run, 'component', {
-                message: installMessage
-            });
+            TestLogger.logComponent(run, installMessage);
             run.end();
 
             // Prompt user to install or update RPGUnit
@@ -149,44 +148,28 @@ export class IBMiTestRunner {
                 const workspaceFolder = workspace.getWorkspaceFolder(testFileData.workspaceItem.uri!);
                 let attempt = attemptedDeployments.find((attempt) => attempt.workspaceItem.uri?.toString() === workspaceFolder!.uri.toString());
                 if (!attempt) {
-                    this.updateTestRunStatus(run, 'workspaceFolder', {
-                        item: testFileData.workspaceItem
-                    });
+                    TestLogger.logWorkspace(run, testFileData.workspaceItem);
 
                     const deployTools = getDeployTools();
                     const defaultDeploymentMethod = config.defaultDeploymentMethod;
                     const deployResult = await deployTools!.launchDeploy(workspaceFolder!.index, defaultDeploymentMethod || undefined);
                     attempt = { workspaceItem: testFileData.workspaceItem, isDeployed: deployResult ? true : false };
                     attemptedDeployments.push(attempt);
-                    this.updateTestRunStatus(run, 'deployment', {
-                        item: testFileData.workspaceItem,
-                        success: deployResult ? true : false
-                    });
+                    TestLogger.logDeployment(run, testFileData.workspaceItem, deployResult ? true : false);
                 }
 
                 // Error out children if workspace folder not deployed
                 // TODO: Fix test file name and directory not being displayed in test results view
                 if (!attempt.isDeployed) {
-                    this.updateTestRunStatus(run, 'testFile', {
-                        item: testFileItem
-                    });
-                    this.updateTestRunStatus(run, 'compilation', {
-                        item: testFileItem,
-                        status: 'skipped'
-                    });
+                    TestLogger.logTestFile(run, testFileItem);
+                    TestLogger.logCompilation(run, testFileItem, 'skipped');
 
                     if (data instanceof TestCase) {
-                        this.updateTestRunStatus(run, 'testCase', {
-                            item: item,
-                            status: 'errored'
-                        });
+                        TestLogger.logTestCaseErrored(run, item);
                     } else {
                         item.children.forEach((childItem) => {
                             if (!this.request.exclude?.includes(childItem)) {
-                                this.updateTestRunStatus(run, 'testCase', {
-                                    item: childItem,
-                                    status: 'errored'
-                                });
+                                TestLogger.logTestCaseErrored(run, childItem);
                             }
                         });
                     }
@@ -196,9 +179,7 @@ export class IBMiTestRunner {
             } else if (testFileData.libraryItem) {
                 const attempt = attemptedLibraries.find((attempt) => attempt.uri?.toString() === testFileData.libraryItem?.uri?.toString());
                 if (!attempt) {
-                    this.updateTestRunStatus(run, 'library', {
-                        item: testFileItem
-                    });
+                    TestLogger.logLibrary(run, testFileData.libraryItem);
                     attemptedLibraries.push(testFileData.libraryItem);
                 }
             }
@@ -206,15 +187,10 @@ export class IBMiTestRunner {
             // Compile test file if not already compiled
             const compiledTestFileItem = compiledTestFileItems.find((testFile) => testFile.id === testFileItem.id);
             if (!compiledTestFileItem) {
-                this.updateTestRunStatus(run, 'testFile', {
-                    item: testFileItem
-                });
+                TestLogger.logTestFile(run, testFileItem);
 
                 if (testFileData.isCompiled && !this.forceCompile) {
-                    this.updateTestRunStatus(run, 'compilation', {
-                        item: testFileItem,
-                        status: 'skipped'
-                    });
+                    TestLogger.logCompilation(run, testFileItem, 'skipped');
                 } else {
                     if (!isDiagnosticsCleared) {
                         commands.executeCommand('code-for-ibmi.clearDiagnostics');
@@ -229,17 +205,11 @@ export class IBMiTestRunner {
             // Error out children if test file is not compiled
             if (!testFileData.isCompiled) {
                 if (data instanceof TestCase) {
-                    this.updateTestRunStatus(run, 'testCase', {
-                        item: item,
-                        status: 'errored'
-                    });
+                    TestLogger.logTestCaseErrored(run, item);
                 } else {
                     item.children.forEach((childItem) => {
                         if (!this.request.exclude?.includes(childItem)) {
-                            this.updateTestRunStatus(run, 'testCase', {
-                                item: childItem,
-                                status: 'errored'
-                            });
+                            TestLogger.logTestCaseErrored(run, childItem);
                         }
                     });
                 }
@@ -256,7 +226,7 @@ export class IBMiTestRunner {
             }
         }
 
-        this.updateTestRunStatus(run, 'metrics');
+        TestLogger.logMetrics(run, this.metrics);
         run.end();
     }
 
@@ -343,19 +313,11 @@ export class IBMiTestRunner {
             testResult = await connection.runCommand({ command: testCommand, environment: `ile`, env: env });
         } catch (error: any) {
             if (isTestCase) {
-                this.updateTestRunStatus(run, 'testCase', {
-                    item: item,
-                    status: 'errored',
-                    messages: [{ message: error.message ? error.message : error }]
-                });
+                TestLogger.logTestCaseErrored(run, item, undefined, [{ message: error.message ? error.message : error }]);
             } else {
                 item.children.forEach((childItem) => {
                     if (!this.request.exclude?.includes(childItem)) {
-                        this.updateTestRunStatus(run, 'testCase', {
-                            item: childItem,
-                            status: 'errored',
-                            messages: [{ message: error.message ? error.message : error }]
-                        });
+                        TestLogger.logTestCaseErrored(run, childItem, undefined, [{ message: error.message ? error.message : error }]);
                     }
                 });
             }
@@ -424,24 +386,26 @@ export class IBMiTestRunner {
             }
         }
 
-        let xml: any | undefined;
+        // Parse XML test case results
+        let testCaseResults: TestCaseResult[] = [];
         try {
             const xmlStmfContent = (await content.downloadStreamfileRaw(testParams.xmlStmf));
-            xml = await parseStringPromise(xmlStmfContent);
+            const xml = await parseStringPromise(xmlStmfContent);
+            testCaseResults = XMLParser.parseTestResults(xml);
         } catch (error: any) {
             if (isTestCase) {
-                this.updateTestRunStatus(run, 'testCase', {
-                    item: item,
+                testCaseResults.push({
+                    name: item.label,
                     status: 'errored',
-                    messages: [{ message: error.message ? error.message : error }]
+                    error: [{ message: error.message ? error.message : error }]
                 });
             } else {
                 item.children.forEach((childItem) => {
                     if (!this.request.exclude?.includes(childItem)) {
-                        this.updateTestRunStatus(run, 'testCase', {
-                            item: childItem,
+                        testCaseResults.push({
+                            name: childItem.label,
                             status: 'errored',
-                            messages: [{ message: error.message ? error.message : error }]
+                            error: [{ message: error.message ? error.message : error }]
                         });
                     }
                 });
@@ -450,195 +414,43 @@ export class IBMiTestRunner {
             return;
         }
 
-        xml.testsuite.testcase.forEach((testcase: any) => {
-            const duration: number = parseFloat(testcase.$.time);
-
-            const testCaseName = testcase.$.name.toLocaleUpperCase();
+        // Process test case results
+        for (const testCaseResult of testCaseResults) {
             const parentItem = isTestCase ? item.parent! : item;
-            const mappedItem = parentItem.children.get(`${item.uri}/${testCaseName}`)!;
+            const mappedItem = parentItem.children.get(`${item.uri}/${testCaseResult.name}`);
 
-            if (testcase.failure || testcase.error) {
-                const messages: { line?: number, message: string }[] = [];
-
-                if (testcase.failure) {
-                    testcase.failure.forEach((failure: any) => {
-                        const match = failure._.match(/:(\d+)\)/);
-                        const line = match ? parseInt(match[1]) : undefined;
-
-                        messages.push({
-                            line: line,
-                            message: failure.$.type ? `${failure.$.type}: ${failure.$.message}` : failure.$.message
-                        });
-                    });
+            if (mappedItem) {
+                // Test case result is mapped to a test item
+                if (testCaseResult.status === 'passed') {
+                    TestLogger.logTestCasePassed(run, mappedItem, testCaseResult.time);
+                } else if (testCaseResult.status === 'failed') {
+                    TestLogger.logTestCaseFailed(run, mappedItem, testCaseResult.time, testCaseResult.failure);
+                } else if (testCaseResult.status === 'errored') {
+                    TestLogger.logTestCaseErrored(run, mappedItem, testCaseResult.time, testCaseResult.error);
                 }
-
-                if (testcase.error) {
-                    testcase.error.forEach((error: any) => {
-                        const match = error._.match(/:(\d+)\)/);
-                        const errorLine = match ? parseInt(match[1]) : undefined;
-
-                        messages.push({
-                            line: errorLine,
-                            message: error.$.type ? `${error.$.type}: ${error.$.message}` : error.$.message
-                        });
-                    });
-                }
-
-                this.updateTestRunStatus(run, 'testCase', {
-                    item: mappedItem,
-                    status: testcase.error ? 'errored' : 'failed',
-                    duration: duration,
-                    messages: messages,
-                    fallbackTestFile: parentItem,
-                    fallBackTestCaseName: testCaseName
-                });
             } else {
-                this.updateTestRunStatus(run, 'testCase', {
-                    item: mappedItem,
-                    status: 'passed',
-                    duration: duration
-                });
+                // Test case result is not mapped to a test item (ie. setUpSuite, setUp, tearDown, tearDownSuite)
+                if (testCaseResult.status === 'passed') {
+                    // This should never happened
+                    Logger.log(LogLevel.Error, `Test case ${item.label} passed${testCaseResult.time !== undefined ? ` in ${testCaseResult.time}s` : ``} but was not mapped to a test item`);
+                } else if (testCaseResult.status === 'failed') {
+                    TestLogger.logArbitraryTestCaseFailed(run, testCaseResult.name, parentItem, testCaseResult.time, testCaseResult.failure);
+                } else if (testCaseResult.status === 'errored') {
+                    TestLogger.logArbitraryTestCaseErrored(run, testCaseResult.name, parentItem, testCaseResult.time, testCaseResult.error);
+                }
             }
-        });
-    }
 
-    // TODO: Fix data to have a type instead of any
-    public updateTestRunStatus(run: TestRun, type: 'component' | 'workspaceFolder' | 'library' | 'testFile' | 'deployment' | 'compilation' | 'testCase' | 'metrics', data?: any): void {
-        switch (type) {
-            case 'component':
-                run.appendOutput(c.red(data.message));
-                break;
-            case 'workspaceFolder':
-                run.appendOutput(`${c.bgBlue(` WORKSPACE `)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);
-                Logger.log(LogLevel.Info, `Deploying ${data.item.label}`);
-                break;
-            case 'library':
-                run.appendOutput(`${c.bgBlue(` LIBRARY `)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}\r\n`);
-                Logger.log(LogLevel.Info, `Running tests in ${data.item.label}`);
-                break;
-            case 'testFile':
-                run.appendOutput(`${c.blue(`❯`)} ${data.item.label} ${c.grey(`(${data.item.children.size})`)}`);
-                break;
-            case 'deployment':
-                if (data.success) {
-                    run.appendOutput(` ${c.grey(`[ Deployment Successful ]`)}\r\n`);
-                    Logger.log(LogLevel.Info, `Successfully deployed ${data.item.label}`);
-                } else {
-                    run.appendOutput(` ${c.red(`[ Deployment Failed ]`)}\r\n`);
-                    Logger.log(LogLevel.Error, `Failed to deploy ${data.item.label}`);
-                }
-                break;
-            case 'compilation':
-                if (data.status === 'success') {
-                    run.appendOutput(` ${c.grey(`[ Compilation Successful ]`)}\r\n`);
-                    Logger.log(LogLevel.Info, `Successfully compiled ${data.item.label}`);
-                } else if (data.status === 'failed') {
-                    run.appendOutput(` ${c.yellow(`[ Compilation Error ]`)}\r\n`);
-                    Logger.log(LogLevel.Error, `Failed to compile ${data.item.label}`);
-                } else if (data.status === 'skipped') {
-                    run.appendOutput(` ${c.grey(`[ Compilation Skipped ]`)}\r\n`);
-                    Logger.log(LogLevel.Warning, `Skipped compilation for ${data.item.label}`);
-                }
-                if (data.messages) {
-                    for (const message of data.messages) {
-                        run.appendOutput(`\t${c.yellow(`${message}`)}\r\n`);
-                    }
-                }
-                break;
-            case 'testCase':
-                if (data.status === 'passed') {
-                    this.metrics.testCasesPassed++;
-                    run.passed(data.item, data.duration * 1000);
-                    run.appendOutput(`\t${c.green(`✔`)}  ${data.item.label} ${c.grey(`${data.duration}s`)}\r\n`);
-                    Logger.log(LogLevel.Info, `Test case ${data.item.label} passed in ${data.duration}s`);
-                } else if (data.status === 'failed') {
-                    if (data.item?.label) {
-                        this.metrics.testCasesFailed++;
-                        run.appendOutput(`\t${c.red(`✘`)}  ${data.item?.label} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
-                    } else {
-                        run.appendOutput(`\t${c.red(`✘`)}  ${data.fallBackTestCaseName} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
-                    }
-
-                    const testMessages: TestMessage[] = [];
-                    if (data.messages) {
-                        for (const messageData of data.messages) {
-                            run.appendOutput(`\t\t${c.red(`${c.bold(`Failure:`)} ${messageData.message}`)}\r\n`);
-
-                            const testMessage = new TestMessage(messageData.message);
-                            const range = messageData.line ? new Position(messageData.line - 1, 0) : data.item?.range;
-                            testMessage.location = range ? new Location(data.item?.uri || data.fallbackTestFile.uri, range) : undefined;
-                            testMessages.push(testMessage);
-                        }
-                    }
-
-                    if (data.item) {
-                        run.failed(data.item, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
-                        Logger.log(LogLevel.Error, `Test case ${data.item.label} failed${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
-                    } else {
-                        run.failed(data.fallbackTestFile, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
-                    }
-                } else if (data.status === 'errored') {
-                    if (data.item?.label) {
-                        this.metrics.testCasesErrored++;
-                        run.appendOutput(`\t${c.yellow(`⚠`)}  ${data.item?.label} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
-                    } else {
-                        run.appendOutput(`\t${c.yellow(`⚠`)}  ${data.fallBackTestCaseName} ${c.grey(data.duration !== undefined ? `${data.duration}s` : ``)}\r\n`);
-                    }
-
-                    const testMessages: TestMessage[] = [];
-                    if (data.messages) {
-                        for (const messageData of data.messages) {
-                            run.appendOutput(`\t\t${c.yellow(`${c.bold(`Error:`)} ${messageData.message}`)}\r\n`);
-
-                            const testMessage = new TestMessage(messageData.message);
-                            const range = messageData.line ? new Position(messageData.line - 1, 0) : data.item?.range;
-                            testMessage.location = range ? new Location(data.item?.uri || data.fallbackTestFile.uri, range) : undefined;
-                            testMessages.push(testMessage);
-                        }
-                    }
-
-                    if (data.item) {
-                        run.errored(data.item, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
-                        Logger.log(LogLevel.Error, `Test case ${data.item.label} errored${data.duration !== undefined ? ` in ${data.duration}s` : ``}`);
-                    } else {
-                        run.errored(data.fallbackTestFile, testMessages, data.duration !== undefined ? data.duration * 1000 : undefined);
-                    }
-                }
-
-                if (data.duration !== undefined) {
-                    this.metrics.duration += data.duration;
-                }
-
-                break;
-            case 'metrics':
-                const totalTests = this.metrics.testCasesFailed + this.metrics.testCasesPassed + this.metrics.testCasesErrored;
-
-                // Format text with ansi colors
-                const testCaseResult = `Test Cases: ${c.green(`${this.metrics.testCasesPassed} passed`)} | ${c.red(`${this.metrics.testCasesFailed} failed`)} | ${c.yellow(`${this.metrics.testCasesErrored} errored`)} (${totalTests})`;
-                const durationResult = `Duration:   ${this.metrics.duration}s`;
-
-                // Calculate box width
-                const maxContentWidth = Math.max(c.stripColor(testCaseResult).length, c.stripColor(durationResult).length);
-                const boxWidth = maxContentWidth + 2;
-
-                // Generate dynamic border
-                const borderTop = c.blue(`┌${'─'.repeat(boxWidth)}┐`);
-                const borderBottom = c.blue(`└${'─'.repeat(boxWidth)}┘`);
-
-                // Add padding to line
-                function addPadding(content: string): string {
-                    const plainTextLength = c.stripColor(content).length;
-                    const padding = maxContentWidth - plainTextLength;
-                    return `${c.blue(`│`)} ${content}${' '.repeat(padding)} ${c.blue(`│`)}`;
-                }
-
-                // Output results
-                run.appendOutput(`\r\n`);
-                run.appendOutput(`${borderTop}\r\n`);
-                run.appendOutput(`${addPadding(testCaseResult)}\r\n`);
-                run.appendOutput(`${addPadding(durationResult)}\r\n`);
-                run.appendOutput(borderBottom);
-                break;
+            // Update test metrics
+            if (testCaseResult.status === 'passed') {
+                this.metrics.testCasesPassed++;
+            } else if (testCaseResult.status === 'failed') {
+                this.metrics.testCasesFailed++;
+            } else if (testCaseResult.status === 'errored') {
+                this.metrics.testCasesErrored++;
+            }
+            if (testCaseResult.time) {
+                this.metrics.duration += testCaseResult.time;
+            }
         }
     }
 }

@@ -9,6 +9,7 @@ import { ConfigHandler } from "./config";
 import { Configuration, Section } from "./configuration";
 import { Logger } from "./logger";
 import { Utils } from "./utils";
+import { TestLogger } from "./testLogger";
 
 export class TestFile {
     static RPGLE_TEST_CASE_REGEX = /^TEST.*$/i;
@@ -217,12 +218,7 @@ export class TestFile {
             const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
             compileResult = await connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
         } catch (error: any) {
-            runner.updateTestRunStatus(run, 'compilation', {
-                item: this.item,
-                status: 'failed',
-                messages: [error.message ? error.message : error]
-            });
-
+            TestLogger.logCompilation(run, this.item, 'failed', [error.message ? error.message : error]);
             return;
         }
 
@@ -245,17 +241,10 @@ export class TestFile {
         }
 
         if (compileResult.code === 0) {
-            runner.updateTestRunStatus(run, 'compilation', {
-                item: this.item,
-                status: 'success'
-            });
+            TestLogger.logCompilation(run, this.item, 'success');
             this.isCompiled = true;
         } else {
-            runner.updateTestRunStatus(run, 'compilation', {
-                item: this.item,
-                status: 'failed',
-                messages: compileResult.stderr.split('\n')
-            });
+            TestLogger.logCompilation(run, this.item, 'failed', compileResult.stderr.split('\n'));
         }
     }
 }
