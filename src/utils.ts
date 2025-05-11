@@ -4,10 +4,10 @@ import { Env } from "./types";
 
 export namespace Utils {
     /**
-     * Get local and remote test suffixes. Local test suffixes are identical to remote ones,
+     * Get IFS and QSYS test suffixes. IFS test suffixes are identical to QSYS ones,
      * but include `.TEST` along with the file extension.
      */
-    export function getTestSuffixes(options: { rpg: boolean, cobol: boolean }): { local: string[], remote: string[] } {
+    export function getTestSuffixes(options: { rpg: boolean, cobol: boolean }): { ifs: string[], qsys: string[] } {
         const localSuffix = '.TEST';
 
         // Supported extensions
@@ -16,20 +16,20 @@ export namespace Utils {
         const cobolExt = `.CBLLE`;
         const sqlcobolExt = `.SQLCBLLE`;
 
-        const testSuffixes: { local: string[], remote: string[] } = {
-            local: [],
-            remote: []
+        const testSuffixes: { ifs: string[], qsys: string[] } = {
+            ifs: [],
+            qsys: []
         };
 
         if (options.rpg) {
-            testSuffixes.remote.push(rpgleExt, sqlrpgleExt);
+            testSuffixes.qsys.push(rpgleExt, sqlrpgleExt);
         }
 
         if (options.cobol) {
-            testSuffixes.remote.push(cobolExt, sqlcobolExt);
+            testSuffixes.qsys.push(cobolExt, sqlcobolExt);
         }
 
-        testSuffixes.local.push(...testSuffixes.remote.map(suffix => localSuffix + suffix));
+        testSuffixes.ifs.push(...testSuffixes.qsys.map(suffix => localSuffix + suffix));
 
         return testSuffixes;
     }

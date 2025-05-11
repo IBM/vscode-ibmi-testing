@@ -31,7 +31,7 @@ export class TestFile {
         this.content = '';
 
         const rpgleTestSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: false });
-        this.isRPGLE = rpgleTestSuffixes.remote.some(suffix => item.uri!.path.toLocaleUpperCase().endsWith(suffix));
+        this.isRPGLE = rpgleTestSuffixes.qsys.some(suffix => item.uri!.path.toLocaleUpperCase().endsWith(suffix));
     }
 
     async load(): Promise<void> {
@@ -89,11 +89,12 @@ export class TestFile {
         let srcStmf: string | undefined;
         let testingConfig: TestingConfig | undefined;
 
+        const configHandler = new ConfigHandler();
         if (this.item.uri!.scheme === 'file') {
             // Construct test program name without any suffix and convert to system name
             let originalTstPgmName = this.item.label;
             const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
-            for (const suffix of testSuffixes.local) {
+            for (const suffix of testSuffixes.ifs) {
                 if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
                     originalTstPgmName = originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
                 }
@@ -118,7 +119,7 @@ export class TestFile {
             srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
             tstPgm = { name: tstPgmName, library: tstLibrary };
-            testingConfig = await ConfigHandler.getLocalConfig(this.item.uri!);
+            testingConfig = await configHandler.getLocalConfig(this.item.uri!);
         } else {
             const parsedPath = connection.parserMemberPath(this.item.uri!.path);
             const tstPgmName = parsedPath.name.toLocaleUpperCase();
@@ -128,7 +129,7 @@ export class TestFile {
             tstPgm = { name: tstPgmName, library: tstLibrary };
             srcFile = { name: srcFileName, library: tstLibrary };
             srcMbr = '*TSTPGM';
-            testingConfig = await ConfigHandler.getRemoteConfig(this.item.uri!);
+            testingConfig = await configHandler.getRemoteConfig(this.item.uri!);
         }
 
         let compileParams: RUCRTRPG | RUCRTCBL = {

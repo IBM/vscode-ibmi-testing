@@ -276,7 +276,7 @@ export class IBMiTestRunner {
             // Construct test program name without any suffix and convert to system name
             let originalTstPgmName = isTestCase ? item.parent!.label : item.label;
             const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
-            for (const suffix of testSuffixes.local) {
+            for (const suffix of testSuffixes.ifs) {
                 if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
                     originalTstPgmName = originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
                 }
