@@ -1,12 +1,10 @@
-import { CancellationToken, ExtensionContext, FileCoverage, LogLevel, RelativePattern, TestController, TestItem, TestRun, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, window, workspace, WorkspaceFolder } from "vscode";
+import { CancellationToken, ExtensionContext, LogLevel, RelativePattern, TestController, TestItem, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, window, workspace, WorkspaceFolder } from "vscode";
 import { TestFile } from "./testFile";
 import * as path from "path";
 import { IBMiTestRunner } from "./runner";
 import { TestDirectory } from "./testDirectory";
 import { Logger } from "./logger";
 import { IBMiFileCoverage } from "./fileCoverage";
-import { IBMiTestStorage } from "./storage";
-import { CodeCoverage } from "./codeCoverage";
 import { TestObject } from "./testObject";
 import { getInstance } from "./api/ibmi";
 import { IBMiTestData } from "./types";
@@ -83,8 +81,6 @@ export class IBMiTestManager {
             })
         );
 
-        IBMiTestStorage.setupTestStorage();
-        CodeCoverage.setupCodeCoverage();
         this.loadInitialTests();
     }
 
@@ -138,7 +134,7 @@ export class IBMiTestManager {
                 const testMembers = await content.getMemberList({
                     library: library,
                     sourceFile: testSourceFile,
-                    extensions: testSuffixes.remote.map((suffix) => suffix.slice(1)).join(','),
+                    extensions: testSuffixes.qsys.map((suffix) => suffix.slice(1)).join(','),
                     filterType: 'simple',
                     sort: { order: 'name' }
                 });
@@ -161,7 +157,7 @@ export class IBMiTestManager {
         }
 
         const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
-        const pattern = testSuffixes.local.flatMap(suffix => [suffix, suffix.toLowerCase()]).join(',');
+        const pattern = testSuffixes.ifs.flatMap(suffix => [suffix, suffix.toLowerCase()]).join(',');
 
         return workspaceFolders.map((workspaceFolder: WorkspaceFolder) => {
             return {
@@ -378,9 +374,9 @@ export class IBMiTestManager {
         const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
         let uriSpecificSuffixes: string[];
         if (uri.scheme === 'file') {
-            uriSpecificSuffixes = testSuffixes.local;
+            uriSpecificSuffixes = testSuffixes.ifs;
         } else if (uri.scheme === 'member') {
-            uriSpecificSuffixes = testSuffixes.remote;
+            uriSpecificSuffixes = testSuffixes.qsys;
         } else {
             return;
         }

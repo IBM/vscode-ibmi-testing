@@ -9,6 +9,7 @@ import { ConfigHandler } from "./config";
 import { Configuration, Section } from "./configuration";
 import { Logger } from "./logger";
 import { Utils } from "./utils";
+import { TestLogger } from "./testLogger";
 
 export class TestFile {
     static RPGLE_TEST_CASE_REGEX = /^TEST.*$/i;
@@ -31,7 +32,7 @@ export class TestFile {
         this.content = '';
 
         const rpgleTestSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: false });
-        this.isRPGLE = rpgleTestSuffixes.remote.some(suffix => item.uri!.path.toLocaleUpperCase().endsWith(suffix));
+        this.isRPGLE = rpgleTestSuffixes.qsys.some(suffix => item.uri!.path.toLocaleUpperCase().endsWith(suffix));
     }
 
     async load(): Promise<void> {
@@ -75,7 +76,7 @@ export class TestFile {
         }
     }
 
-    async compileMember(runner: IBMiTestRunner, run: TestRun): Promise<void> {
+    async compile(runner: IBMiTestRunner, run: TestRun): Promise<void> {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
         const content = connection.getContent();
@@ -89,17 +90,18 @@ export class TestFile {
         let srcStmf: string | undefined;
         let testingConfig: TestingConfig | undefined;
 
+        const configHandler = new ConfigHandler();
         if (this.item.uri!.scheme === 'file') {
             // Construct test program name without any suffix and convert to system name
             let originalTstPgmName = this.item.label;
             const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
-            for (const suffix of testSuffixes.local) {
+            for (const suffix of testSuffixes.ifs) {
                 if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
                     originalTstPgmName = originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
                 }
             }
             originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
-            const tstPgmName = Utils.getSystemName(`T_${originalTstPgmName}`);
+            const tstPgmName = Utils.getSystemName(originalTstPgmName);
             if (tstPgmName !== originalTstPgmName) {
                 Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
             }
@@ -118,7 +120,7 @@ export class TestFile {
             srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
             tstPgm = { name: tstPgmName, library: tstLibrary };
-            testingConfig = await ConfigHandler.getLocalConfig(this.item.uri!);
+            testingConfig = await configHandler.getLocalConfig(this.item.uri!);
         } else {
             const parsedPath = connection.parserMemberPath(this.item.uri!.path);
             const tstPgmName = parsedPath.name.toLocaleUpperCase();
@@ -128,7 +130,7 @@ export class TestFile {
             tstPgm = { name: tstPgmName, library: tstLibrary };
             srcFile = { name: srcFileName, library: tstLibrary };
             srcMbr = '*TSTPGM';
-            testingConfig = await ConfigHandler.getRemoteConfig(this.item.uri!);
+            testingConfig = await configHandler.getRemoteConfig(this.item.uri!);
         }
 
         let compileParams: RUCRTRPG | RUCRTCBL = {
@@ -216,12 +218,7 @@ export class TestFile {
             const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
             compileResult = await connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
         } catch (error: any) {
-            runner.updateTestRunStatus(run, 'compilation', {
-                item: this.item,
-                status: 'failed',
-                messages: [error.message ? error.message : error]
-            });
-
+            TestLogger.logCompilation(run, this.item, 'failed', runner.metrics, [error.message ? error.message : error]);
             return;
         }
 
@@ -244,17 +241,10 @@ export class TestFile {
         }
 
         if (compileResult.code === 0) {
-            runner.updateTestRunStatus(run, 'compilation', {
-                item: this.item,
-                status: 'success'
-            });
+            TestLogger.logCompilation(run, this.item, 'success', runner.metrics);
             this.isCompiled = true;
         } else {
-            runner.updateTestRunStatus(run, 'compilation', {
-                item: this.item,
-                status: 'failed',
-                messages: compileResult.stderr.split('\n')
-            });
+            TestLogger.logCompilation(run, this.item, 'failed', runner.metrics, compileResult.stderr.split('\n'));
         }
     }
 }

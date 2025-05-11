@@ -8,10 +8,6 @@ import { Logger } from "./logger";
 import { CoverageData } from "./types";
 
 export namespace CodeCoverage {
-    export async function setupCodeCoverage() {
-        tmp.setGracefulCleanup();
-    }
-
     export async function getCoverage(outputZipPath: string): Promise<CoverageData[] | undefined> {
         // Get ccdata XML from cczip
         const tmpDir = tmp.dirSync({ unsafeCleanup: true });

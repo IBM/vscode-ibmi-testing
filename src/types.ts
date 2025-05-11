@@ -20,10 +20,42 @@ export interface TestStorage {
 };
 
 export interface TestMetrics {
-    testCasesPassed: number,
-    testCasesFailed: number,
-    testCasesErrored: number,
-    duration: number
+    duration: number,
+    assertions: number,
+    deployments: {
+        success: number,
+        failed: number
+    }
+    compilations: {
+        success: number,
+        failed: number,
+        skipped: number
+    },
+    testFiles: {
+        passed: number,
+        failed: number,
+        errored: number
+    },
+    testCases: {
+        passed: number,
+        failed: number,
+        errored: number
+    }
+}
+
+export interface TestCaseResult {
+    name: string,
+    status: TestStatus,
+    time?: number,
+    assertions?: number,
+    failure?: {
+        line?: number,
+        message: string
+    }[],
+    error?: {
+        line?: number,
+        message: string
+    }[]
 }
 
 export interface TestingConfig {
