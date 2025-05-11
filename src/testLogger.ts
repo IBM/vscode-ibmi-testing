@@ -98,6 +98,7 @@ export namespace TestLogger {
     }
 
     export function logArbitraryTestCaseFailed(run: TestRun, testCaseName: string, testFileItem: TestItem, metrics: TestMetrics, duration?: number, assertions?: number, messages?: { line?: number, message: string }[]) {
+        metrics.testCases.failed++;
         if (duration) {
             metrics.duration += duration;
         }
@@ -150,6 +151,7 @@ export namespace TestLogger {
     }
 
     export function logArbitraryTestCaseErrored(run: TestRun, testCaseName: string, testFileItem: TestItem, metrics: TestMetrics, duration?: number, assertions?: number, messages?: { line?: number, message: string }[]) {
+        metrics.testCases.errored++;
         if (duration) {
             metrics.duration += duration;
         }
