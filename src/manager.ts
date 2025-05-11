@@ -1,12 +1,10 @@
-import { CancellationToken, ExtensionContext, FileCoverage, LogLevel, RelativePattern, TestController, TestItem, TestRun, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, window, workspace, WorkspaceFolder } from "vscode";
+import { CancellationToken, ExtensionContext, LogLevel, RelativePattern, TestController, TestItem, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, window, workspace, WorkspaceFolder } from "vscode";
 import { TestFile } from "./testFile";
 import * as path from "path";
 import { IBMiTestRunner } from "./runner";
 import { TestDirectory } from "./testDirectory";
 import { Logger } from "./logger";
 import { IBMiFileCoverage } from "./fileCoverage";
-import { IBMiTestStorage } from "./storage";
-import { CodeCoverage } from "./codeCoverage";
 import { TestObject } from "./testObject";
 import { getInstance } from "./extensions/ibmi";
 import { IBMiTestData } from "./types";
@@ -83,8 +81,6 @@ export class IBMiTestManager {
             })
         );
 
-        IBMiTestStorage.setupTestStorage();
-        CodeCoverage.setupCodeCoverage();
         this.loadInitialTests();
     }
 

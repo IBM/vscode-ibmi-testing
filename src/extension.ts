@@ -7,6 +7,7 @@ import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { RPGUnit } from "./components/rpgUnit";
 import { CodeCov } from "./components/codeCov";
 import { Utils } from "./utils";
+import * as tmp from "tmp";
 
 export let manager: IBMiTestManager | undefined;
 let userLibraryList: string[] | undefined;
@@ -93,6 +94,9 @@ export function activate(context: ExtensionContext) {
 
 		// TODO: Handle disposing of tests mid execution
 	});
+
+	// Miscellaneous setup
+	tmp.setGracefulCleanup();
 }
 
 export function deactivate() {

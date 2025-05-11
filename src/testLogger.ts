@@ -1,7 +1,7 @@
 import { LogLevel, TestMessage, Position, Location, TestRun, TestItem } from "vscode";
 import { Logger } from "./logger";
-import c from "ansi-colors";
 import { TestMetrics } from "./types";
+import c from "ansi-colors";
 
 export namespace TestLogger {
     export function logComponent(run: TestRun, message: string) {
@@ -13,11 +13,13 @@ export namespace TestLogger {
         Logger.log(LogLevel.Info, `Deploying ${item.label}`);
     }
 
-    export function logDeployment(run: TestRun, item: TestItem, success: boolean) {
+    export function logDeployment(run: TestRun, item: TestItem, success: boolean, metrics: TestMetrics) {
         if (success) {
+            metrics.deployments.success++;
             run.appendOutput(` ${c.grey(`[ Deployment Successful ]`)}\r\n`);
             Logger.log(LogLevel.Info, `Successfully deployed ${item.label}`);
         } else {
+            metrics.deployments.failed++;
             run.appendOutput(` ${c.red(`[ Deployment Failed ]`)}\r\n`);
             Logger.log(LogLevel.Error, `Failed to deploy ${item.label}`);
         }
@@ -32,31 +34,45 @@ export namespace TestLogger {
         run.appendOutput(`${c.blue(`❯`)} ${item.label} ${c.grey(`(${item.children.size})`)}`);
     }
 
-    export function logCompilation(run: TestRun, item: TestItem, status: 'success' | 'failed' | 'skipped', messages?: string[]) {
+    export function logCompilation(run: TestRun, item: TestItem, status: 'success' | 'failed' | 'skipped', metrics: TestMetrics, messages?: string[]) {
         if (status === 'success') {
+            metrics.compilations.success++;
             run.appendOutput(` ${c.grey(`[ Compilation Successful ]`)}\r\n`);
             Logger.log(LogLevel.Info, `Successfully compiled ${item.label}`);
         } else if (status === 'failed') {
-            run.appendOutput(` ${c.yellow(`[ Compilation Error ]`)}\r\n`);
+            metrics.compilations.failed++;
+            run.appendOutput(` ${c.red(`[ Compilation Failed ]`)}\r\n`);
             Logger.log(LogLevel.Error, `Failed to compile ${item.label}`);
         } else if (status === 'skipped') {
+            metrics.compilations.skipped++;
             run.appendOutput(` ${c.grey(`[ Compilation Skipped ]`)}\r\n`);
             Logger.log(LogLevel.Warning, `Skipped compilation for ${item.label}`);
         }
+
         if (messages) {
             for (const message of messages) {
-                run.appendOutput(`\t${c.yellow(`${message}`)}\r\n`);
+                run.appendOutput(`\t${c.red(`${message}`)}\r\n`);
             }
         }
     }
 
-    export function logTestCasePassed(run: TestRun, item: TestItem, duration?: number) {
+    export function logTestCasePassed(run: TestRun, item: TestItem, metrics: TestMetrics, duration?: number) {
+        metrics.testCases.passed++;
+        if (duration) {
+            metrics.duration += duration;
+        }
+
         run.appendOutput(`\t${c.green(`✔`)}  ${item.label} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
         run.passed(item, duration !== undefined ? duration * 1000 : undefined);
         Logger.log(LogLevel.Info, `Test case ${item.label} passed${duration !== undefined ? ` in ${duration}s` : ``}`);
     }
 
-    export function logTestCaseFailed(run: TestRun, item: TestItem, duration?: number, messages?: { line?: number, message: string }[]) {
+    export function logTestCaseFailed(run: TestRun, item: TestItem, metrics: TestMetrics, duration?: number, messages?: { line?: number, message: string }[]) {
+        metrics.testCases.failed++;
+        if (duration) {
+            metrics.duration += duration;
+        }
+
         run.appendOutput(`\t${c.red(`✘`)}  ${item?.label} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
 
         const testMessages: TestMessage[] = [];
@@ -75,7 +91,11 @@ export namespace TestLogger {
         Logger.log(LogLevel.Error, `Test case ${item.label} failed${duration !== undefined ? ` in ${duration}s` : ``}`);
     }
 
-    export function logArbitraryTestCaseFailed(run: TestRun, testCaseName: string, testFileItem: TestItem, duration?: number, messages?: { line?: number, message: string }[]) {
+    export function logArbitraryTestCaseFailed(run: TestRun, testCaseName: string, testFileItem: TestItem, metrics: TestMetrics, duration?: number, messages?: { line?: number, message: string }[]) {
+        if (duration) {
+            metrics.duration += duration;
+        }
+
         run.appendOutput(`\t${c.red(`✘`)}  ${testCaseName} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
 
         const testMessages: TestMessage[] = [];
@@ -93,7 +113,12 @@ export namespace TestLogger {
         run.failed(testFileItem, testMessages, duration !== undefined ? duration * 1000 : undefined);
     }
 
-    export function logTestCaseErrored(run: TestRun, item: TestItem, duration?: number, messages?: { line?: number, message: string }[]) {
+    export function logTestCaseErrored(run: TestRun, item: TestItem, metrics: TestMetrics, duration?: number, messages?: { line?: number, message: string }[]) {
+        metrics.testCases.errored++;
+        if (duration) {
+            metrics.duration += duration;
+        }
+
         run.appendOutput(`\t${c.yellow(`⚠`)}  ${item?.label} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
 
         const testMessages: TestMessage[] = [];
@@ -112,7 +137,11 @@ export namespace TestLogger {
         Logger.log(LogLevel.Error, `Test case ${item.label} errored${duration !== undefined ? ` in ${duration}s` : ``}`);
     }
 
-    export function logArbitraryTestCaseErrored(run: TestRun, testCaseName: string, testFileItem: TestItem, duration?: number, messages?: { line?: number, message: string }[]) {
+    export function logArbitraryTestCaseErrored(run: TestRun, testCaseName: string, testFileItem: TestItem, metrics: TestMetrics, duration?: number, messages?: { line?: number, message: string }[]) {
+        if (duration) {
+            metrics.duration += duration;
+        }
+
         run.appendOutput(`\t${c.yellow(`⚠`)}  ${testCaseName} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
 
         const testMessages: TestMessage[] = [];
@@ -131,14 +160,30 @@ export namespace TestLogger {
     }
 
     export function logMetrics(run: TestRun, metrics: TestMetrics): void {
-        const totalTests = metrics.testCasesFailed + metrics.testCasesPassed + metrics.testCasesErrored;
+        const totalDeployments = metrics.deployments.success + metrics.deployments.failed;
+        const totalCompilations = metrics.compilations.success + metrics.compilations.failed + metrics.compilations.skipped;
+        const totalTestFiles = metrics.testFiles.passed + metrics.testFiles.failed + metrics.testFiles.errored;
+        const totalTestCases = metrics.testCases.passed + metrics.testCases.failed + metrics.testCases.errored;
 
         // Format text with ansi colors
-        const testCaseResult = `Test Cases: ${c.green(`${metrics.testCasesPassed} passed`)} | ${c.red(`${metrics.testCasesFailed} failed`)} | ${c.yellow(`${metrics.testCasesErrored} errored`)} (${totalTests})`;
-        const durationResult = `Duration:   ${metrics.duration}s`;
+        const testExecutionHeading = `${c.bgBlue(` EXECUTION `)}`;
+        const deploymentResult = `Deployments:  ${c.green(`${metrics.deployments.success} successful`)} | ${c.red(`${metrics.deployments.failed} failed`)} ${c.grey(`(${totalDeployments})`)}`;
+        const compilationResult = `Compilations: ${c.green(`${metrics.compilations.success} successful`)} | ${c.red(`${metrics.compilations.failed} failed`)} | ${metrics.compilations.skipped} skipped ${c.grey(`(${totalCompilations})`)}`;
+        const testResultsHeading = `${c.bgBlue(` RESULTS `)}`;
+        const testFileResult = `Test Files:   ${c.green(`${metrics.testFiles.passed} passed`)} | ${c.red(`${metrics.testFiles.failed} failed`)} | ${c.yellow(`${metrics.testFiles.errored} errored`)} ${c.grey(`(${totalTestFiles})`)}`;
+        const testCaseResult = `Test Cases:   ${c.green(`${metrics.testCases.passed} passed`)} | ${c.red(`${metrics.testCases.failed} failed`)} | ${c.yellow(`${metrics.testCases.errored} errored`)} ${c.grey(`(${totalTestCases})`)}`;
+        const durationResult = `Duration:     ${metrics.duration}s`;
 
         // Calculate box width
-        const maxContentWidth = Math.max(c.stripColor(testCaseResult).length, c.stripColor(durationResult).length);
+        const maxContentWidth = Math.max(
+            c.stripColor(testExecutionHeading).length,
+            c.stripColor(deploymentResult).length,
+            c.stripColor(compilationResult).length,
+            c.stripColor(testResultsHeading).length,
+            c.stripColor(testFileResult).length,
+            c.stripColor(testCaseResult).length,
+            c.stripColor(durationResult).length
+        );
         const boxWidth = maxContentWidth + 2;
 
         // Generate dynamic border
@@ -155,6 +200,12 @@ export namespace TestLogger {
         // Output results
         run.appendOutput(`\r\n`);
         run.appendOutput(`${borderTop}\r\n`);
+        run.appendOutput(`${addPadding(testExecutionHeading)}\r\n`);
+        run.appendOutput(`${addPadding(deploymentResult)}\r\n`);
+        run.appendOutput(`${addPadding(compilationResult)}\r\n`);
+        run.appendOutput(`${addPadding('')}\r\n`);
+        run.appendOutput(`${addPadding(testResultsHeading)}\r\n`);
+        run.appendOutput(`${addPadding(testFileResult)}\r\n`);
         run.appendOutput(`${addPadding(testCaseResult)}\r\n`);
         run.appendOutput(`${addPadding(durationResult)}\r\n`);
         run.appendOutput(borderBottom);

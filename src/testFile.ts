@@ -101,7 +101,7 @@ export class TestFile {
                 }
             }
             originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
-            const tstPgmName = Utils.getSystemName(`T_${originalTstPgmName}`);
+            const tstPgmName = Utils.getSystemName(originalTstPgmName);
             if (tstPgmName !== originalTstPgmName) {
                 Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
             }
@@ -218,7 +218,7 @@ export class TestFile {
             const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
             compileResult = await connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
         } catch (error: any) {
-            TestLogger.logCompilation(run, this.item, 'failed', [error.message ? error.message : error]);
+            TestLogger.logCompilation(run, this.item, 'failed', runner.metrics, [error.message ? error.message : error]);
             return;
         }
 
@@ -241,10 +241,10 @@ export class TestFile {
         }
 
         if (compileResult.code === 0) {
-            TestLogger.logCompilation(run, this.item, 'success');
+            TestLogger.logCompilation(run, this.item, 'success', runner.metrics);
             this.isCompiled = true;
         } else {
-            TestLogger.logCompilation(run, this.item, 'failed', compileResult.stderr.split('\n'));
+            TestLogger.logCompilation(run, this.item, 'failed', runner.metrics, compileResult.stderr.split('\n'));
         }
     }
 }
