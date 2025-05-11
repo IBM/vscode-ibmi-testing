@@ -7,11 +7,13 @@ export namespace XMLParser {
         xml.testsuite.testcase.forEach((testcase: any) => {
             const testCaseName = testcase.$.name.toLocaleUpperCase();
             const duration: number = parseFloat(testcase.$.time);
+            const assertions: number = parseInt(testcase.$.assertions);
 
             const result: TestCaseResult = {
                 name: testCaseName,
                 status: 'passed',
-                time: duration
+                time: duration,
+                assertions: assertions
             };
 
             // Parse failure messages

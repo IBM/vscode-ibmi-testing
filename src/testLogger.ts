@@ -56,10 +56,13 @@ export namespace TestLogger {
         }
     }
 
-    export function logTestCasePassed(run: TestRun, item: TestItem, metrics: TestMetrics, duration?: number) {
+    export function logTestCasePassed(run: TestRun, item: TestItem, metrics: TestMetrics, duration?: number, assertions?: number) {
         metrics.testCases.passed++;
         if (duration) {
             metrics.duration += duration;
+        }
+        if (assertions) {
+            metrics.assertions += assertions;
         }
 
         run.appendOutput(`\t${c.green(`✔`)}  ${item.label} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
@@ -67,10 +70,13 @@ export namespace TestLogger {
         Logger.log(LogLevel.Info, `Test case ${item.label} passed${duration !== undefined ? ` in ${duration}s` : ``}`);
     }
 
-    export function logTestCaseFailed(run: TestRun, item: TestItem, metrics: TestMetrics, duration?: number, messages?: { line?: number, message: string }[]) {
+    export function logTestCaseFailed(run: TestRun, item: TestItem, metrics: TestMetrics, duration?: number, assertions?: number, messages?: { line?: number, message: string }[]) {
         metrics.testCases.failed++;
         if (duration) {
             metrics.duration += duration;
+        }
+        if (assertions) {
+            metrics.assertions += assertions;
         }
 
         run.appendOutput(`\t${c.red(`✘`)}  ${item?.label} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
@@ -91,9 +97,12 @@ export namespace TestLogger {
         Logger.log(LogLevel.Error, `Test case ${item.label} failed${duration !== undefined ? ` in ${duration}s` : ``}`);
     }
 
-    export function logArbitraryTestCaseFailed(run: TestRun, testCaseName: string, testFileItem: TestItem, metrics: TestMetrics, duration?: number, messages?: { line?: number, message: string }[]) {
+    export function logArbitraryTestCaseFailed(run: TestRun, testCaseName: string, testFileItem: TestItem, metrics: TestMetrics, duration?: number, assertions?: number, messages?: { line?: number, message: string }[]) {
         if (duration) {
             metrics.duration += duration;
+        }
+        if (assertions) {
+            metrics.assertions += assertions;
         }
 
         run.appendOutput(`\t${c.red(`✘`)}  ${testCaseName} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
@@ -113,10 +122,13 @@ export namespace TestLogger {
         run.failed(testFileItem, testMessages, duration !== undefined ? duration * 1000 : undefined);
     }
 
-    export function logTestCaseErrored(run: TestRun, item: TestItem, metrics: TestMetrics, duration?: number, messages?: { line?: number, message: string }[]) {
+    export function logTestCaseErrored(run: TestRun, item: TestItem, metrics: TestMetrics, duration?: number, assertions?: number, messages?: { line?: number, message: string }[]) {
         metrics.testCases.errored++;
         if (duration) {
             metrics.duration += duration;
+        }
+        if (assertions) {
+            metrics.assertions += assertions;
         }
 
         run.appendOutput(`\t${c.yellow(`⚠`)}  ${item?.label} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
@@ -137,9 +149,12 @@ export namespace TestLogger {
         Logger.log(LogLevel.Error, `Test case ${item.label} errored${duration !== undefined ? ` in ${duration}s` : ``}`);
     }
 
-    export function logArbitraryTestCaseErrored(run: TestRun, testCaseName: string, testFileItem: TestItem, metrics: TestMetrics, duration?: number, messages?: { line?: number, message: string }[]) {
+    export function logArbitraryTestCaseErrored(run: TestRun, testCaseName: string, testFileItem: TestItem, metrics: TestMetrics, duration?: number, assertions?: number, messages?: { line?: number, message: string }[]) {
         if (duration) {
             metrics.duration += duration;
+        }
+        if (assertions) {
+            metrics.assertions += assertions;
         }
 
         run.appendOutput(`\t${c.yellow(`⚠`)}  ${testCaseName} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
@@ -172,6 +187,7 @@ export namespace TestLogger {
         const testResultsHeading = `${c.bgBlue(` RESULTS `)}`;
         const testFileResult = `Test Files:   ${c.green(`${metrics.testFiles.passed} passed`)} | ${c.red(`${metrics.testFiles.failed} failed`)} | ${c.yellow(`${metrics.testFiles.errored} errored`)} ${c.grey(`(${totalTestFiles})`)}`;
         const testCaseResult = `Test Cases:   ${c.green(`${metrics.testCases.passed} passed`)} | ${c.red(`${metrics.testCases.failed} failed`)} | ${c.yellow(`${metrics.testCases.errored} errored`)} ${c.grey(`(${totalTestCases})`)}`;
+        const assertionResult = `Assertions:   ${metrics.assertions}`;
         const durationResult = `Duration:     ${metrics.duration}s`;
 
         // Calculate box width
@@ -182,6 +198,7 @@ export namespace TestLogger {
             c.stripColor(testResultsHeading).length,
             c.stripColor(testFileResult).length,
             c.stripColor(testCaseResult).length,
+            c.stripColor(assertionResult).length,
             c.stripColor(durationResult).length
         );
         const boxWidth = maxContentWidth + 2;
@@ -207,6 +224,7 @@ export namespace TestLogger {
         run.appendOutput(`${addPadding(testResultsHeading)}\r\n`);
         run.appendOutput(`${addPadding(testFileResult)}\r\n`);
         run.appendOutput(`${addPadding(testCaseResult)}\r\n`);
+        run.appendOutput(`${addPadding(assertionResult)}\r\n`);
         run.appendOutput(`${addPadding(durationResult)}\r\n`);
         run.appendOutput(borderBottom);
     }

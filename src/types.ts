@@ -21,6 +21,7 @@ export interface TestStorage {
 
 export interface TestMetrics {
     duration: number,
+    assertions: number,
     deployments: {
         success: number,
         failed: number
@@ -46,6 +47,7 @@ export interface TestCaseResult {
     name: string,
     status: TestStatus,
     time?: number,
+    assertions?: number,
     failure?: {
         line?: number,
         message: string

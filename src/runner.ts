@@ -32,6 +32,7 @@ export class IBMiTestRunner {
         this.token = token;
         this.metrics = {
             duration: 0,
+            assertions: 0,
             deployments: { success: 0, failed: 0 },
             compilations: { success: 0, failed: 0, skipped: 0 },
             testFiles: { passed: 0, failed: 0, errored: 0 },
@@ -320,11 +321,11 @@ export class IBMiTestRunner {
             testResult = await connection.runCommand({ command: testCommand, environment: `ile`, env: env });
         } catch (error: any) {
             if (isTestCase) {
-                TestLogger.logTestCaseErrored(run, item, this.metrics, undefined, [{ message: error.message ? error.message : error }]);
+                TestLogger.logTestCaseErrored(run, item, this.metrics, undefined, undefined, [{ message: error.message ? error.message : error }]);
             } else {
                 item.children.forEach((childItem) => {
                     if (!this.request.exclude?.includes(childItem)) {
-                        TestLogger.logTestCaseErrored(run, childItem, this.metrics, undefined, [{ message: error.message ? error.message : error }]);
+                        TestLogger.logTestCaseErrored(run, childItem, this.metrics, undefined, undefined, [{ message: error.message ? error.message : error }]);
                     }
                 });
             }
@@ -431,13 +432,13 @@ export class IBMiTestRunner {
             if (mappedItem) {
                 // Test case result is mapped to a test item
                 if (testCaseResult.status === 'passed') {
-                    TestLogger.logTestCasePassed(run, mappedItem, this.metrics, testCaseResult.time);
+                    TestLogger.logTestCasePassed(run, mappedItem, this.metrics, testCaseResult.time, testCaseResult.assertions);
                 } else if (testCaseResult.status === 'failed') {
                     testFileStatus = 'failed';
-                    TestLogger.logTestCaseFailed(run, mappedItem, this.metrics, testCaseResult.time, testCaseResult.failure);
+                    TestLogger.logTestCaseFailed(run, mappedItem, this.metrics, testCaseResult.time, testCaseResult.assertions, testCaseResult.failure);
                 } else if (testCaseResult.status === 'errored') {
                     testFileStatus = 'errored';
-                    TestLogger.logTestCaseErrored(run, mappedItem, this.metrics, testCaseResult.time, testCaseResult.error);
+                    TestLogger.logTestCaseErrored(run, mappedItem, this.metrics, testCaseResult.time, testCaseResult.assertions, testCaseResult.error);
                 }
             } else {
                 // Test case result is not mapped to a test item (ie. setUpSuite, setUp, tearDown, tearDownSuite)
@@ -446,10 +447,10 @@ export class IBMiTestRunner {
                     Logger.log(LogLevel.Error, `Test case ${item.label} passed${testCaseResult.time !== undefined ? ` in ${testCaseResult.time}s` : ``} but was not mapped to a test item`);
                 } else if (testCaseResult.status === 'failed') {
                     testFileStatus = 'failed';
-                    TestLogger.logArbitraryTestCaseFailed(run, testCaseResult.name, parentItem, this.metrics, testCaseResult.time, testCaseResult.failure);
+                    TestLogger.logArbitraryTestCaseFailed(run, testCaseResult.name, parentItem, this.metrics, testCaseResult.time, testCaseResult.assertions, testCaseResult.failure);
                 } else if (testCaseResult.status === 'errored') {
                     testFileStatus = 'errored';
-                    TestLogger.logArbitraryTestCaseErrored(run, testCaseResult.name, parentItem, this.metrics, testCaseResult.time, testCaseResult.error);
+                    TestLogger.logArbitraryTestCaseErrored(run, testCaseResult.name, parentItem, this.metrics, testCaseResult.time, testCaseResult.assertions, testCaseResult.error);
                 }
             }
         }
