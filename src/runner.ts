@@ -221,7 +221,7 @@ export class IBMiTestRunner {
                         isDiagnosticsCleared = true;
                     }
 
-                    await testFileData.compileMember(this, run);
+                    await testFileData.compile(this, run);
                     compiledTestFileItems.push(testFileItem);
                 }
             }
