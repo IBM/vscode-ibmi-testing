@@ -425,8 +425,6 @@ export class IBMiTestRunner {
                     }
                 });
             }
-
-            return;
         }
 
         // Process test case results
