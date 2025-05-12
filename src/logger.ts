@@ -23,7 +23,7 @@ export class Logger {
         }
     }
 
-    public static logWithNotification(level: LogLevel, message: string, details?: string): void {
+    public static logWithNotification(level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]): void {
         this.log(level, details ? `${message}: ${details}` : message);
 
         let showMessage;
@@ -38,9 +38,16 @@ export class Logger {
                 showMessage = window.showInformationMessage;
         }
 
-        showMessage(message, 'View Output').then((value) => {
+        const buttonLabels = (buttons ? buttons.map((button) => button.label) : []);
+        const items = ['View Output', ...buttonLabels];
+        showMessage(message, ...items).then((value) => {
             if (value === 'View Output') {
                 this.logOutputChannel.show();
+            } else if (value !== undefined && buttons) {
+                const selectedButton = buttons.find(button => button.label === value);
+                if (selectedButton) {
+                    selectedButton.func();
+                }
             }
         });
     }

@@ -1,9 +1,17 @@
 import { ConfigurationTarget, LogLevel, workspace } from "vscode";
 import { Logger } from "./logger";
 
+export interface libraryListValidation {
+    "RPGUNIT": boolean;
+    "QDEVTOOLS": boolean;
+}
+
+type ValueType = string | string[] | libraryListValidation;
+
 export enum Section {
     productLibrary = 'productLibrary',
     testSourceFiles = 'testSourceFiles',
+    libraryListValidation = 'libraryListValidation',
     runOrder = 'runOrder',
     libraryList = 'libraryList',
     jobDescription = 'jobDescription',
@@ -13,9 +21,13 @@ export enum Section {
     reclaimResources = 'reclaimResources'
 }
 
-export const defaultConfigurations: { [T in Section]: string | string[] } = {
+export const defaultConfigurations: { [T in Section]: ValueType } = {
     [Section.productLibrary]: 'RPGUNIT',
     [Section.testSourceFiles]: ['QTESTSRC'],
+    [Section.libraryListValidation]: {
+        "RPGUNIT": true,
+        "QDEVTOOLS": true
+    },
     [Section.runOrder]: '*API',
     [Section.libraryList]: '*CURRENT',
     [Section.jobDescription]: '*DFT',
@@ -29,10 +41,10 @@ export namespace Configuration {
     export const group: string = 'IBM i Testing';
 
     export async function initialize(): Promise<void> {
-        const configurations: { [key: string]: string | string[] } = {};
+        const configurations: { [key: string]: ValueType } = {};
 
         for (const section of Object.values(Section)) {
-            let value = Configuration.get<string | string[]>(section);
+            let value = Configuration.get<ValueType>(section);
             if (value === undefined || (Array.isArray(value) && value.length === 0)) {
                 value = defaultConfigurations[section];
                 await Configuration.set(section, value);

@@ -5,7 +5,7 @@ import { getDeployTools, getInstance } from "./api/ibmi";
 import * as path from "path";
 import { parseStringPromise } from "xml2js";
 import { CODECOV, RUCALLTST, TestQueue, TestMetrics, TestCaseResult, TestStatus } from "./types";
-import { Configuration, Section } from "./configuration";
+import { Configuration, libraryListValidation, Section } from "./configuration";
 import { TestCase } from "./testCase";
 import { TestDirectory } from "./testDirectory";
 import { Logger } from "./logger";
@@ -132,6 +132,54 @@ export class IBMiTestRunner {
                 }
             });
             return;
+        }
+
+        const libraryListValidation = Configuration.get<libraryListValidation>(Section.libraryListValidation);
+        if (libraryListValidation) {
+            const workspaceFolders = workspace.workspaceFolders;
+            const workspaceFolder = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0] : undefined;
+            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+
+            // Check if RPGUnit is on the library list
+            if (libraryListValidation.RPGUNIT) {
+                const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
+                if (!libraryList.libraryList.includes(productLibrary)) {
+                    Logger.logWithNotification(
+                        LogLevel.Warning,
+                        `${productLibrary}.LIB not found on the library list. This may impact resolving of include files.`,
+                        undefined,
+                        [
+                            {
+                                label: 'Ignore',
+                                func: async () => {
+                                    await Configuration.set(Section.libraryListValidation, { ...libraryListValidation, RPGUNIT: false });
+                                }
+                            }
+                        ]
+                    );
+                }
+            }
+
+            // Check if QDEVTOOLS is on the library list
+            const isCodeCoverageEnabled = this.request.profile?.kind === TestRunProfileKind.Coverage;
+            if (isCodeCoverageEnabled && libraryListValidation.QDEVTOOLS) {
+                const qdevtoolsLibrary = 'QDEVTOOLS';
+                if (!libraryList.libraryList.includes(qdevtoolsLibrary)) {
+                    Logger.logWithNotification(
+                        LogLevel.Warning,
+                        `${qdevtoolsLibrary}.LIB not found on the library list. This may impact code coverage.`,
+                        undefined,
+                        [
+                            {
+                                label: 'Ignore',
+                                func: async () => {
+                                    await Configuration.set(Section.libraryListValidation, { ...libraryListValidation, QDEVTOOLS: false });
+                                }
+                            }
+                        ]
+                    );
+                }
+            }
         }
 
         // Setup RPGUNIT and CODECOV storage directories
