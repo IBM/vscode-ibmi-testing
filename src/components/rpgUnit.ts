@@ -171,7 +171,7 @@ export class RPGUnit implements IBMiComponent {
             'FILE': `${config.tempLibrary}/RPGUNIT`
         });
         const createSavfResult = await connection.runCommand({ command: createSavfCommand, environment: `ile`, noLibList: true });
-        if (createSavfResult.code !== 0 && !createSavfResult.stderr.startsWith('CPF5813')) {
+        if (createSavfResult.code !== 0 && !createSavfResult.stderr.includes('CPF5813')) {
             Logger.logWithNotification(LogLevel.Error, `Failed to create save file`, createSavfResult.stderr);
             return state;
         }
