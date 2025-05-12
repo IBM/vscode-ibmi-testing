@@ -76,7 +76,7 @@ export class TestFile {
         }
     }
 
-    async compile(runner: IBMiTestRunner, run: TestRun): Promise<void> {
+    async compileTest(runner: IBMiTestRunner, run: TestRun): Promise<void> {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
         const content = connection.getContent();
