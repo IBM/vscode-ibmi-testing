@@ -105,6 +105,9 @@ export class IBMiTestRunner {
         const componentManager = connection?.getComponentManager();
         const state = await componentManager?.getRemoteState(RPGUnit.ID);
         const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
+        const title = state === 'NeedsUpdate' ?
+            'RPGUnit Update Required' :
+            'RPGUnit Installation Required';
         const installMessage = state === 'NeedsUpdate' ?
             `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i.` :
             (state !== 'Installed' ? `RPGUnit must be installed with at least v${RPGUnit.MINIMUM_VERSION} on the IBM i.` : undefined);
@@ -118,7 +121,7 @@ export class IBMiTestRunner {
             run.end();
 
             // Prompt user to install or update RPGUnit
-            window.showErrorMessage(`${installMessage} ${installQuestion}`, 'Install', 'Configure Product Library').then(async (value) => {
+            window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}` }, 'Install', 'Configure Product Library').then(async (value) => {
                 if (value === 'Install') {
                     await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
                         progress.report({ message: `Installing ${RPGUnit.ID}` });
