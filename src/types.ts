@@ -25,7 +25,7 @@ export interface TestMetrics {
     deployments: {
         success: number,
         failed: number
-    }
+    },
     compilations: {
         success: number,
         failed: number,

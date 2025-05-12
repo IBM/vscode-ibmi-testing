@@ -1,6 +1,6 @@
 import { LogLevel, TestMessage, Position, Location, TestRun, TestItem } from "vscode";
 import { Logger } from "./logger";
-import { TestMetrics } from "./types";
+import { CompilationStatus, TestMetrics } from "./types";
 import c from "ansi-colors";
 
 export namespace TestLogger {
@@ -34,7 +34,7 @@ export namespace TestLogger {
         run.appendOutput(`${c.blue(`❯`)} ${item.label} ${c.grey(`(${item.children.size})`)}`);
     }
 
-    export function logCompilation(run: TestRun, item: TestItem, status: 'success' | 'failed' | 'skipped', metrics: TestMetrics, messages?: string[]) {
+    export function logCompilation(run: TestRun, item: TestItem, status: CompilationStatus, metrics: TestMetrics, messages?: string[]) {
         if (status === 'success') {
             metrics.compilations.success++;
             run.appendOutput(` ${c.grey(`[ Compilation Successful ]`)}\r\n`);
@@ -120,6 +120,7 @@ export namespace TestLogger {
         }
 
         run.failed(testFileItem, testMessages, duration !== undefined ? duration * 1000 : undefined);
+        Logger.log(LogLevel.Error, `Test case ${testCaseName} failed${duration !== undefined ? ` in ${duration}s` : ``} but was not mapped to a test item`);
     }
 
     export function logTestCaseErrored(run: TestRun, item: TestItem, metrics: TestMetrics, duration?: number, assertions?: number, messages?: { line?: number, message: string }[]) {
@@ -172,6 +173,7 @@ export namespace TestLogger {
         }
 
         run.errored(testFileItem, testMessages, duration !== undefined ? duration * 1000 : undefined);
+        Logger.log(LogLevel.Error, `Test case ${testCaseName} errored${duration !== undefined ? ` in ${duration}s` : ``} but was not mapped to a test item`);
     }
 
     export function logMetrics(run: TestRun, metrics: TestMetrics): void {
