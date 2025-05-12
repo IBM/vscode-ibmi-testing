@@ -79,7 +79,7 @@ export namespace TestLogger {
             metrics.assertions += assertions;
         }
 
-        run.appendOutput(`\t${c.red(`✘`)}  ${item?.label} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
+        run.appendOutput(`\t${c.red(`✘`)}  ${item.label} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
 
         const testMessages: TestMessage[] = [];
         if (messages) {
@@ -132,7 +132,7 @@ export namespace TestLogger {
             metrics.assertions += assertions;
         }
 
-        run.appendOutput(`\t${c.yellow(`⚠`)}  ${item?.label} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
+        run.appendOutput(`\t${c.yellow(`⚠`)}  ${item.label} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
 
         const testMessages: TestMessage[] = [];
         if (messages) {
