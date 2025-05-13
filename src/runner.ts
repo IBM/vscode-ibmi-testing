@@ -114,15 +114,18 @@ export class IBMiTestRunner {
         const installQuestion = state === 'NeedsUpdate' ?
             `Can it be updated in ${productLibrary}.LIB?` :
             (state !== 'Installed' ? `Can it be installed into ${productLibrary}.LIB?` : undefined);
+        const installButton = state === 'NeedsUpdate' ?
+            'Update' :
+            (state !== 'Installed' ? 'Install' : undefined);
 
-        if (installMessage) {
+        if (installMessage && installQuestion && installButton) {
             // End test run
             TestLogger.logComponent(run, installMessage);
             run.end();
 
             // Prompt user to install or update RPGUnit
-            window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}` }, 'Install', 'Configure Product Library').then(async (value) => {
-                if (value === 'Install') {
+            window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}` }, installButton, 'Configure Product Library').then(async (value) => {
+                if (value === installButton) {
                     await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
                         progress.report({ message: `Installing ${RPGUnit.ID}` });
                         await componentManager.installComponent(RPGUnit.ID);
