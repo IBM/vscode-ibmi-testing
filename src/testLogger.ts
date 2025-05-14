@@ -84,7 +84,8 @@ export namespace TestLogger {
         const testMessages: TestMessage[] = [];
         if (messages) {
             for (const message of messages) {
-                run.appendOutput(`\t\t${c.red(`${c.bold(`Failure:`)} ${message.message}`)}\r\n`);
+                const line = message.line ? message.line : undefined;
+                run.appendOutput(`\t\t${c.red(`${c.bold(`Failure`)}${line ? ` (line ${line})` : ``}: ${message.message}`)}\r\n`);
 
                 const testMessage = new TestMessage(message.message);
                 const range = message.line ? new Position(message.line - 1, 0) : item.range;
@@ -110,7 +111,8 @@ export namespace TestLogger {
         const testMessages: TestMessage[] = [];
         if (messages) {
             for (const message of messages) {
-                run.appendOutput(`\t\t${c.red(`${c.bold(`Failure:`)} ${message.message}`)}\r\n`);
+                const line = message.line ? message.line : undefined;
+                run.appendOutput(`\t\t${c.red(`${c.bold(`Failure`)}${line ? ` (line ${line})` : ``}: ${message.message}`)}\r\n`);
 
                 const testMessage = new TestMessage(message.message);
                 const range = message.line ? new Position(message.line - 1, 0) : testFileItem.range;
@@ -137,7 +139,8 @@ export namespace TestLogger {
         const testMessages: TestMessage[] = [];
         if (messages) {
             for (const message of messages) {
-                run.appendOutput(`\t\t${c.yellow(`${c.bold(`Error:`)} ${message.message}`)}\r\n`);
+                const line = message.line ? message.line : undefined;
+                run.appendOutput(`\t\t${c.yellow(`${c.bold(`Error`)}${line ? ` (line ${line})` : ``}: ${message.message}`)}\r\n`);
 
                 const testMessage = new TestMessage(message.message);
                 const range = message.line ? new Position(message.line - 1, 0) : item.range;
@@ -163,7 +166,8 @@ export namespace TestLogger {
         const testMessages: TestMessage[] = [];
         if (messages) {
             for (const message of messages) {
-                run.appendOutput(`\t\t${c.yellow(`${c.bold(`Error:`)} ${message.message}`)}\r\n`);
+                const line = message.line ? message.line : undefined;
+                run.appendOutput(`\t\t${c.yellow(`${c.bold(`Error`)}${line ? ` (line ${line})` : ``}: ${message.message}`)}\r\n`);
 
                 const testMessage = new TestMessage(message.message);
                 const range = message.line ? new Position(message.line - 1, 0) : testFileItem.range;
