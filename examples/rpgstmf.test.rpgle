@@ -1,7 +1,7 @@
 **free
-//=====================================================================
+// =====================================================================
 //  Empty Unit Test Case. Prints a protocol of the execution flow.
-//=====================================================================
+// =====================================================================
 //  Command to create the service program:
 //  cd /home/raddatz
 //  git clone git@github.com:tools-400/irpgunit.git
@@ -11,7 +11,7 @@
 //    DEFINE('stmf') RPGPPOPT(*LVL2)
 //    INCDIR('./iRPGUnit')
 //    TGTCCSID(*JOB)
-//=====================================================================
+// =====================================================================
 //  Tools/400 STRPREPRC instructions:
 //   >>PRE-COMPILER<<
 //     >>CRTCMD<<  RUCRTRPG  TSTPGM(RPGUNIT/RPGSTMF) +
@@ -24,7 +24,7 @@
 //     >>END-COMPILE<<
 //     >>EXECUTE<<
 //   >>END-PRE-COMPILER<<
-//=====================================================================
+// =====================================================================
 //  Compile options:
 //    *SrcStmt       - Assign SEU line numbers when compiling the
 //                     source member. This option is required to
@@ -33,7 +33,7 @@
 //                     RPGUnit view.
 //    *NoDebugIO     - Do not generate breakpoints for input and
 //                     output specifications. Optional but useful.
-//=====================================================================
+// =====================================================================
 ctl-opt NoMain Option(*SrcStmt : *NoDebugIO);
 dcl-f QSYSPRT printer(80) oflind(*in70) usropn;
 
@@ -135,29 +135,29 @@ dcl-proc isSQLError;
   reset g_status.sql;
 
   select;
-  // SQL code 00: Unqualified Successful Completion
-  when (sqlState = '00000');
-    // Execution of the operation was successful and did not
-    // result in any type of warning or exception condition.
-    return *off;
-
-  // SQL code 01: Warning
-  When (sqlState.class = '01');
-    // Valid warning SQLSTATEs returned by an SQL routine.
-    // Also used for RAISE_ERROR and SIGNAL.
-    if (sql.ignSQLWarn);
+      // SQL code 00: Unqualified Successful Completion
+    when (sqlState = '00000');
+      // Execution of the operation was successful and did not
+      // result in any type of warning or exception condition.
       return *off;
-    else;
+
+      // SQL code 01: Warning
+    When (sqlState.class = '01');
+      // Valid warning SQLSTATEs returned by an SQL routine.
+      // Also used for RAISE_ERROR and SIGNAL.
+      if (sql.ignSQLWarn);
+        return *off;
+      else;
+        return *on;
+      endif;
+
+      // SQL code 02: No data
+    When (sqlState = '02000');
+      return *off;
+
+    other;
+      // Other problem or error
       return *on;
-    endif;
-
-  // SQL code 02: No data
-  When (sqlState = '02000');
-    return *off;
-
-  other;
-    // Other problem or error
-    return *on;
   endsl;
 
 end-proc;
@@ -176,7 +176,7 @@ dcl-proc setUpSuite export;
     openPrinter();
     print('Executing:   setUpSuite()');
   on-error;
-  // ignore errors ...
+    // ignore errors ...
   endmon;
 
   // ... but try to remove the override.
@@ -227,10 +227,10 @@ dcl-proc testWhatever_1 export;
 
   print('Executing:       * testWhatever_1()');
 
-// Run
-assert(sds.pgmName = 'TEMPLATE': 'Name of the test suite should be ''TEMPLATE''');
+  // Run
+  assert(sds.pgmName = 'TEMPLATE': 'Name of the test suite should be ''TEMPLATE''');
 
-// Place your assertions here.
+  // Place your assertions here.
 
 end-proc;
 
@@ -242,9 +242,9 @@ dcl-proc testWhatever_2 export;
 
   print('Executing:       * testWhatever_2()');
 
-// Run
+  // Run
 
-// Place your assertions here.
-assert(sds.excData = '': 'There should be no exception data in SDS');
+  // Place your assertions here.
+  assert(sds.excData = '': 'There should be no exception data in SDS');
 
 end-proc;
