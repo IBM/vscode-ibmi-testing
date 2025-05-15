@@ -405,7 +405,7 @@ export class IBMiTestRunner {
         try {
             const xmlStmfContent = (await content.downloadStreamfileRaw(testParams.xmlStmf));
             const xml = await parseStringPromise(xmlStmfContent);
-            testCaseResults = XMLParser.parseTestResults(xml);
+            testCaseResults = XMLParser.parseTestResults(xml, workspaceFolder ? true : false);
         } catch (error: any) {
             if (isTestCase) {
                 testCaseResults.push({
