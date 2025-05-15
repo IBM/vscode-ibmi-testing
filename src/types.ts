@@ -61,7 +61,8 @@ export interface TestCaseResult {
 export interface TestingConfig {
     RPGUnit?: {
         RUCRTRPG?: RUCRTRPG,
-        RUCRTCBL?: RUCRTCBL
+        RUCRTCBL?: RUCRTCBL,
+        prefix: string
     }
 }
 
