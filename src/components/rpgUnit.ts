@@ -130,8 +130,8 @@ export class RPGUnit implements IBMiComponent {
             );
             if (result === 'Yes') {
                 // Deleting product library
-                Logger.log(LogLevel.Info, `Deleting product library ${productLibrary}.LIB`);
                 const deleteLibCommand = content.toCl(`DLTOBJ`, { 'OBJ': `QSYS/${productLibrary}`, 'OBJTYPE': `*LIB` });
+                Logger.log(LogLevel.Info, `Deleting product library ${productLibrary}.LIB: ${deleteLibCommand}`);
                 const deleteLibResult = await connection.runCommand({ command: deleteLibCommand, environment: `ile`, noLibList: true });
                 if (deleteLibResult.code !== 0) {
                     Logger.logWithNotification(LogLevel.Error, `Failed to delete library`, deleteLibResult.stderr);
@@ -166,10 +166,10 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Creating save file in temporary library
-        Logger.log(LogLevel.Info, `Creating RPGUNIT save file in ${config.tempLibrary}.LIB`);
         const createSavfCommand = content.toCl(`CRTSAVF`, {
             'FILE': `${config.tempLibrary}/RPGUNIT`
         });
+        Logger.log(LogLevel.Info, `Creating RPGUNIT save file in ${config.tempLibrary}.LIB: ${createSavfCommand}`);
         const createSavfResult = await connection.runCommand({ command: createSavfCommand, environment: `ile`, noLibList: true });
         if (createSavfResult.code !== 0 && !createSavfResult.stderr.includes('CPF5813')) {
             Logger.logWithNotification(LogLevel.Error, `Failed to create save file`, createSavfResult.stderr);
@@ -177,13 +177,13 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Transfer save file to temporary library
-        Logger.log(LogLevel.Info, `Transferring RPGUNIT save file to ${config.tempLibrary}.LIB`);
-        const transferCommand = content.toCl(`CPY`, {
-            'OBJ': remotePath,
-            'TOOBJ': `\'/QSYS.LIB/${config.tempLibrary}.LIB/RPGUNIT.FILE\'`,
-            'TOCCSID': 37,
-            'REPLACE': `*YES`
+        const transferCommand = content.toCl(`CPYFRMSTMF`, {
+            'FROMSTMF': remotePath,
+            'TOMBR': `\'/QSYS.LIB/${config.tempLibrary}.LIB/RPGUNIT.FILE\'`,
+            'STMFCCSID': 37,
+            'MBROPT': `*REPLACE`
         });
+        Logger.log(LogLevel.Info, `Transferring RPGUNIT save file to ${config.tempLibrary}.LIB: ${transferCommand}`);
         const transferResult = await connection.runCommand({ command: transferCommand, environment: `ile`, noLibList: true });
         if (transferResult.code !== 0) {
             Logger.logWithNotification(LogLevel.Error, `Failed to transfer save file`, transferResult.stderr);
@@ -191,13 +191,13 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Restoring library
-        Logger.log(LogLevel.Info, `Restoring RPGUNIT save file contents into ${productLibrary}.LIB`);
         const restoreCommand = content.toCl(`RSTLIB`, {
             'SAVLIB': 'RPGUNIT',
             'DEV': `*SAVF`,
             'SAVF': `${config.tempLibrary}/RPGUNIT`,
             'RSTLIB': productLibrary
         });
+        Logger.log(LogLevel.Info, `Restoring RPGUNIT save file contents into ${productLibrary}.LIB: ${restoreCommand}`);
         const restoreResult = await connection.runCommand({ command: restoreCommand, environment: `ile`, noLibList: true });
         if (restoreResult.code !== 0) {
             Logger.logWithNotification(LogLevel.Error, `Failed to restore save file contents`, restoreResult.stderr);
