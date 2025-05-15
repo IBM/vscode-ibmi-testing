@@ -1,0 +1,14 @@
+{
+  "description": "RPG Utilities",
+  "repository": "https://github.com/IBM/vscode-ibmi-testing/tree/main/examples/rpgutils",
+  "curlib": "&CURLIB",
+  "preUsrlibl": [
+    "RPGUNIT",
+    "QDEVTOOLS"
+  ],
+  "includePath": [
+    "qrpgleref"
+  ],
+  "buildCommand": "makei build",
+  "compileCommand": "makei compile -f {filename}"
+}

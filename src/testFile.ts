@@ -87,6 +87,8 @@ export class TestFile {
     }
 
     async compileTest(runner: IBMiTestRunner, run: TestRun): Promise<void> {
+        this.isCompiled = false;
+
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
         const content = connection.getContent();

@@ -1,0 +1,5 @@
+**free
+
+dcl-pr isPalindrome ind extproc('ISPALINDROME');
+  str varchar(30) const;
+end-pr;

@@ -1,0 +1,21 @@
+{
+    "rpgunit": {
+        "rucrtrpg": {
+            "text": "Global testing.json",
+            "tgtCcsid": 37,
+            "dbgView": "*SOURCE",
+            "cOption": [
+                "*EVENTF"
+            ]
+        },
+        "rucrtcbl": {
+            "text": "Global testing.json",
+            "tgtCcsid": 37,
+            "dbgView": "*SOURCE",
+            "cOption": [
+                "*EVENTF"
+            ]
+        },
+        "prefix": "T_"
+    }
+}

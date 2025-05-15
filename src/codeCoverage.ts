@@ -13,7 +13,7 @@ export namespace CodeCoverage {
         const tmpDir = tmp.dirSync({ unsafeCleanup: true });
         const xml = await downloadCczip(outputZipPath, tmpDir);
 
-        if(xml) {
+        if (xml) {
             // Parse XML to get coverage data
             const coverageData = await getCoverageData(xml, tmpDir);
             return coverageData;
@@ -58,7 +58,8 @@ export namespace CodeCoverage {
                     { hits: `` } : // Indicates that no lines were ran
                     source.testcase[0][`$`];
 
-                const sourceUri = Uri.file(path.join(tmpdir.name, `src`, data.baseFileName));
+                const sourcePath = path.join(tmpdir.name, `src`, data.baseFileName);
+                const sourceUri = Uri.file(sourcePath);
                 const rawSource = await workspace.fs.readFile(sourceUri);
                 const sourceCode = rawSource.toString().split(`\n`);
 
@@ -81,7 +82,7 @@ export namespace CodeCoverage {
                 items.push({
                     basename: path.basename(data.sourceFile),
                     path: data.sourceFile,
-                    localPath: path.join(tmpdir.name, `src`, data.baseFileName),
+                    localPath: sourcePath,
                     coverage: {
                         signitures: realSigs.split(`+`),
                         lineString: realLines,
