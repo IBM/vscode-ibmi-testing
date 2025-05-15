@@ -1,9 +1,9 @@
 {
-    "RPGUnit": {
-        "RUCRTRPG": {
+    "rpgunit": {
+        "rucrtrpg": {
             "text": "Root testing.json"
         },
-        "RUCRTCBL": {
+        "rucrtcbl": {
             "text": "Root testing.json"
         }
     }

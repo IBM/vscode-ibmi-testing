@@ -2,11 +2,11 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "properties": {
-        "RPGUnit": {
+        "rpgunit": {
             "type": "object",
             "markdownDescription": "RPGUnit Test Configuration",
             "properties": {
-                "RUCRTRPG": {
+                "rucrtrpg": {
                     "type": "object",
                     "markdownDescription": "The Create RPG Test Suite (`RUCRTRPG`) command compiles RPGLE and SQLRPGLE source members containing test procedures into a iRPGUnit test suite service program.",
                     "properties": {
@@ -188,7 +188,7 @@
                         }
                     }
                 },
-                "RUCRTCBL": {
+                "rucrtcbl": {
                     "type": "object",
                     "markdownDescription": "The Create COBOL Test Suite (`RUCRTCBL`) command compiles CBLLE and SQLCBLLE source members containing test procedures into a iRPGUnit test suite service program.",
                     "properties": {
@@ -401,6 +401,11 @@
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
                         }
                     }
+                },
+                "prefix": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Prefix\n\nSpecifies a prefix (such as `T_`) to be used when compiling the service program for a test suite. This can be used to avoid naming conflicts with objects built as part of your application."
                 }
             }
         }
@@ -409,15 +414,15 @@
         {
             "label": "RPGUnit Test Configuration",
             "body": {
-                "RPGUnit": {
-                    "RUCRTRPG": {
+                "rpgunit": {
+                    "rucrtrpg": {
                         "tgtCcsid": 37,
                         "dbgView": "*SOURCE",
                         "cOption": [
                             "*EVENTF"
                         ]
                     },
-                    "RUCRTCBL": {
+                    "rucrtcbl": {
                         "tgtCcsid": 37,
                         "dbgView": "*SOURCE",
                         "cOption": [
