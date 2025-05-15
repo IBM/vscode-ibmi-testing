@@ -86,7 +86,7 @@ export namespace Utils {
         }
         originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
 
-        const prefix = testingConfig?.RPGUnit?.prefix || '';
+        const prefix = testingConfig?.rpgunit?.prefix || '';
         return getSystemName(`${prefix}${originalTstPgmName}`);
     }
 
