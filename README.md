@@ -5,9 +5,6 @@
 [![Version](https://img.shields.io/visual-studio-marketplace/v/IBM.vscode-ibmi-testing)](https://marketplace.visualstudio.com/items?itemName=IBM.vscode-ibmi-testing)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/IBM.vscode-ibmi-testing)](https://marketplace.visualstudio.com/items?itemName=IBM.vscode-ibmi-testing)
 
-> [!WARNING]
-> ⚠️ This extension is still in development and not yet released.
-
 The [IBM i Testing](https://marketplace.visualstudio.com/items?itemName=IBM.vscode-ibmi-testing) extension allows developers to run unit tests and generate code coverage results for RPG and COBOL programs on IBM i. Under the covers, this extension leverages the [RPGUnit](https://irpgunit.sourceforge.io/help) testing framework.
 
 * 👨‍💻 **Run Tests**: Visualize and run tests suites out of local files or source members.
