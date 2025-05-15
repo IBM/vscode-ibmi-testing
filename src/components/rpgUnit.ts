@@ -184,7 +184,7 @@ export class RPGUnit implements IBMiComponent {
             'MBROPT': `*REPLACE`
         });
         Logger.log(LogLevel.Info, `Transferring RPGUNIT save file to ${config.tempLibrary}.LIB: ${transferCommand}`);
-        const transferResult = await connection.runCommand({ command: transferCommand, environment: `ile`, noLibList: true });
+        const transferResult = await connection.runCommand({ command: transferCommand, environment: `system`, noLibList: true });
         if (transferResult.code !== 0) {
             Logger.logWithNotification(LogLevel.Error, `Failed to transfer save file`, transferResult.stderr);
             return state;
@@ -198,7 +198,7 @@ export class RPGUnit implements IBMiComponent {
             'RSTLIB': productLibrary
         });
         Logger.log(LogLevel.Info, `Restoring RPGUNIT save file contents into ${productLibrary}.LIB: ${restoreCommand}`);
-        const restoreResult = await connection.runCommand({ command: restoreCommand, environment: `ile`, noLibList: true });
+        const restoreResult = await connection.runCommand({ command: restoreCommand, environment: `system`, noLibList: true });
         if (restoreResult.code !== 0) {
             Logger.logWithNotification(LogLevel.Error, `Failed to restore save file contents`, restoreResult.stderr);
             return state;
