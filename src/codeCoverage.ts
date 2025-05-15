@@ -58,7 +58,7 @@ export namespace CodeCoverage {
                     { hits: `` } : // Indicates that no lines were ran
                     source.testcase[0][`$`];
 
-                const sourcePath = path.join(tmpdir.name, `src`, data.baseFileName);
+                const sourcePath = path.join(tmpdir.name, `src`, data.sourceFile);
                 const sourceUri = Uri.file(sourcePath);
                 const rawSource = await workspace.fs.readFile(sourceUri);
                 const sourceCode = rawSource.toString().split(`\n`);
