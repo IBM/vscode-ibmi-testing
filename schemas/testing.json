@@ -2,11 +2,11 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "properties": {
-        "RPGUnit": {
+        "rpgunit": {
             "type": "object",
             "markdownDescription": "RPGUnit Test Configuration",
             "properties": {
-                "RUCRTRPG": {
+                "rucrtrpg": {
                     "type": "object",
                     "markdownDescription": "The Create RPG Test Suite (`RUCRTRPG`) command compiles RPGLE and SQLRPGLE source members containing test procedures into a iRPGUnit test suite service program.",
                     "properties": {
@@ -188,7 +188,7 @@
                         }
                     }
                 },
-                "RUCRTCBL": {
+                "rucrtcbl": {
                     "type": "object",
                     "markdownDescription": "The Create COBOL Test Suite (`RUCRTCBL`) command compiles CBLLE and SQLCBLLE source members containing test procedures into a iRPGUnit test suite service program.",
                     "properties": {
@@ -410,14 +410,14 @@
             "label": "RPGUnit Test Configuration",
             "body": {
                 "RPGUnit": {
-                    "RUCRTRPG": {
+                    "rucrtrpg": {
                         "tgtCcsid": 37,
                         "dbgView": "*SOURCE",
                         "cOption": [
                             "*EVENTF"
                         ]
                     },
-                    "RUCRTCBL": {
+                    "rucrtcbl": {
                         "tgtCcsid": 37,
                         "dbgView": "*SOURCE",
                         "cOption": [

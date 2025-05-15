@@ -1,9 +1,9 @@
 {
     "RPGUnit": {
-        "RUCRTRPG": {
+        "rucrtrpg": {
             "text": "Global testing.json"
         },
-        "RUCRTCBL": {
+        "rucrtcbl": {
             "text": "Global testing.json"
         }
     }
