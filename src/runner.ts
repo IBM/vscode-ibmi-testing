@@ -307,7 +307,8 @@ export class IBMiTestRunner {
         const isCodeCoverageEnabled = this.request.profile?.kind === TestRunProfileKind.Coverage;
         let coverageParams: CODECOV | undefined;
         if (isCodeCoverageEnabled) {
-            const ccLvl = this.request.profile!.label === IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL ?
+            const lineCoverageProfiles = [IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL, IBMiTestManager.COMPILE_AND_LINE_COVERAGE_PROFILE_LABEL];
+            const ccLvl = lineCoverageProfiles.includes(this.request.profile!.label!) ?
                 '*LINE' :
                 '*PROC';
             coverageParams = {
