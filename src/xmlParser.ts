@@ -1,7 +1,7 @@
 import { TestCaseResult } from "./types";
 
 export namespace XMLParser {
-    export function parseTestResults(xml: any): TestCaseResult[] {
+    export function parseTestResults(xml: any, isStreamFile: boolean): TestCaseResult[] {
         const results: TestCaseResult[] = [];
 
         xml.testsuite.testcase.forEach((testcase: any) => {
@@ -22,7 +22,13 @@ export namespace XMLParser {
 
                 testcase.failure.forEach((failure: any) => {
                     const match = failure._.match(/:(\d+)\)/);
-                    const line = match ? parseInt(match[1]) : undefined;
+                    let line = match ? parseInt(match[1]) : undefined;
+                    if (!isStreamFile && line) {
+                        // Stream files: Line numbers match line numbers of the source code
+                        // Source members: Line numbers must be divded by 100 because they are specified with 2 decimal positions
+                        // https://github.com/tools-400/irpgunit/issues/15#issuecomment-2871972032
+                        line = line / 100;
+                    }
 
                     if (!result.failure) {
                         result.failure = [];
