@@ -2,6 +2,7 @@
   "name": "vscode-ibmi-testing",
   "displayName": "IBM i Testing",
   "description": "IBM i Testing extension for VS Code",
+  "icon": "icon.png",
   "author": {
     "name": "IBM",
     "url": "https://github.com/IBM"
