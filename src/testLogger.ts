@@ -1,7 +1,8 @@
 import { LogLevel, TestMessage, Position, Location, TestRun, TestItem } from "vscode";
 import { Logger } from "./logger";
-import { CompilationStatus, TestMetrics } from "./types";
+import { CompilationStatus, TestingConfig, TestMetrics } from "./types";
 import c from "ansi-colors";
+import { Utils } from "./utils";
 
 export namespace TestLogger {
     export function logComponent(run: TestRun, message: string) {
@@ -30,8 +31,19 @@ export namespace TestLogger {
         Logger.log(LogLevel.Info, `Running tests in ${item.label}`);
     }
 
-    export function logTestFile(run: TestRun, item: TestItem) {
-        run.appendOutput(`${c.blue(`❯`)} ${item.label} ${c.grey(`(${item.children.size})`)}`);
+    export function logTestFile(run: TestRun, item: TestItem, error: boolean, testingConfig?: TestingConfig) {
+        let testSrvPgm = '';
+        if (!error) {
+            const originalTstPgmName = item.label;
+            const newTstPgmName = Utils.getTestName(item.uri!.scheme as 'file' | 'member', originalTstPgmName, testingConfig);
+            if (newTstPgmName !== originalTstPgmName) {
+                // TODO: Seems like this is always printed since the original name includes the extension
+                Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${newTstPgmName}`);
+            }
+            testSrvPgm = ` → ${newTstPgmName}.SRVPGM`;
+        }
+
+        run.appendOutput(`${c.blue(`❯`)} ${item.label}${testSrvPgm} ${c.grey(`(${item.children.size})`)}`);
     }
 
     export function logCompilation(run: TestRun, item: TestItem, status: CompilationStatus, metrics: TestMetrics, messages?: string[]) {

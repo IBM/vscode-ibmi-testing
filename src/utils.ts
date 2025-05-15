@@ -1,6 +1,6 @@
 import path from "path";
 import { ConfigurationChangeEvent, WorkspaceFolder, workspace } from "vscode";
-import { Env } from "./types";
+import { Env, TestingConfig } from "./types";
 
 export namespace Utils {
     /**
@@ -40,7 +40,7 @@ export namespace Utils {
      * Explanation:     https://ibm.github.io/sourceorbit/#/./pages/general/rules?id=long-file-names
      * Original Source: https://github.com/IBM/sourceorbit/blob/main/cli/src/utils.ts#L12
      */
-    export function getSystemName(inputName: string) {
+    function getSystemName(inputName: string) {
         let baseName = inputName.includes(`-`) ? inputName.split(`-`)[0] : inputName;
 
         // If the name is of valid length, return it
@@ -74,6 +74,20 @@ export namespace Utils {
         }
 
         return systemName.toUpperCase();
+    }
+
+    export function getTestName(type: 'file' | 'member', originalTstPgmName: string, testingConfig: TestingConfig | undefined) {
+        const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
+        const relevantSuffixes = type === 'file' ? testSuffixes.ifs : testSuffixes.qsys;
+        for (const suffix of relevantSuffixes) {
+            if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
+                originalTstPgmName = originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
+            }
+        }
+        originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
+
+        const prefix = testingConfig?.RPGUnit?.prefix || '';
+        return getSystemName(`${prefix}${originalTstPgmName}`);
     }
 
     /**
