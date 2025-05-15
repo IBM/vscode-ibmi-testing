@@ -176,7 +176,7 @@ export class IBMiTestRunner {
                 // Error out children if workspace folder not deployed
                 // TODO: Fix test file name and directory not being displayed in test results view
                 if (!attempt.isDeployed) {
-                    TestLogger.logTestFile(run, testFileItem);
+                    TestLogger.logTestFile(run, testFileItem, true);
                     TestLogger.logCompilation(run, testFileItem, 'skipped', this.metrics);
 
                     if (data instanceof TestCase) {
@@ -203,7 +203,9 @@ export class IBMiTestRunner {
             // Compile test file if not already compiled
             const compiledTestFileItem = compiledTestFileItems.find((testFile) => testFile.id === testFileItem.id);
             if (!compiledTestFileItem) {
-                TestLogger.logTestFile(run, testFileItem);
+                const testFileData = this.manager.testData.get(testFileItem)! as TestFile;
+                await testFileData.loadTestingConfig();
+                TestLogger.logTestFile(run, testFileItem, false, testFileData.testingConfig);
 
                 if (testFileData.isCompiled && !this.forceCompile) {
                     TestLogger.logCompilation(run, testFileItem, 'skipped', this.metrics);
@@ -259,30 +261,24 @@ export class IBMiTestRunner {
         let workspaceFolder: WorkspaceFolder | undefined;
         let tstPgm: { name: string, library: string };
 
-        if (item.uri?.scheme === 'file') {
-            // Construct test program name without any suffix and convert to system name
-            let originalTstPgmName = isTestCase ? item.parent!.label : item.label;
-            const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
-            for (const suffix of testSuffixes.ifs) {
-                if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
-                    originalTstPgmName = originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
-                }
-            }
-            originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
-            const tstPgmName = Utils.getSystemName(originalTstPgmName);
+        const testFile = isTestCase ? item.parent! : item;
+        const testFileData = this.manager.testData.get(testFile)! as TestFile;
+        const testingConfig = testFileData.testingConfig;
+        const originalTstPgmBaseame = isTestCase ? item.parent!.label : item.label;
+        const newTstPgmName = Utils.getTestName(item.uri?.scheme as 'file' | 'member', originalTstPgmBaseame, testingConfig);
 
+        if (item.uri?.scheme === 'file') {
             // Use current library as the test library
             workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
             const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
             const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
-            tstPgm = { name: tstPgmName, library: tstLibrary };
+            tstPgm = { name: newTstPgmName, library: tstLibrary };
         } else {
             const parsedPath = connection.parserMemberPath(item.uri!.path);
-            const tstPgmName = parsedPath.name.toLocaleUpperCase();
             const tstLibrary = parsedPath.library;
 
-            tstPgm = { name: tstPgmName, library: tstLibrary };
+            tstPgm = { name: newTstPgmName, library: tstLibrary };
         }
 
         const tstpgm = `${tstPgm.library}/${tstPgm.name}`;

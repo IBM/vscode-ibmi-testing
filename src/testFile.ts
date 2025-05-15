@@ -22,6 +22,7 @@ export class TestFile {
     isCompiled: boolean;
     content: string;
     isRPGLE: boolean;
+    testingConfig?: TestingConfig;
 
     constructor(item: TestItem, parent: { workspaceItem?: TestItem, libraryItem?: TestItem } = {}) {
         this.item = item;
@@ -33,6 +34,15 @@ export class TestFile {
 
         const rpgleTestSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: false });
         this.isRPGLE = rpgleTestSuffixes.qsys.some(suffix => item.uri!.path.toLocaleUpperCase().endsWith(suffix));
+    }
+
+    async loadTestingConfig() {
+        const configHandler = new ConfigHandler();
+        if (this.item.uri!.scheme === 'file') {
+            this.testingConfig = await configHandler.getLocalConfig(this.item.uri!);
+        } else {
+            this.testingConfig = await configHandler.getRemoteConfig(this.item.uri!);
+        }
     }
 
     async load(): Promise<void> {
@@ -88,24 +98,12 @@ export class TestFile {
         let srcFile: { name: string, library: string } | undefined;
         let srcMbr: string | undefined;
         let srcStmf: string | undefined;
-        let testingConfig: TestingConfig | undefined;
 
-        const configHandler = new ConfigHandler();
+        const testingConfig = this.testingConfig;
+        const originalTstPgmBasename = this.item.label;
+        const newTstPgmName = Utils.getTestName(this.item.uri!.scheme as 'file' | 'member', originalTstPgmBasename, testingConfig);
+
         if (this.item.uri!.scheme === 'file') {
-            // Construct test program name without any suffix and convert to system name
-            let originalTstPgmName = this.item.label;
-            const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
-            for (const suffix of testSuffixes.ifs) {
-                if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
-                    originalTstPgmName = originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
-                }
-            }
-            originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
-            const tstPgmName = Utils.getSystemName(originalTstPgmName);
-            if (tstPgmName !== originalTstPgmName) {
-                Logger.log(LogLevel.Warning, `Test program name ${originalTstPgmName} was converted to ${tstPgmName}`);
-            }
-
             // Use current library as the test library
             workspaceFolder = workspace.getWorkspaceFolder(this.item.uri!)!;
             const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
@@ -119,18 +117,16 @@ export class TestFile {
             deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
             srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
-            tstPgm = { name: tstPgmName, library: tstLibrary };
-            testingConfig = await configHandler.getLocalConfig(this.item.uri!);
+            tstPgm = { name: newTstPgmName, library: tstLibrary };
         } else {
             const parsedPath = connection.parserMemberPath(this.item.uri!.path);
             const tstPgmName = parsedPath.name.toLocaleUpperCase();
             const tstLibrary = parsedPath.library;
             const srcFileName = parsedPath.file;
 
-            tstPgm = { name: tstPgmName, library: tstLibrary };
+            tstPgm = { name: newTstPgmName, library: tstLibrary };
             srcFile = { name: srcFileName, library: tstLibrary };
-            srcMbr = '*TSTPGM';
-            testingConfig = await configHandler.getRemoteConfig(this.item.uri!);
+            srcMbr = tstPgmName;
         }
 
         let compileParams: RUCRTRPG | RUCRTCBL = {
