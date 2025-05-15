@@ -1,0 +1,13 @@
+**free
+
+dcl-pr factorial int(20) extproc('FACTORIAL');
+  n int(3) const;
+end-pr;
+
+dcl-pr fibonacci int(20) extproc('FIBONACCI');
+  n int(3) const;
+end-pr;
+
+dcl-pr oddOrEven varchar(4) extproc('ODDOREVEN');
+  num int(10) const;
+end-pr;

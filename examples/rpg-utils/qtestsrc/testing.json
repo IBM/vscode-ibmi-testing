@@ -1,0 +1,16 @@
+{
+    "rpgunit": {
+        "rucrtrpg": {
+            "tgtCcsid": 37,
+            "dbgView": "*SOURCE",
+            "cOption": [
+                "*EVENTF"
+            ],
+            "module": [
+                "MATH",
+                "STRING"
+            ]
+        },
+        "prefix": "T_"
+    }
+}
