@@ -1,10 +1,11 @@
 {
-    "RPGUnit": {
+    "rpgunit": {
         "rucrtrpg": {
             "text": "Global testing.json"
         },
         "rucrtcbl": {
             "text": "Global testing.json"
-        }
+        },
+        "prefix": "T_"
     }
 }

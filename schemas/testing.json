@@ -401,6 +401,11 @@
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
                         }
                     }
+                },
+                "prefix": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Prefix\n\nSpecifies a prefix (such as `T_`) to be used when compiling the service program for a test suite. This can be used to avoid naming conflicts with objects built as part of your application."
                 }
             }
         }
@@ -409,7 +414,7 @@
         {
             "label": "RPGUnit Test Configuration",
             "body": {
-                "RPGUnit": {
+                "rpgunit": {
                     "rucrtrpg": {
                         "tgtCcsid": 37,
                         "dbgView": "*SOURCE",
