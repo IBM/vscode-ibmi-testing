@@ -169,6 +169,12 @@ export class TestFile {
             compileParams.dbgView = "*SOURCE";
         }
 
+        // Override DBGVIEW to *LIST for SQLRPGLE files
+        // https://github.com/IBM/vscode-ibmi-testing/issues/95
+        if (this.item.uri?.fsPath.toLocaleUpperCase().endsWith('.SQLRPGLE')) {
+            compileParams.dbgView = "*LIST";
+        }
+
         if (compileParams.incDir) {
             // Resolve relative include directories with the deploy directory for local files
             if (workspaceFolder && deployDirectory) {
