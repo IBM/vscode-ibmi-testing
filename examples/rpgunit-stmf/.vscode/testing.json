@@ -1,7 +1,7 @@
 {
     "rpgunit": {
         "rucrtrpg": {
-            "text": "Global testing.json",
+            "text": "QTEMPLATE tests",
             "tgtCcsid": 37,
             "dbgView": "*SOURCE",
             "cOption": [
@@ -9,7 +9,7 @@
             ]
         },
         "rucrtcbl": {
-            "text": "Global testing.json",
+            "text": "QTEMPLATE tests",
             "tgtCcsid": 37,
             "dbgView": "*SOURCE",
             "cOption": [

@@ -1,7 +1,7 @@
 **free
-// =====================================================================
+//=====================================================================
 //  Empty Unit Test Case. Prints a protocol of the execution flow.
-// =====================================================================
+//=====================================================================
 //  Command to create the service program:
 //  cd /home/raddatz
 //  git clone git@github.com:tools-400/irpgunit.git
@@ -11,7 +11,7 @@
 //    DEFINE('stmf') RPGPPOPT(*LVL2)
 //    INCDIR('./iRPGUnit')
 //    TGTCCSID(*JOB)
-// =====================================================================
+//=====================================================================
 //  Tools/400 STRPREPRC instructions:
 //   >>PRE-COMPILER<<
 //     >>CRTCMD<<  RUCRTRPG  TSTPGM(RPGUNIT/RPGSTMF) +
@@ -24,7 +24,7 @@
 //     >>END-COMPILE<<
 //     >>EXECUTE<<
 //   >>END-PRE-COMPILER<<
-// =====================================================================
+//=====================================================================
 //  Compile options:
 //    *SrcStmt       - Assign SEU line numbers when compiling the
 //                     source member. This option is required to
@@ -33,12 +33,12 @@
 //                     RPGUnit view.
 //    *NoDebugIO     - Do not generate breakpoints for input and
 //                     output specifications. Optional but useful.
-// =====================================================================
+//=====================================================================
 ctl-opt NoMain Option(*SrcStmt : *NoDebugIO);
 dcl-f QSYSPRT printer(80) oflind(*in70) usropn;
 
-/include qinclude,TESTCASE                  iRPGUnit Test Suite
-/include qinclude,SDS                       Program status data structure
+/include qinclude,TESTCASE            iRPGUnit Test Suite
+/include qinclude,SDS                 Program status data structure
 
 // ------------------------------------------------------------
 //  SQL Options.
@@ -142,28 +142,28 @@ dcl-proc isSQLError;
   reset g_status.sql;
 
   select;
-      // SQL code 00: Unqualified Successful Completion
+  // SQL code 00: Unqualified Successful Completion
     when (sqlState = '00000');
-      // Execution of the operation was successful and did not
-      // result in any type of warning or exception condition.
+    // Execution of the operation was successful and did not
+    // result in any type of warning or exception condition.
       return *off;
 
-      // SQL code 01: Warning
+  // SQL code 01: Warning
     When (sqlState.class = '01');
-      // Valid warning SQLSTATEs returned by an SQL routine.
-      // Also used for RAISE_ERROR and SIGNAL.
+    // Valid warning SQLSTATEs returned by an SQL routine.
+    // Also used for RAISE_ERROR and SIGNAL.
       if (sql.ignSQLWarn);
         return *off;
       else;
         return *on;
       endif;
 
-      // SQL code 02: No data
+  // SQL code 02: No data
     When (sqlState = '02000');
       return *off;
 
     other;
-      // Other problem or error
+    // Other problem or error
       return *on;
   endsl;
 
@@ -183,7 +183,7 @@ dcl-proc setUpSuite export;
     openPrinter();
     print('Executing:   setUpSuite()');
   on-error;
-    // ignore errors ...
+  // ignore errors ...
   endmon;
 
   // ... but try to remove the override.
@@ -249,7 +249,7 @@ dcl-proc testWhatever_1 export;
       AS week_days (DAY_NUM, DAY_NAME);
 
   // Place your assertions here.
-  assert(not isSQLError(sqlState));
+  assert(not isSqlError(sqlState));
 
   assert(count = 7: 'A week must have 7 days');
 
@@ -279,7 +279,7 @@ dcl-proc testWhatever_2 export;
       WHERE DAY_NUM < 1 OR DAY_NUM > 7;
 
   // Place your assertions here.
-  assert(not isSQLError(sqlState));
+  assert(not isSqlError(sqlState));
 
   assert(count = 0: 'Ordinal numbers of days must be between 1 and 7');
 
