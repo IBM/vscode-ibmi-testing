@@ -9,21 +9,44 @@ export class IBMiFileCoverage extends FileCoverage {
     constructor(uri: Uri, coverageData: CoverageData, isStatementCoverage: boolean) {
         super(uri, new TestCoverageCount(0, 0));
         this.isStatementCoverage = isStatementCoverage;
+        this.addCoverage(coverageData, isStatementCoverage);
+    }
 
+    addCoverage(coverageData: CoverageData, isStatementCoverage: boolean) {
         for (const [line, executed] of Object.entries(coverageData.coverage.activeLines)) {
+            const linePosition = new Position(Number(line) - 1, 0);
+
             if (isStatementCoverage) {
-                this.lines.push(new StatementCoverage(Boolean(executed), new Position(Number(line) - 1, 0)));
-                this.statementCoverage.covered += executed ? 1 : 0;
-                this.statementCoverage.total++;
+                const existingLineIndex = this.lines.findIndex(line => (line.location as Position).isEqual(linePosition));
+                if (existingLineIndex >= 0) {
+                    const isPreviouslyExecuted = (this.lines[existingLineIndex].executed as boolean);
+                    this.lines[existingLineIndex].executed = isPreviouslyExecuted || executed;
+                    if (!isPreviouslyExecuted) {
+                        this.statementCoverage.covered += executed ? 1 : 0;
+                    }
+                } else {
+                    this.lines.push(new StatementCoverage(executed, linePosition));
+                    this.statementCoverage.covered += executed ? 1 : 0;
+                    this.statementCoverage.total++;
+                }
             } else {
                 if (!this.declarationCoverage) {
                     this.declarationCoverage = new TestCoverageCount(0, 0);
                 }
 
                 // TODO: What to set for declaration coverage name - maybe use coverageData.coverage.signitures[Number(line) - 1]
-                this.procedures.push(new DeclarationCoverage(line, Boolean(executed), new Position(Number(line) - 1, 0)));
-                this.declarationCoverage.covered += executed ? 1 : 0;
-                this.declarationCoverage.total++;
+                const existingProcedureIndex = this.procedures.findIndex(procedure => (procedure.location as Position).isEqual(linePosition));
+                if (existingProcedureIndex >= 0) {
+                    const isPreviouslyExecuted = (this.procedures[existingProcedureIndex].executed as boolean);
+                    this.procedures[existingProcedureIndex].executed = isPreviouslyExecuted || executed;
+                    if (!isPreviouslyExecuted) {
+                        this.declarationCoverage.covered += executed ? 1 : 0;
+                    }
+                } else {
+                    this.procedures.push(new DeclarationCoverage(line, executed, linePosition));
+                    this.declarationCoverage.covered += executed ? 1 : 0;
+                    this.declarationCoverage.total++;
+                }
             }
         }
     }
