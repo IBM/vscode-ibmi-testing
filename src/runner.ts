@@ -1,4 +1,4 @@
-import { TestRunRequest, TestItem, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, window, ProgressLocation, commands, WorkspaceFolder } from "vscode";
+import { TestRunRequest, TestItem, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, window, ProgressLocation, commands, WorkspaceFolder, FileCoverage } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./api/ibmi";
@@ -152,6 +152,7 @@ export class IBMiTestRunner {
         const attemptedDeployments: { workspaceItem: TestItem, isDeployed: boolean }[] = [];
         const attemptedLibraries: TestItem[] = [];
 
+        let fileCoverage: IBMiFileCoverage[] = [];
         const compiledTestFileItems: TestItem[] = [];
         for (const { item, data } of queue) {
             const testFileItem = data instanceof TestFile ? item : item.parent!;
@@ -241,15 +242,19 @@ export class IBMiTestRunner {
                 run.skipped(item);
             } else {
                 run.started(item);
-                await this.runTest(run, item);
+                fileCoverage = await this.runTest(run, item, fileCoverage);
             }
+        }
+
+        for (const coverage of fileCoverage) {
+            run.addCoverage(coverage);
         }
 
         TestLogger.logMetrics(run, this.metrics);
         run.end();
     }
 
-    async runTest(run: TestRun, item: TestItem): Promise<void> {
+    async runTest(run: TestRun, item: TestItem, fileCoverage: IBMiFileCoverage[]): Promise<IBMiFileCoverage[]> {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
         const content = connection.getContent();
@@ -337,7 +342,7 @@ export class IBMiTestRunner {
             }
 
             this.metrics.testFiles.errored++;
-            return;
+            return fileCoverage;
         }
 
         if (testResult.stdout.length > 0) {
@@ -348,31 +353,31 @@ export class IBMiTestRunner {
         }
 
         if (isCodeCoverageEnabled) {
-            const codeCoverageResults = await CodeCoverage.getCoverage(coverageParams!.outStmf);
-            if (codeCoverageResults) {
+            const codeCovResults = await CodeCoverage.getCoverage(coverageParams!.outStmf);
+            if (codeCovResults) {
                 const isStatementCoverage = lineCoverageProfiles.includes(this.request.profile!.label);
 
-                for (const fileCoverage of codeCoverageResults) {
+                for (const codeCovResult of codeCovResults) {
                     let uri: Uri;
                     if (workspaceFolder) {
                         // Map code coverage results from deploy directory to local workspace
                         const deployTools = getDeployTools()!;
                         const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
 
-                        if (`/${fileCoverage.path}`.startsWith(deployDirectory)) {
+                        if (`/${codeCovResult.path}`.startsWith(deployDirectory)) {
                             // Get relative remote path to test
-                            const relativePathToTest = path.posix.relative(deployDirectory, `/${fileCoverage.path}`);
+                            const relativePathToTest = path.posix.relative(deployDirectory, `/${codeCovResult.path}`);
 
                             // Construct local path to test
                             const localPath = path.join(workspaceFolder.uri.fsPath, relativePathToTest);
                             uri = Uri.file(localPath);
                         } else {
-                            uri = Uri.file(fileCoverage.localPath);
+                            uri = Uri.file(codeCovResult.localPath);
                         }
                     } else {
                         // Map code coverage results to source members
                         let memberPath: string = '';
-                        const parts = fileCoverage.path.split('/');
+                        const parts = codeCovResult.path.split('/');
 
                         if (parts.length === 3 && parts[1].toLocaleUpperCase().endsWith('.FILE')) {
                             // This is a temporary hack due to https://github.com/IBM/vscode-ibmi-testing/issues/70
@@ -396,7 +401,13 @@ export class IBMiTestRunner {
                         uri = Uri.from({ scheme: 'member', path: memberPath });
                     }
 
-                    run.addCoverage(new IBMiFileCoverage(uri, fileCoverage, isStatementCoverage));
+                    const existingFileCoverageIndex = fileCoverage.findIndex((coverage) => coverage.uri.toString() === uri.toString());
+                    if (existingFileCoverageIndex >= 0) {
+                        fileCoverage[existingFileCoverageIndex].addCoverage(codeCovResult, isStatementCoverage);
+                    } else {
+                        const newFileCoverage = new IBMiFileCoverage(uri, codeCovResult, isStatementCoverage);
+                        fileCoverage.push(newFileCoverage);
+                    }
                 }
             }
         }
@@ -466,6 +477,8 @@ export class IBMiTestRunner {
         } else if (testFileStatus === 'errored') {
             this.metrics.testFiles.errored++;
         }
+
+        return fileCoverage;
     }
 
     async validateLibraryList() {
