@@ -11,7 +11,7 @@ import { Logger } from "../logger";
 export class RPGUnit implements IBMiComponent {
     static ID: string = "RPGUnit";
     static MINIMUM_VERSION: string = '5.1.0-beta.002';
-    static VERSION_REGEX = /copyright information:\n\s*v(\S*)\s*-/i;
+    static VERSION_REGEX = 'v\\d+(\\.\\d+){2}(\\.b\\d{1,3}|\\.r?';
 
     getIdentification(): ComponentIdentification {
         return {
@@ -30,13 +30,13 @@ export class RPGUnit implements IBMiComponent {
             const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
             if (productLibraryExists) {
                 // Get installed version of RPGUnit
-                const versionCommand = content.toCl(`DSPSRVPGM`, { 'SRVPGM': `${productLibrary}/RUTESTCASE` });
+                const versionCommand = content.toCl(`DSPSRVPGM`, { 'SRVPGM': `${productLibrary}/RUTESTCASE`, 'DETAIL': '*COPYRIGHT' });
                 const versionResult = await connection.runCommand({ command: versionCommand, environment: `ile`, noLibList: true });
 
                 if (versionResult.code === 0) {
                     const versionMatch = versionResult.stdout.match(RPGUnit.VERSION_REGEX);
-                    if (versionMatch && versionMatch[1]) {
-                        const installedVersion = versionMatch[1];
+                    if (versionMatch && versionMatch[0]) {
+                        const installedVersion = versionMatch[0];
 
                         // Compare installed version with minimum version
                         if (this.compareVersions(installedVersion, RPGUnit.MINIMUM_VERSION) >= 0) {
