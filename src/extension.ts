@@ -1,6 +1,6 @@
 import { ExtensionContext, LogLevel, workspace } from "vscode";
 import { IBMiTestManager } from "./manager";
-import { getComponentRegistry, getInstance, loadBase } from "./api/ibmi";
+import { getComponentRegistry, getInstance, loadBase } from "./extensions/ibmi";
 import { Configuration, Section } from "./configuration";
 import { Logger } from "./logger";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
