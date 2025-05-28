@@ -11,7 +11,7 @@ import { Logger } from "../logger";
 export class RPGUnit implements IBMiComponent {
     static ID: string = "RPGUnit";
     static MINIMUM_VERSION: string = '5.1.0-beta.002';
-    static VERSION_REGEX = 'v\\d+(\\.\\d+){2}(\\.b\\d{1,3}|\\.r?';
+    static VERSION_REGEX = 'v\\d+(\\.\\d+){2}(\\.b\\d{1,3}|\\.r)?';
 
     getIdentification(): ComponentIdentification {
         return {
