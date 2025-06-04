@@ -329,7 +329,8 @@ export class IBMiTestRunner {
         let testResult: any;
         try {
             const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
-            testResult = await connection.runCommand({ command: testCommand, environment: `ile`, env: env });
+            const environment = isCodeCoverageEnabled ? 'system' : 'ile';
+            testResult = await connection.runCommand({ command: testCommand, environment: environment, env: env });
         } catch (error: any) {
             if (isTestCase) {
                 TestLogger.logTestCaseErrored(run, item, this.metrics, undefined, undefined, [{ message: error.message ? error.message : error }]);
