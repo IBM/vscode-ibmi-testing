@@ -3,8 +3,7 @@ name: Build VSIX
 on:
   workflow_dispatch:
 
-  # TODO: Uncomment this when Code for IBM i 3.0.0 is released
-  # pull_request:
+  pull_request:
 
 jobs:
   build:
