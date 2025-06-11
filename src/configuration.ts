@@ -1,5 +1,5 @@
 import { ConfigurationTarget, LogLevel, workspace } from "vscode";
-import { Logger } from "./logger";
+import { testOutputLogger } from "./extension";
 
 export interface libraryListValidation {
     "RPGUNIT": boolean;
@@ -53,7 +53,7 @@ export namespace Configuration {
             configurations[section] = value;
         }
 
-        Logger.log(LogLevel.Info, `Detected configurations:\n${JSON.stringify(configurations, null, 2)}`);
+        await testOutputLogger.log(LogLevel.Info, `Detected configurations:\n${JSON.stringify(configurations, null, 2)}`);
     }
 
     export function get<T>(section: Section): T | undefined {

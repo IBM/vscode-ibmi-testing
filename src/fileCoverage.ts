@@ -1,5 +1,5 @@
 import { CancellationToken, DeclarationCoverage, FileCoverage, Position, StatementCoverage, TestCoverageCount, TestRun, Uri } from "vscode";
-import { CoverageData } from "./types";
+import { CoverageData } from "./api/types";
 
 export class IBMiFileCoverage extends FileCoverage {
     public isStatementCoverage: boolean;

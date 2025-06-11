@@ -1,47 +1,34 @@
-import { TestRunRequest, TestItem, CancellationToken, TestRun, workspace, LogLevel, TestRunProfileKind, Uri, window, ProgressLocation, commands, WorkspaceFolder, FileCoverage } from "vscode";
+import { TestRunRequest, TestItem, TestRun, workspace, TestRunProfileKind, Uri, commands, TestMessage, Position, Location } from "vscode";
 import { IBMiTestManager } from "./manager";
-import { TestFile } from "./testFile";
 import { getDeployTools, getInstance } from "./extensions/ibmi";
-import * as path from "path";
-import { parseStringPromise } from "xml2js";
-import { CODECOV, RUCALLTST, TestQueue, TestMetrics, TestCaseResult, TestStatus } from "./types";
 import { Configuration, libraryListValidation, Section } from "./configuration";
-import { TestCase } from "./testCase";
-import { TestDirectory } from "./testDirectory";
-import { Logger } from "./logger";
-import { CodeCoverage } from "./codeCoverage";
 import { IBMiFileCoverage } from "./fileCoverage";
-import { IBMiTestStorage } from "./storage";
-import { Utils } from "./utils";
-import { TestObject } from "./testObject";
 import { RPGUnit } from "./components/rpgUnit";
-import { TestLogger } from "./testLogger";
-import { XMLParser } from "./xmlParser";
+import { Runner, TestCallbacks } from "./api/runner";
+import { BasicUri, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest } from "./api/types";
+import { TestLogger } from "./api/testLogger";
+import { TestResultLogger } from "./loggers/testResultLogger";
+import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
+import { Utils } from "./utils";
+import { testOutputLogger } from "./extension";
+import { TestCaseData, TestFileData } from "./testData";
+import { ApiUtils } from "./api/apiUtils";
+import * as path from "path";
+import { Test } from "mocha";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
     private request: TestRunRequest;
-    public metrics: TestMetrics;
     private forceCompile: boolean;
-    private token: CancellationToken; // TODO: This is should be accounted for during test execution
 
-    constructor(manager: IBMiTestManager, request: TestRunRequest, forceCompile: boolean, token: CancellationToken) {
+    constructor(manager: IBMiTestManager, request: TestRunRequest, forceCompile: boolean) {
         this.manager = manager;
         this.request = request;
         this.forceCompile = forceCompile;
-        this.token = token;
-        this.metrics = {
-            duration: 0,
-            assertions: 0,
-            deployments: { success: 0, failed: 0 },
-            compilations: { success: 0, failed: 0, skipped: 0 },
-            testFiles: { passed: 0, failed: 0, errored: 0 },
-            testCases: { passed: 0, failed: 0, errored: 0 }
-        };
     }
 
-    async getTestQueue(run: TestRun): Promise<TestQueue> {
-        const queue: TestQueue = [];
+    private async buildTestBucket(testRun: TestRun): Promise<TestBucket[]> {
+        const testBuckets: TestBucket[] = [];
 
         // Gather initial set of requested test items to run
         let requestedItems: any = [];
@@ -54,482 +41,368 @@ export class IBMiTestRunner {
         }
 
         for (const requestItem of requestedItems) {
-            await this.processRequest(requestItem, run, queue);
+            await this.processRequestItems(testRun, testBuckets, requestItem);
         }
 
-        Logger.log(LogLevel.Info, `${queue.length} test item(s) queued: ${queue.map((item) => item.item.label).join(', ')}`);
-        return queue;
+        // await testOutputLogger.log(LogLevel.Info, `${testBucket.length} test item(s) queued: ${testBucket.map((item) => item.item.label).join(', ')}`);
+        return testBuckets;
     }
 
-    async processRequest(item: TestItem, run: TestRun, queue: TestQueue): Promise<void> {
+    private async processRequestItems(testRun: TestRun, testBuckets: TestBucket[], item: TestItem): Promise<void> {
         if (this.request.exclude?.includes(item)) {
             return;
         }
 
-        const data = this.manager.testData.get(item)!;
-        if (data instanceof TestDirectory || data instanceof TestObject) {
+        const data = this.manager.testMap.get(item)!;
+        if (data.type === 'directory' || data.type === 'object') {
             // Request is a test directory or test object so process children
             const childRequestItems: any = [];
             item.children.forEach((item) => {
                 childRequestItems.push(item);
             });
             for (const childRequestItem of childRequestItems) {
-                await this.processRequest(childRequestItem, run, queue);
+                await this.processRequestItems(testRun, testBuckets, childRequestItem);
             }
-        } else if (data instanceof TestFile) {
-            // Request is a test file so load data and add to queue
+        } if (data.type === 'file' && data instanceof TestFileData) {
+            // Request is a test file so ensure test cases are loaded
             await data.load();
 
             if (data.item.children.size !== 0) {
-                queue.push({ item, data });
+                this.addToTestBucket(testRun, testBuckets, data);
             } else {
-                Logger.log(LogLevel.Warning, `Test file ${data.item.label} not queued (no test cases found)`);
+                await testOutputLogger.log(LogLevel.Warning, `Test file ${data.item.label} not queued (no test cases found)`);
             }
-        } else if (data instanceof TestCase) {
-            // Request is a test case so add to queue
-            queue.push({ item, data });
+        } else if (data.type === 'case' && data instanceof TestCaseData) {
+            if (!this.request.exclude?.includes(data.item)) {
+                this.addToTestBucket(testRun, testBuckets, data);
+            }
         }
-
-        // Add item to test run queue
-        run.enqueued(item);
     }
 
-    async runHandler(): Promise<void> {
-        const run = this.manager.controller.createTestRun(this.request);
+    private addToTestBucket(testRun: TestRun, testBuckets: TestBucket[], data: TestFileData | TestCaseData): void {
+        let testBucketItem: TestItem;
+        let testFileItem: TestItem;
+        let testFileData: TestFileData;
+        let testCaseItem: TestItem | undefined;
 
-        // Check if RPGUnit is installed
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-        const config = connection.getConfig();
+        if (data instanceof TestFileData) {
+            testBucketItem = data.rootItem;
+            testFileItem = data.item;
+            testFileData = data;
+        } else {
+            testBucketItem = data.rootItem;
+            testFileItem = data.fileItem;
+            testFileData = this.manager.testMap.get(data.fileItem)! as TestFileData;
+            testCaseItem = data.item;
+        }
 
-        const componentManager = connection?.getComponentManager();
-        const state = await componentManager?.getRemoteState(RPGUnit.ID);
-        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
-        const title = state === 'NeedsUpdate' ?
-            'RPGUnit Update Required' :
-            'RPGUnit Installation Required';
-        const installMessage = state === 'NeedsUpdate' ?
-            `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i.` :
-            (state !== 'Installed' ? `RPGUnit must be installed with at least v${RPGUnit.MINIMUM_VERSION} on the IBM i.` : undefined);
-        const installQuestion = state === 'NeedsUpdate' ?
-            `Can it be updated in ${productLibrary}.LIB?` :
-            (state !== 'Installed' ? `Can it be installed into ${productLibrary}.LIB?` : undefined);
-        const installButton = state === 'NeedsUpdate' ?
-            'Update' :
-            (state !== 'Installed' ? 'Install' : undefined);
+        // Add test bucket
+        let existingTestBucketIndex = testBuckets.findIndex((testBucket) => testBucket.uri.fsPath === testBucketItem.uri!.fsPath);
+        if (existingTestBucketIndex < 0) {
+            testBuckets.push({
+                name: testBucketItem.label,
+                uri: { scheme: testBucketItem.uri!.scheme as any, fsPath: testBucketItem.uri!.fsPath, fragment: '' },
+                testSuites: []
+            });
+            existingTestBucketIndex = testBuckets.length - 1;
+        }
+        testRun.enqueued(testBucketItem);
 
-        if (installMessage && installQuestion && installButton) {
-            // End test run
-            TestLogger.logComponent(run, installMessage);
-            run.end();
+        // Add test suite
+        let existingTestSuiteIndex = testBuckets[existingTestBucketIndex].testSuites.findIndex((testSuite) => testSuite.uri.fsPath === testFileItem.uri!.fsPath);
+        if (existingTestSuiteIndex < 0) {
+            testBuckets[existingTestBucketIndex].testSuites.push({
+                name: testFileItem.label,
+                systemName: ApiUtils.getSystemNameFromPath(path.parse(testFileItem.uri!.fsPath).name),
+                uri: { scheme: testFileItem.uri!.scheme as any, fsPath: testFileItem.uri!.fsPath, fragment: '' },
+                testCases: [],
+                isCompiled: testFileData.isCompiled,
+                isEntireSuite: true
+            });
+            existingTestSuiteIndex = testBuckets[existingTestBucketIndex].testSuites.length - 1;
+        }
+        testRun.enqueued(testFileItem);
 
-            // Prompt user to install or update RPGUnit
-            window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}` }, installButton, 'Configure Product Library').then(async (value) => {
-                if (value === installButton) {
-                    await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
-                        progress.report({ message: `Installing ${RPGUnit.ID}` });
-                        await componentManager.installComponent(RPGUnit.ID);
+        // Add test cases
+        if (testCaseItem) {
+            if (!this.request.exclude?.includes(testCaseItem)) {
+                testBuckets[existingTestBucketIndex].testSuites[existingTestSuiteIndex].testCases.push({
+                    name: testCaseItem.label,
+                    uri: { scheme: testCaseItem.uri!.scheme as any, fsPath: testCaseItem.uri!.fsPath, fragment: testCaseItem.label }
+                });
+                testBuckets[existingTestBucketIndex].testSuites[existingTestSuiteIndex].isEntireSuite = false;
+                testRun.enqueued(testCaseItem);
+            }
+        } else {
+            testFileItem.children.forEach((childItem) => {
+                if (!this.request.exclude?.includes(childItem)) {
+                    testBuckets[existingTestBucketIndex].testSuites[existingTestSuiteIndex].testCases.push({
+                        name: childItem.label,
+                        uri: { scheme: childItem.uri!.scheme as any, fsPath: childItem.uri!.fsPath, fragment: childItem.label }
                     });
-                } else if (value === 'Configure Product Library') {
-                    await commands.executeCommand('workbench.action.openSettings', '@ext:IBM.vscode-ibmi-testing');
+                    testRun.enqueued(childItem);
+                } else {
+                    testBuckets[existingTestBucketIndex].testSuites[existingTestSuiteIndex].isEntireSuite = false;
                 }
             });
-            return;
         }
-
-        // Validate library list has RPGUNIT and QDEVTOOLS
-        await this.validateLibraryList();
-
-        // Setup RPGUNIT and CODECOV storage directories
-        IBMiTestStorage.setupTestStorage();
-
-        // Get test queue
-        const queue: TestQueue = await this.getTestQueue(run);
-
-        const clearErrorsBeforeBuild = workspace.getConfiguration('code-for-ibmi').get<boolean>('clearErrorsBeforeBuild');
-        let isDiagnosticsCleared: boolean = clearErrorsBeforeBuild ? false : true;
-
-        const attemptedDeployments: { workspaceItem: TestItem, isDeployed: boolean }[] = [];
-        const attemptedLibraries: TestItem[] = [];
-
-        let fileCoverage: IBMiFileCoverage[] = [];
-        const compiledTestFileItems: TestItem[] = [];
-        for (const { item, data } of queue) {
-            const testFileItem = data instanceof TestFile ? item : item.parent!;
-            const testFileData = data instanceof TestFile ? data : this.manager.testData.get(testFileItem)! as TestFile;
-
-            if (testFileData.workspaceItem) {
-                // Deploy workspace folder associated with test file if not already attemptted
-                const workspaceFolder = workspace.getWorkspaceFolder(testFileData.workspaceItem.uri!);
-                let attempt = attemptedDeployments.find((attempt) => attempt.workspaceItem.uri?.toString() === workspaceFolder!.uri.toString());
-                if (!attempt) {
-                    TestLogger.logWorkspace(run, testFileData.workspaceItem);
-
-                    const deployTools = getDeployTools();
-                    const defaultDeploymentMethod = config.defaultDeploymentMethod;
-                    const deployResult = await deployTools!.launchDeploy(workspaceFolder!.index, defaultDeploymentMethod || undefined);
-                    const isDeployed = deployResult ? true : false;
-                    attempt = { workspaceItem: testFileData.workspaceItem, isDeployed: isDeployed };
-                    attemptedDeployments.push(attempt);
-                    TestLogger.logDeployment(run, testFileData.workspaceItem, isDeployed, this.metrics);
-                }
-
-                // Error out children if workspace folder not deployed
-                // TODO: Fix test file name and directory not being displayed in test results view
-                if (!attempt.isDeployed) {
-                    TestLogger.logTestFile(run, testFileItem, true);
-                    TestLogger.logCompilation(run, testFileItem, 'skipped', this.metrics);
-
-                    if (data instanceof TestCase) {
-                        TestLogger.logTestCaseErrored(run, item, this.metrics);
-                    } else {
-                        item.children.forEach((childItem) => {
-                            if (!this.request.exclude?.includes(childItem)) {
-                                TestLogger.logTestCaseErrored(run, childItem, this.metrics);
-                            }
-                        });
-                    }
-
-                    this.metrics.testFiles.errored++;
-                    continue;
-                }
-            } else if (testFileData.libraryItem) {
-                const attempt = attemptedLibraries.find((attempt) => attempt.uri?.toString() === testFileData.libraryItem?.uri?.toString());
-                if (!attempt) {
-                    TestLogger.logLibrary(run, testFileData.libraryItem);
-                    attemptedLibraries.push(testFileData.libraryItem);
-                }
-            }
-
-            // Compile test file if not already compiled
-            const compiledTestFileItem = compiledTestFileItems.find((testFile) => testFile.id === testFileItem.id);
-            if (!compiledTestFileItem) {
-                const testFileData = this.manager.testData.get(testFileItem)! as TestFile;
-                await testFileData.loadTestingConfig();
-                TestLogger.logTestFile(run, testFileItem, false, testFileData.testingConfig);
-
-                if (testFileData.isCompiled && !this.forceCompile) {
-                    TestLogger.logCompilation(run, testFileItem, 'skipped', this.metrics);
-                } else {
-                    if (!isDiagnosticsCleared) {
-                        commands.executeCommand('code-for-ibmi.clearDiagnostics');
-                        isDiagnosticsCleared = true;
-                    }
-
-                    await testFileData.compileTest(this, run);
-                    compiledTestFileItems.push(testFileItem);
-                }
-            }
-
-            // Error out children if test file is not compiled
-            if (!testFileData.isCompiled) {
-                if (data instanceof TestCase) {
-                    TestLogger.logTestCaseErrored(run, item, this.metrics);
-                } else {
-                    item.children.forEach((childItem) => {
-                        if (!this.request.exclude?.includes(childItem)) {
-                            TestLogger.logTestCaseErrored(run, childItem, this.metrics);
-                        }
-                    });
-                }
-
-                this.metrics.testFiles.errored++;
-                continue;
-            }
-
-            // Run test case
-            if (run.token.isCancellationRequested) {
-                run.skipped(item);
-            } else {
-                run.started(item);
-                fileCoverage = await this.runTest(run, item, fileCoverage);
-            }
-        }
-
-        for (const coverage of fileCoverage) {
-            run.addCoverage(coverage);
-        }
-
-        TestLogger.logMetrics(run, this.metrics);
-        run.end();
     }
 
-    async runTest(run: TestRun, item: TestItem, fileCoverage: IBMiFileCoverage[]): Promise<IBMiFileCoverage[]> {
+    async runHandler() {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
-        const content = connection.getContent();
         const config = connection.getConfig();
 
-        const data = this.manager.testData.get(item);
-        const isTestCase = data instanceof TestCase;
+        // Create test run
+        const testRun = this.manager.controller.createTestRun(this.request);
 
-        let workspaceFolder: WorkspaceFolder | undefined;
-        let tstPgm: { name: string, library: string };
+        // Create test logger
+        const testResultLogger = new TestResultLogger(testRun);
+        const testLogger = new TestLogger(testOutputLogger, testResultLogger);
 
-        const testFile = isTestCase ? item.parent! : item;
-        const testFileData = this.manager.testData.get(testFile)! as TestFile;
-        const testingConfig = testFileData.testingConfig;
-        const originalTstPgmBaseame = isTestCase ? item.parent!.label : item.label;
-        const newTstPgmName = Utils.getTestName(item.uri?.scheme as 'file' | 'member', originalTstPgmBaseame, testingConfig);
-
-        if (item.uri?.scheme === 'file') {
-            // Use current library as the test library
-            workspaceFolder = workspace.getWorkspaceFolder(item.uri!)!;
-            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
-            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
-
-            tstPgm = { name: newTstPgmName, library: tstLibrary };
-        } else {
-            const parsedPath = connection.parserMemberPath(item.uri!.path);
-            const tstLibrary = parsedPath.library;
-
-            tstPgm = { name: newTstPgmName, library: tstLibrary };
+        // Check if RPGUnit is installed
+        const installation = await RPGUnit.checkInstallation();
+        if (!installation.status) {
+            if (installation.error) {
+                // End test run
+                testRun.end();
+                await testLogger.logComponentError(installation.error);
+                return;
+            }
         }
 
-        const tstpgm = `${tstPgm.library}/${tstPgm.name}`;
-        const tstprc = isTestCase ? item.label : undefined;
-        const testStorage = IBMiTestStorage.getTestStorage(`${tstPgm.name}${tstprc ? `_${tstprc}` : ``}`);
-        Logger.log(LogLevel.Info, `Test storage for ${item.label}: ${JSON.stringify(testStorage)}`);
-        const xmlStmf = testStorage.RPGUNIT;
-
-        const testParams: RUCALLTST = {
-            tstPgm: tstpgm,
-            tstPrc: tstprc,
-            order: Configuration.get<string>(Section.runOrder),
-            detail: Configuration.get<string>(Section.reportDetail),
-            output: Configuration.get<string>(Section.createReport),
-            libl: Configuration.get<string>(Section.libraryList),
-            jobD: Configuration.get<string>(Section.jobDescription),
-            rclRsc: Configuration.get<string>(Section.reclaimResources),
-            xmlStmf: xmlStmf
+        // Build test bucket and request
+        const testBuckets = await this.buildTestBucket(testRun);
+        const testRequest: TestRequest = {
+            forceCompile: this.forceCompile,
+            testBuckets: testBuckets
         };
 
-        // Build RUCALLTST command
-        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
-        let testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
+        // Validate library list has RPGUNIT and QDEVTOOLS
+        await this.validateLibraryList(testBuckets);
 
-        // Build CODECOV command if code coverage is enabled
-        const isCodeCoverageEnabled = this.request.profile?.kind === TestRunProfileKind.Coverage;
-        const lineCoverageProfiles = [IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL, IBMiTestManager.COMPILE_AND_LINE_COVERAGE_PROFILE_LABEL];
-        let coverageParams: CODECOV | undefined;
-        if (isCodeCoverageEnabled) {
-            const ccLvl = lineCoverageProfiles.includes(this.request.profile!.label!) ?
-                '*LINE' :
-                '*PROC';
-            coverageParams = {
-                cmd: testCommand,
-                module: `(${tstpgm} *SRVPGM *ALL)`,
-                ccLvl: ccLvl,
-                outStmf: testStorage.CODECOV
-            };
-            testCommand = `QDEVTOOLS/CODECOV CMD(${coverageParams.cmd}) MODULE(${coverageParams.module}) CCLVL(${coverageParams.ccLvl}) OUTSTMF('${coverageParams.outStmf}')`;
-        }
-        Logger.log(LogLevel.Info, `Running ${item.label}: ${testCommand}`);
-
-        let testResult: any;
-        try {
-            const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
-            testResult = await connection.runCommand({ command: testCommand, environment: `ile`, env: env });
-        } catch (error: any) {
-            if (isTestCase) {
-                TestLogger.logTestCaseErrored(run, item, this.metrics, undefined, undefined, [{ message: error.message ? error.message : error }]);
-            } else {
-                item.children.forEach((childItem) => {
-                    if (!this.request.exclude?.includes(childItem)) {
-                        TestLogger.logTestCaseErrored(run, childItem, this.metrics, undefined, undefined, [{ message: error.message ? error.message : error }]);
-                    }
+        // Setup test callbacks
+        const deployTools = getDeployTools();
+        const allTestItems = this.manager.getFlattenedTestItems();
+        const testCallbacks: TestCallbacks = {
+            deploy: async (workspaceFolderPath: string): Promise<DeploymentStatus> => {
+                const workspaceFolder = workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath))!;
+                const defaultDeploymentMethod = config.defaultDeploymentMethod;
+                const deployResult = await deployTools!.launchDeploy(workspaceFolder.index, defaultDeploymentMethod || undefined);
+                const deploymentStatus = deployResult ? 'success' : 'failed';
+                return deploymentStatus;
+            },
+            getDeployDirectory: (workspaceFolderPath: string): string => {
+                const workspaceFolder = workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath))!;
+                const deployDirectory = deployTools!.getRemoteDeployDirectory(workspaceFolder)!;
+                return deployDirectory;
+            },
+            getLibraryList: async (workspaceFolderPath?: string): Promise<ILELibrarySettings> => {
+                const workspaceFolder = workspaceFolderPath ? workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath)) : undefined;
+                const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+                return libraryList;
+            },
+            isDiagnosticsCleared: (): boolean => {
+                const clearErrorsBeforeBuild = workspace.getConfiguration('code-for-ibmi').get<boolean>('clearErrorsBeforeBuild');
+                let isDiagnosticsCleared: boolean = clearErrorsBeforeBuild ? false : true;
+                return isDiagnosticsCleared;
+            },
+            clearDiagnostics: async (): Promise<void> => {
+                await commands.executeCommand('code-for-ibmi.clearDiagnostics');
+            },
+            loadDiagnostics: async (qualifiedObject: string, workspaceFolderPath?: string): Promise<void> => {
+                const workspaceFolder = workspaceFolderPath ? workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath)) : undefined;
+                await commands.executeCommand('code-for-ibmi.openErrors', {
+                    qualifiedObject: qualifiedObject,
+                    workspace: workspaceFolder,
+                    keepDiagnostics: true
                 });
-            }
+            },
+            getEnvConfig: async (workspaceFolderPath: string): Promise<Env> => {
+                const workspaceFolder = workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath));
+                const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
+                return env;
+            },
+            getProductLibrary: (): string => {
+                const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
+                return productLibrary;
+            },
+            getTestParams: (tstpgm: string, xmlStmf: string, tstPrc?: string): RUCALLTST => {
+                const testParams: RUCALLTST = {
+                    tstPgm: tstpgm,
+                    tstPrc: tstPrc,
+                    order: Configuration.get<string>(Section.runOrder),
+                    detail: Configuration.get<string>(Section.reportDetail),
+                    output: Configuration.get<string>(Section.createReport),
+                    libl: Configuration.get<string>(Section.libraryList),
+                    jobD: Configuration.get<string>(Section.jobDescription),
+                    rclRsc: Configuration.get<string>(Section.reclaimResources),
+                    xmlStmf: xmlStmf
+                };
 
-            this.metrics.testFiles.errored++;
-            return fileCoverage;
-        }
+                return testParams;
+            },
+            setIsCompiled: async (uri: BasicUri, isCompiled: boolean): Promise<void> => {
+                const testItem = allTestItems.find((item) =>
+                    item.uri!.scheme === uri.scheme &&
+                    item.uri!.fsPath === uri.fsPath &&
+                    (!uri.fragment || item.label === uri.fragment));
 
-        if (testResult.stdout.length > 0) {
-            Logger.log(LogLevel.Info, `${item.label} execution output:\n${testResult.stdout}`);
-        }
-        if (testResult.stderr.length > 0) {
-            Logger.log(LogLevel.Error, `${item.label} execution error(s):\n${testResult.stderr}`);
-        }
-
-        if (isCodeCoverageEnabled) {
-            const codeCovResults = await CodeCoverage.getCoverage(coverageParams!.outStmf);
-            if (codeCovResults) {
-                const isStatementCoverage = lineCoverageProfiles.includes(this.request.profile!.label);
-
-                for (const codeCovResult of codeCovResults) {
-                    let uri: Uri;
-                    if (workspaceFolder) {
-                        // Map code coverage results from deploy directory to local workspace
-                        const deployTools = getDeployTools()!;
-                        const deployDirectory = deployTools.getRemoteDeployDirectory(workspaceFolder)!;
-
-                        if (`/${codeCovResult.path}`.startsWith(deployDirectory)) {
-                            // Get relative remote path to test
-                            const relativePathToTest = path.posix.relative(deployDirectory, `/${codeCovResult.path}`);
-
-                            // Construct local path to test
-                            const localPath = path.join(workspaceFolder.uri.fsPath, relativePathToTest);
-                            uri = Uri.file(localPath);
-                        } else {
-                            uri = Uri.file(codeCovResult.localPath);
-                        }
-                    } else {
-                        // Map code coverage results to source members
-                        let memberPath: string = '';
-                        const parts = codeCovResult.path.split('/');
-
-                        if (parts.length === 3 && parts[1].toLocaleUpperCase().endsWith('.FILE')) {
-                            // This is a temporary hack due to https://github.com/IBM/vscode-ibmi-testing/issues/70
-                            const library = parts[1].split('.')[0];
-                            const sourceFile = parts[0];
-                            const member = parts[2];
-                            memberPath = `/${library}/${sourceFile}/${member}`;
-                        } else {
-                            for (let index = 0; index < parts.length; index++) {
-                                if (index !== parts.length - 1) {
-                                    const partName = parts[index].split('.');
-                                    if (partName.length > 0) {
-                                        memberPath += `/${partName[0]}`;
-                                    }
-                                } else {
-                                    memberPath += `/${parts[index]}`;
-                                }
-                            }
-                        }
-
-                        uri = Uri.from({ scheme: 'member', path: memberPath });
-                    }
-
-                    const existingFileCoverageIndex = fileCoverage.findIndex((coverage) => coverage.uri.toString() === uri.toString());
-                    if (existingFileCoverageIndex >= 0) {
-                        fileCoverage[existingFileCoverageIndex].addCoverage(codeCovResult, isStatementCoverage);
-                    } else {
-                        const newFileCoverage = new IBMiFileCoverage(uri, codeCovResult, isStatementCoverage);
-                        fileCoverage.push(newFileCoverage);
+                if (testItem) {
+                    const testData = this.manager.testMap.get(testItem);
+                    if (testData && testData instanceof TestFileData) {
+                        testData.isCompiled = isCompiled;
                     }
                 }
-            }
-        }
+            },
+            started: async (uri: BasicUri): Promise<void> => {
+                const testItem = allTestItems.find((item) =>
+                    item.uri!.scheme === uri.scheme &&
+                    item.uri!.fsPath === uri.fsPath &&
+                    (!uri.fragment || item.label === uri.fragment));
 
-        // Parse XML test case results
-        let testCaseResults: TestCaseResult[] = [];
-        try {
-            const xmlStmfContent = (await content.downloadStreamfileRaw(testParams.xmlStmf));
-            const xml = await parseStringPromise(xmlStmfContent);
-            testCaseResults = XMLParser.parseTestResults(xml, workspaceFolder ? true : false);
-        } catch (error: any) {
-            if (isTestCase) {
-                testCaseResults.push({
-                    name: item.label,
-                    status: 'errored',
-                    error: [{ message: error.message ? error.message : error }]
-                });
-            } else {
-                item.children.forEach((childItem) => {
-                    if (!this.request.exclude?.includes(childItem)) {
-                        testCaseResults.push({
-                            name: childItem.label,
-                            status: 'errored',
-                            error: [{ message: error.message ? error.message : error }]
-                        });
+                if (testItem) {
+                    testRun.started(testItem);
+                }
+            },
+            skipped: async (uri: BasicUri): Promise<void> => {
+                const testItem = allTestItems.find((item) =>
+                    item.uri!.scheme === uri.scheme &&
+                    item.uri!.fsPath === uri.fsPath &&
+                    (!uri.fragment || item.label === uri.fragment));
+
+                if (testItem) {
+                    testRun.skipped(testItem);
+                }
+            },
+            passed: async (uri: BasicUri, duration?: number): Promise<void> => {
+                const testItem = allTestItems.find((item) =>
+                    item.uri!.scheme === uri.scheme &&
+                    item.uri!.fsPath === uri.fsPath &&
+                    (!uri.fragment || item.label === uri.fragment));
+
+                if (testItem) {
+                    testRun.passed(testItem, duration);
+                }
+            },
+            failed: async (uri: BasicUri, messages: { line?: number; message: string; }[], duration?: number): Promise<void> => {
+                const testItem = allTestItems.find((item) =>
+                    item.uri!.scheme === uri.scheme &&
+                    item.uri!.fsPath === uri.fsPath &&
+                    (!uri.fragment || item.label === uri.fragment));
+
+                if (testItem) {
+                    // Add messages inline in the editor
+                    const testMessages: TestMessage[] = [];
+                    for (const message of messages) {
+                        const testMessage = new TestMessage(message.message);
+                        const range = message.line ? new Position(message.line - 1, 0) : testItem.range;
+                        testMessage.location = range ? new Location(testItem.uri!, range) : undefined;
+                        testMessages.push(testMessage);
                     }
-                });
-            }
-        }
 
-        // Process test case results
-        let testFileStatus: TestStatus = 'passed';
-        for (const testCaseResult of testCaseResults) {
-            const parentItem = isTestCase ? item.parent! : item;
-            const mappedItem = parentItem.children.get(`${item.uri}/${testCaseResult.name}`);
-
-            if (mappedItem) {
-                // Test case result is mapped to a test item
-                if (testCaseResult.status === 'passed') {
-                    TestLogger.logTestCasePassed(run, mappedItem, this.metrics, testCaseResult.time, testCaseResult.assertions);
-                } else if (testCaseResult.status === 'failed') {
-                    testFileStatus = 'failed';
-                    TestLogger.logTestCaseFailed(run, mappedItem, this.metrics, testCaseResult.time, testCaseResult.assertions, testCaseResult.failure);
-                } else if (testCaseResult.status === 'errored') {
-                    testFileStatus = 'errored';
-                    TestLogger.logTestCaseErrored(run, mappedItem, this.metrics, testCaseResult.time, testCaseResult.assertions, testCaseResult.error);
+                    testRun.failed(testItem, testMessages, duration);
                 }
-            } else {
-                // Test case result is not mapped to a test item (ie. setUpSuite, setUp, tearDown, tearDownSuite)
-                if (testCaseResult.status === 'passed') {
-                    // This should never happened
-                    Logger.log(LogLevel.Error, `Test case ${item.label} passed${testCaseResult.time !== undefined ? ` in ${testCaseResult.time}s` : ``} but was not mapped to a test item`);
-                } else if (testCaseResult.status === 'failed') {
-                    testFileStatus = 'failed';
-                    TestLogger.logArbitraryTestCaseFailed(run, testCaseResult.name, parentItem, this.metrics, testCaseResult.time, testCaseResult.assertions, testCaseResult.failure);
-                } else if (testCaseResult.status === 'errored') {
-                    testFileStatus = 'errored';
-                    TestLogger.logArbitraryTestCaseErrored(run, testCaseResult.name, parentItem, this.metrics, testCaseResult.time, testCaseResult.assertions, testCaseResult.error);
+            },
+            errored: async (uri: BasicUri, messages: { line?: number; message: string; }[], duration?: number): Promise<void> => {
+                const testItem = allTestItems.find((item) =>
+                    item.uri!.scheme === uri.scheme &&
+                    item.uri!.fsPath === uri.fsPath &&
+                    (!uri.fragment || item.label === uri.fragment));
+
+                if (testItem) {
+                    // Add messages inline in the editor
+                    const testMessages: TestMessage[] = [];
+                    for (const message of messages) {
+                        const testMessage = new TestMessage(message.message);
+                        const range = message.line ? new Position(message.line - 1, 0) : testItem.range;
+                        testMessage.location = range ? new Location(testItem.uri!, range) : undefined;
+                        testMessages.push(testMessage);
+                    }
+
+                    testRun.errored(testItem, testMessages, duration);
                 }
+            },
+            addCoverage: (fileCoverage: IBMiFileCoverage): void => {
+                testRun.addCoverage(fileCoverage);
+            },
+            end: async (): Promise<void> => {
+                testRun.end();
             }
-        }
+        };
 
-        if (testFileStatus === 'passed') {
-            this.metrics.testFiles.passed++;
-        } else if (testFileStatus === 'failed') {
-            this.metrics.testFiles.failed++;
-        } else if (testFileStatus === 'errored') {
-            this.metrics.testFiles.errored++;
-        }
-
-        return fileCoverage;
+        // Run test buckets
+        const runner: Runner = new Runner(testRequest, testCallbacks, testLogger);
+        await runner.run();
     }
 
-    async validateLibraryList() {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-
+    private async validateLibraryList(testBuckets: TestBucket[]): Promise<void> {
         const libraryListValidation = Configuration.get<libraryListValidation>(Section.libraryListValidation);
         if (libraryListValidation) {
-            const workspaceFolders = workspace.workspaceFolders;
-            const workspaceFolder = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0] : undefined;
-            const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+            const ibmi = getInstance();
+            const connection = ibmi!.getConnection();
 
-            // Check if RPGUnit is on the library list
-            if (libraryListValidation.RPGUNIT) {
-                const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
-                if (!libraryList.libraryList.includes(productLibrary)) {
-                    Logger.logWithNotification(
-                        LogLevel.Warning,
-                        `${productLibrary}.LIB not found on the library list. This may impact resolving of include files.`,
-                        undefined,
-                        [
-                            {
-                                label: 'Ignore',
-                                func: async () => {
-                                    await Configuration.set(Section.libraryListValidation, { ...libraryListValidation, RPGUNIT: false });
-                                }
-                            }
-                        ]
-                    );
+            const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
+            const qdevtoolsLibrary = 'QDEVTOOLS';
+
+            const testBucketsMissingProductLibrary = [];
+            const testBucketsMissingQDevToolsLibrary = [];
+
+            for (const testBucket of testBuckets) {
+                const workspaceFolders = workspace.workspaceFolders;
+                const workspaceFolder = workspaceFolders && workspaceFolders.length > 0 ?
+                    workspaceFolders.find(workspaceFolder => workspaceFolder.uri.scheme === testBucket.uri.scheme && workspaceFolder.uri.fsPath === testBucket.uri.fsPath)
+                    : undefined;
+                const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+
+                // Check if RPGUnit is on the library list
+                if (libraryListValidation.RPGUNIT) {
+                    if (!libraryList.libraryList.includes(productLibrary)) {
+                        testBucketsMissingProductLibrary.push(testBucket);
+                    }
+                }
+
+                // Check if QDEVTOOLS is on the library list
+                const isCodeCoverageEnabled = this.request.profile?.kind === TestRunProfileKind.Coverage;
+                if (isCodeCoverageEnabled && libraryListValidation.QDEVTOOLS) {
+                    if (!libraryList.libraryList.includes(qdevtoolsLibrary)) {
+                        testBucketsMissingQDevToolsLibrary.push(testBucket);
+                    }
                 }
             }
 
-            // Check if QDEVTOOLS is on the library list
-            const isCodeCoverageEnabled = this.request.profile?.kind === TestRunProfileKind.Coverage;
-            if (isCodeCoverageEnabled && libraryListValidation.QDEVTOOLS) {
-                const qdevtoolsLibrary = 'QDEVTOOLS';
-                if (!libraryList.libraryList.includes(qdevtoolsLibrary)) {
-                    Logger.logWithNotification(
-                        LogLevel.Warning,
-                        `${qdevtoolsLibrary}.LIB not found on the library list. This may impact code coverage.`,
-                        undefined,
-                        [
-                            {
-                                label: 'Ignore',
-                                func: async () => {
-                                    await Configuration.set(Section.libraryListValidation, { ...libraryListValidation, QDEVTOOLS: false });
-                                }
+            // Warn user which test buckets are missing the RPGUnit library
+            if (testBucketsMissingProductLibrary.length > 0) {
+                testOutputLogger.logWithNotification(
+                    LogLevel.Warning,
+                    `${productLibrary}.LIB not found on the library list. This may impact resolving of include files for the following: ${testBucketsMissingProductLibrary.map(bucket => bucket.name).join(', ')}`,
+                    undefined,
+                    [
+                        {
+                            label: 'Ignore',
+                            func: async () => {
+                                await Configuration.set(Section.libraryListValidation, { ...libraryListValidation, RPGUNIT: false });
                             }
-                        ]
-                    );
-                }
+                        }
+                    ]
+                );
+            }
+
+            // Warn user which test buckets are missing the QDEVTOOLS library
+            if (testBucketsMissingQDevToolsLibrary.length > 0) {
+                testOutputLogger.logWithNotification(
+                    LogLevel.Warning,
+                    `${qdevtoolsLibrary}.LIB not found on the library list. This may impact code coverage for the following: ${testBucketsMissingQDevToolsLibrary.map(bucket => bucket.name).join(', ')}`,
+                    undefined,
+                    [
+                        {
+                            label: 'Ignore',
+                            func: async () => {
+                                await Configuration.set(Section.libraryListValidation, { ...libraryListValidation, QDEVTOOLS: false });
+                            }
+                        }
+                    ]
+                );
             }
         }
     }

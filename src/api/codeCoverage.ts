@@ -3,8 +3,8 @@ import * as tmp from "tmp";
 import * as path from "path";
 import * as unzipper from "unzipper";
 import * as xml2js from "xml2js";
-import { getInstance } from "./extensions/ibmi";
-import { Logger } from "./logger";
+import { getInstance } from "../extensions/ibmi";
+import { testOutputLogger } from "../extension";
 import { CoverageData } from "./types";
 
 export namespace CodeCoverage {
@@ -29,22 +29,21 @@ export namespace CodeCoverage {
             // Download remote cczip to local temp file
             const tmpFile = tmp.fileSync();
             await content.downloadStreamfileRaw(outputZipPath, tmpFile.name);
-            Logger.log(LogLevel.Info, `Downloaded code coverage results to ${tmpFile.name}`);
+            await testOutputLogger.log(LogLevel.Info, `Downloaded code coverage results to ${tmpFile.name}`);
 
             // Extract local temp file contents to temp directory
             const directory = await unzipper.Open.file(tmpFile.name);
             await directory.extract({ path: tmpDir.name });
-            Logger.log(LogLevel.Info, `Extracted code coverage results to ${tmpDir.name}`);
+            await testOutputLogger.log(LogLevel.Info, `Extracted code coverage results to ${tmpDir.name}`);
 
             // Read and parse xml file from temp directory
             const ccdata = Uri.file(path.join(tmpDir.name, `ccdata`));
             const ccdataContent = await workspace.fs.readFile(ccdata);
-            // TODO: Can we get an interface for the xml?
             const xml = await xml2js.parseStringPromise(ccdataContent);
 
             return xml;
         } catch (error: any) {
-            Logger.logWithNotification(LogLevel.Error, `Failed to download code coverage results`, `${outputZipPath} - ${error}`);
+            testOutputLogger.logWithNotification(LogLevel.Error, `Failed to download code coverage results`, `${outputZipPath} - ${error}`);
         }
     }
 
@@ -94,7 +93,7 @@ export namespace CodeCoverage {
 
             return items;
         } catch (error) {
-            Logger.logWithNotification(LogLevel.Error, `Failed to parse code coverage results`, `${error}`);
+            testOutputLogger.logWithNotification(LogLevel.Error, `Failed to parse code coverage results`, `${error}`);
         }
     }
 

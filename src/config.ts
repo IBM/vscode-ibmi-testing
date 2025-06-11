@@ -1,9 +1,9 @@
 import { LogLevel, RelativePattern, Uri, workspace, WorkspaceFolder } from "vscode";
-import { TestingConfig } from "./types";
 import * as path from "path";
 import lodash from "lodash";
-import { Logger } from "./logger";
 import { getInstance } from "./extensions/ibmi";
+import { TestingConfig } from "./api/types";
+import { testOutputLogger } from "./extension";
 
 export class ConfigHandler {
     static TESTING_CONFIG_FILE = 'testing.json';
@@ -19,20 +19,20 @@ export class ConfigHandler {
             const localConfigUri = await this.findTestingConfig(workspaceFolder, uri);
             const localConfig = localConfigUri ? await this.readTestingConfig(localConfigUri, 'local') : undefined;
             if (localConfigUri && localConfig) {
-                Logger.log(LogLevel.Info, `Found local testing configuration at ${localConfigUri.toString()}:\n${JSON.stringify(localConfig, null, 2)}`);
+                await testOutputLogger.log(LogLevel.Info, `Found local testing configuration at ${localConfigUri.toString()}:\n${JSON.stringify(localConfig, null, 2)}`);
             }
 
             const globalConfigUri = Uri.joinPath(workspaceFolder.uri, ConfigHandler.GLOBAL_CONFIG_DIRECTORY, ConfigHandler.TESTING_CONFIG_FILE);
             const globalConfig = await this.readTestingConfig(globalConfigUri, 'global');
             if (globalConfig) {
-                Logger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigUri.toString()}:\n${JSON.stringify(globalConfig, null, 2)}`);
+                await testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigUri.toString()}:\n${JSON.stringify(globalConfig, null, 2)}`);
             }
 
             const mergedConfig = lodash.merge({}, globalConfig, localConfig);
-            Logger.log(LogLevel.Info, `Merged local testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
+            await testOutputLogger.log(LogLevel.Info, `Merged local testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
             return mergedConfig;
         } catch (error: any) {
-            Logger.logWithNotification(LogLevel.Error, `Failed to retrieve local testing configuration`, error);
+            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to retrieve local testing configuration`, error);
             return;
         }
     }
@@ -49,7 +49,7 @@ export class ConfigHandler {
 
         const remoteConfig = await this.readTestingConfig(remoteConfigUri, 'remote');
         if (remoteConfig) {
-            Logger.log(LogLevel.Info, `Found remote testing configuration at ${remoteConfigUri.toString()}:\n${JSON.stringify(remoteConfig, null, 2)}`);
+            await testOutputLogger.log(LogLevel.Info, `Found remote testing configuration at ${remoteConfigUri.toString()}:\n${JSON.stringify(remoteConfig, null, 2)}`);
         }
 
         return remoteConfig;
@@ -73,7 +73,7 @@ export class ConfigHandler {
             // Check if file exists
             await workspace.fs.stat(testingConfigUri);
         } catch (error: any) {
-            Logger.log(LogLevel.Info, `No ${type} testing configuration found at ${testingConfigUri.toString()}`);
+            await testOutputLogger.log(LogLevel.Info, `No ${type} testing configuration found at ${testingConfigUri.toString()}`);
             return;
         }
 
@@ -93,7 +93,7 @@ export class ConfigHandler {
 
             return JSON.parse(testingConfig.toString()) as TestingConfig;
         } catch (error: any) {
-            Logger.logWithNotification(LogLevel.Error, `Failed to read testing configuration`, `${testingConfigUri} - ${error}`);
+            testOutputLogger.logWithNotification(LogLevel.Error, `Failed to read testing configuration`, `${testingConfigUri} - ${error}`);
             return;
         }
     }

@@ -1,33 +1,22 @@
 import { CancellationToken, ExtensionContext, LogLevel, RelativePattern, TestController, TestItem, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, window, workspace, WorkspaceFolder } from "vscode";
-import { TestFile } from "./testFile";
 import * as path from "path";
 import { IBMiTestRunner } from "./runner";
-import { TestDirectory } from "./testDirectory";
-import { Logger } from "./logger";
 import { IBMiFileCoverage } from "./fileCoverage";
-import { TestObject } from "./testObject";
 import { getInstance } from "./extensions/ibmi";
-import { IBMiTestData } from "./types";
-import { Utils } from "./utils";
+import { ApiUtils } from "./api/apiUtils";
 import { Configuration, Section } from "./configuration";
+import { testOutputLogger } from "./extension";
+import { TestData, TestFileData } from "./testData";
 
 export class IBMiTestManager {
-    public static CONTROLLER_ID = 'IBMi';
-    public static CONTROLLER_LABEL = 'IBM i Testing';
-    public static RUN_PROFILE_LABEL = 'Run Tests';
-    public static COMPILE_AND_RUN_PROFILE_LABEL = 'Run Tests (Compile)';
-    public static LINE_COVERAGE_PROFILE_LABEL = 'Run Tests with Line Coverage';
-    public static COMPILE_AND_LINE_COVERAGE_PROFILE_LABEL = 'Run Tests with Line Coverage (Compile)';
-    public static PROCEDURE_COVERAGE_PROFILE_LABEL = 'Run Tests with Procedure Coverage';
-    public static COMPILE_AND_PROCEDURE_COVERAGE_PROFILE_LABEL = 'Run Tests with Procedure Coverage (Compile)';
     public context: ExtensionContext;
-    public testData: WeakMap<TestItem, IBMiTestData>;
+    public testMap: WeakMap<TestItem, TestData>;
     public controller: TestController;
 
     constructor(context: ExtensionContext) {
         this.context = context;
-        this.testData = new WeakMap<TestItem, IBMiTestData>();
-        this.controller = tests.createTestController(IBMiTestManager.CONTROLLER_ID, IBMiTestManager.CONTROLLER_LABEL);
+        this.testMap = new WeakMap<TestItem, TestData>();
+        this.controller = tests.createTestController('IBMi', 'IBM i Testing');
         this.controller.resolveHandler = async (item: TestItem | undefined) => {
             if (!item) {
                 this.startWatchingWorkspace();
@@ -41,29 +30,29 @@ export class IBMiTestManager {
         };
 
         // Profiles for running tests
-        [IBMiTestManager.RUN_PROFILE_LABEL, IBMiTestManager.COMPILE_AND_RUN_PROFILE_LABEL].forEach((profile, index) => {
+        ['Run Tests', 'Run Tests (Compile)'].forEach((profile, index) => {
             const forceCompile = index === 1;
             this.controller.createRunProfile(profile, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, forceCompile, token);
+                const runner = new IBMiTestRunner(this, request, forceCompile);
                 await runner.runHandler();
             }, !forceCompile, undefined, false);
         });
 
         // Profiles for running tests with line coverage
-        [IBMiTestManager.LINE_COVERAGE_PROFILE_LABEL, IBMiTestManager.COMPILE_AND_LINE_COVERAGE_PROFILE_LABEL].forEach((profile, index) => {
+        ['Run Tests with Line Coverage', 'Run Tests with Line Coverage (Compile)'].forEach((profile, index) => {
             const forceCompile = index === 1;
             const lineCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, forceCompile, token);
+                const runner = new IBMiTestRunner(this, request, forceCompile);
                 await runner.runHandler();
             }, !forceCompile, undefined, false);
             lineCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
         });
 
         // Profiles for running tests with procedure coverage
-        [IBMiTestManager.PROCEDURE_COVERAGE_PROFILE_LABEL, IBMiTestManager.COMPILE_AND_PROCEDURE_COVERAGE_PROFILE_LABEL].forEach((profile, index) => {
+        ['Run Tests with Procedure Coverage', 'Run Tests with Procedure Coverage (Compile)'].forEach((profile, index) => {
             const forceCompile = index === 1;
             const procedureCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, forceCompile, token);
+                const runner = new IBMiTestRunner(this, request, forceCompile);
                 await runner.runHandler();
             }, false, undefined, false);
             procedureCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
@@ -89,7 +78,7 @@ export class IBMiTestManager {
         this.controller.items.forEach((item) => {
             this.controller.items.delete(item.id);
         });
-        this.testData = new WeakMap<TestItem, IBMiTestData>();
+        this.testMap = new WeakMap<TestItem, TestData>();
 
         // Reload all test items
         await this.loadInitialTests();
@@ -99,7 +88,7 @@ export class IBMiTestManager {
         // Load local tests from workspace folders
         const workspaceTestPatterns = this.getWorkspaceTestPatterns();
         for await (const workspaceTestPattern of workspaceTestPatterns) {
-            Logger.log(LogLevel.Info, `Searching for tests in workspace folder: ${workspaceTestPattern.workspaceFolder.name}`);
+            await testOutputLogger.log(LogLevel.Info, `Searching for tests in workspace folder: ${workspaceTestPattern.workspaceFolder.name}`);
             const fileUris = await workspace.findFiles(workspaceTestPattern.pattern);
             for (const uri of fileUris) {
                 await this.loadFileOrMember(uri, false);
@@ -116,7 +105,7 @@ export class IBMiTestManager {
             }
         }
 
-        const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
+        const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
 
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
@@ -128,7 +117,7 @@ export class IBMiTestManager {
         const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
         const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles);
         const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
-        Logger.log(LogLevel.Info, `Searching for tests in library list: ${libraries.join('.LIB, ')}.LIB`);
+        await testOutputLogger.log(LogLevel.Info, `Searching for tests in library list: ${libraries.join('.LIB, ')}.LIB`);
         for await (const library of libraries) {
             for await (const testSourceFile of testSourceFiles) {
                 const testMembers = await content.getMemberList({
@@ -156,7 +145,7 @@ export class IBMiTestManager {
             return [];
         }
 
-        const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
+        const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
         const pattern = testSuffixes.ifs.flatMap(suffix => [suffix, suffix.toLowerCase()]).join(',');
 
         return workspaceFolders.map((workspaceFolder: WorkspaceFolder) => {
@@ -181,21 +170,24 @@ export class IBMiTestManager {
             watcher.onDidChange(async (uri: Uri) => {
                 await this.loadFileOrMember(uri, true, true);
             });
-            watcher.onDidDelete((uri: Uri) => {
-                this.deleteTestItem(uri);
+            watcher.onDidDelete(async (uri: Uri) => {
+                await this.deleteTestItem(uri);
             });
         }
     }
 
-    private getOrCreateFile(uri: Uri): { item: TestItem; data: TestFile; } | undefined {
+    private async getOrCreateFile(uri: Uri): Promise<{ item: TestItem; data: TestData; } | undefined> {
         // Check if test item already exists
         const allTestItems = this.getFlattenedTestItems();
         const existingItem = allTestItems.find((item) => item.uri!.toString() === uri.toString());
         if (existingItem) {
-            return {
-                item: existingItem,
-                data: this.testData.get(existingItem) as TestFile
-            };
+            const existingData = this.testMap.get(existingItem);
+            if (existingData) {
+                return {
+                    item: existingItem,
+                    data: existingData
+                };
+            }
         } else {
             if (uri.scheme === 'file') {
                 // Get workspace folder for the file
@@ -207,12 +199,12 @@ export class IBMiTestManager {
                 // Create workspace test item if it does not exist
                 let workspaceItem = this.controller.items.get(workspaceFolder.uri.toString());
                 if (!workspaceItem) {
-                    workspaceItem = this.createTestItem(workspaceFolder.uri, path.parse(workspaceFolder.uri.path).base, true);
+                    workspaceItem = this.createTestItem(workspaceFolder.uri.toString(), workspaceFolder.uri, path.parse(workspaceFolder.uri.path).base);
                     this.controller.items.add(workspaceItem);
-                    Logger.log(LogLevel.Info, `Created workspace test item for ${workspaceFolder.uri.toString()}`);
+                    await testOutputLogger.log(LogLevel.Info, `Created workspace test item for ${workspaceFolder.uri.toString()}`);
 
-                    const data = new TestDirectory(workspaceItem);
-                    this.testData.set(workspaceItem, data);
+                    const workspaceData = new TestData(workspaceItem, 'directory');
+                    this.testMap.set(workspaceItem, workspaceData);
                 }
 
                 // Create directory test items if they do not exist
@@ -223,28 +215,28 @@ export class IBMiTestManager {
                     const directoryUri = Uri.joinPath(workspaceFolder.uri, directoryName);
                     let directoryItem = parentItem.children.get(directoryUri.toString());
                     if (!directoryItem) {
-                        directoryItem = this.createTestItem(directoryUri, directoryName, true);
+                        directoryItem = this.createTestItem(directoryUri.toString(), directoryUri, directoryName);
                         parentItem.children.add(directoryItem);
-                        Logger.log(LogLevel.Info, `Created directory test item for ${directoryUri.toString()}`);
+                        await testOutputLogger.log(LogLevel.Info, `Created directory test item for ${directoryUri.toString()}`);
 
-                        const data = new TestDirectory(directoryItem);
-                        this.testData.set(directoryItem, data);
+                        const directoryData = new TestData(directoryItem, 'directory');
+                        this.testMap.set(directoryItem, directoryData);
                     }
 
                     parentItem = directoryItem;
                 }
 
                 // Create file test item
-                const fileItem = this.createTestItem(uri, path.parse(uri.path).base, true);
+                const fileItem = this.createTestItem(uri.toString(), uri, path.parse(uri.path).base);
                 parentItem.children.add(fileItem);
-                Logger.log(LogLevel.Info, `Created file test item for ${uri.toString()}`);
+                await testOutputLogger.log(LogLevel.Info, `Created file test item for ${uri.toString()}`);
 
-                const data = new TestFile(fileItem, { workspaceItem });
-                this.testData.set(fileItem, data);
+                const fileData = new TestFileData(fileItem, workspaceItem );
+                this.testMap.set(fileItem, fileData);
 
                 return {
                     item: fileItem,
-                    data: data
+                    data: fileData
                 };
             } else if (uri.scheme === 'member') {
                 let partPath: string = '';
@@ -265,7 +257,7 @@ export class IBMiTestManager {
                             parentPartItem.children.get(partUri.toString()) :
                             this.controller.items.get(partUri.toString());
                         if (!partItem) {
-                            partItem = this.createTestItem(partUri, part, false);
+                            partItem = this.createTestItem(partUri.toString(), partUri, part);
                             if (parentPartItem) {
                                 parentPartItem.children.add(partItem);
                             } else {
@@ -274,19 +266,19 @@ export class IBMiTestManager {
                             parentPartItem = partItem;
 
                             if (isMember) {
-                                Logger.log(LogLevel.Info, `Created member test item for ${partUri.toString()}`);
+                                await testOutputLogger.log(LogLevel.Info, `Created member test item for ${partUri.toString()}`);
 
-                                const data = new TestFile(partItem, { libraryItem: libraryItem });
-                                this.testData.set(partItem, data);
+                                const partData = new TestFileData(partItem, libraryItem!);
+                                this.testMap.set(partItem, partData);
 
                                 return {
                                     item: partItem,
-                                    data: data
+                                    data: partData
                                 };
                             } else {
-                                Logger.log(LogLevel.Info, `Created object test item for ${partUri.toString()}`);
-                                const data = new TestObject(partItem);
-                                this.testData.set(partItem, data);
+                                await testOutputLogger.log(LogLevel.Info, `Created object test item for ${partUri.toString()}`);
+                                const partData = new TestData(partItem, 'object');
+                                this.testMap.set(partItem, partData);
 
                                 if (!libraryItem) {
                                     libraryItem = partItem;
@@ -301,20 +293,18 @@ export class IBMiTestManager {
         }
     }
 
-    private createTestItem(uri: Uri, label: string, isLocal: boolean): TestItem {
-        const testItem = this.controller.createTestItem(uri.toString(), label, uri);
-        testItem.canResolveChildren = true;
+    public createTestItem(id: string, uri: Uri, label: string, canResolveChildren: boolean = true): TestItem {
+        const testItem = this.controller.createTestItem(id, label, uri);
+        testItem.canResolveChildren = canResolveChildren;
 
-        if (isLocal) {
-            testItem.tags = [new TestTag('local')];
-        } else {
-            testItem.tags = [new TestTag('members')];
-        }
+        const isLocal = uri.scheme === 'file';
+        const tagId = isLocal ? 'local' : 'qsys';
+        testItem.tags = [new TestTag(tagId)];
 
         return testItem;
     }
 
-    private deleteTestItem(uri: Uri) {
+    private async deleteTestItem(uri: Uri) {
         const allTestItems = this.getFlattenedTestItems();
         const deletedItem = allTestItems.find((item) => item.uri?.toString() === uri.toString());
 
@@ -326,8 +316,8 @@ export class IBMiTestManager {
         // Delete item associated with the file
         let parentItem = deletedItem.parent;
         parentItem?.children.delete(deletedItem.id);
-        this.testData.delete(deletedItem);
-        Logger.log(LogLevel.Info, `Deleted file test item for ${uri.toString()}`);
+        this.testMap.delete(deletedItem);
+        await testOutputLogger.log(LogLevel.Info, `Deleted file test item for ${uri.toString()}`);
 
         // Recursively delete empty parents
         while (parentItem && parentItem.children.size === 0) {
@@ -336,18 +326,18 @@ export class IBMiTestManager {
             if (!grandParentItem) {
                 // Delete workspace item when no grandparent
                 this.controller.items.delete(parentItem.id);
-                this.testData.delete(parentItem);
+                this.testMap.delete(parentItem);
 
                 const rootType = parentItem.uri?.scheme === 'file' ? 'workspace' : 'object';
-                Logger.log(LogLevel.Info, `Deleted ${rootType} test item for ${parentItem.uri?.toString()}`);
+                await testOutputLogger.log(LogLevel.Info, `Deleted ${rootType} test item for ${parentItem.uri?.toString()}`);
                 break;
             }
 
             grandParentItem.children.delete(parentItem.id);
-            this.testData.delete(parentItem);
+            this.testMap.delete(parentItem);
             parentItem = grandParentItem;
             const intermediateType = parentItem.uri?.scheme === 'file' ? 'directory' : 'object';
-            Logger.log(LogLevel.Info, `Deleted ${intermediateType} test item for ${parentItem.uri?.toString()}`);
+            await testOutputLogger.log(LogLevel.Info, `Deleted ${intermediateType} test item for ${parentItem.uri?.toString()}`);
         }
     }
 
@@ -371,7 +361,7 @@ export class IBMiTestManager {
 
     private async loadFileOrMember(uri: Uri, loadTestCases: boolean, isChanged: boolean = false): Promise<void> {
         // Get test suffixes based on the URI scheme
-        const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
+        const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
         let uriSpecificSuffixes: string[];
         if (uri.scheme === 'file') {
             uriSpecificSuffixes = testSuffixes.ifs;
@@ -386,8 +376,8 @@ export class IBMiTestManager {
             return;
         }
 
-        const result = this.getOrCreateFile(uri);
-        if (result) {
+        const result = await this.getOrCreateFile(uri);
+        if (result && result.data instanceof TestFileData) {
             if (isChanged) {
                 result.data.isLoaded = false;
                 result.data.isCompiled = false;

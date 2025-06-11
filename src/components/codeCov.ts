@@ -1,7 +1,7 @@
 import { ComponentIdentification, ComponentState, IBMiComponent } from "@halcyontech/vscode-ibmi-types/api/components/component";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { LogLevel } from "vscode";
-import { Logger } from "../logger";
+import { testOutputLogger } from "../extension";
 
 export class CodeCov implements IBMiComponent {
     static ID: string = "CODECOV";
@@ -25,11 +25,11 @@ export class CodeCov implements IBMiComponent {
             if (commandExists) {
                 return "Installed";
             } else {
-                Logger.log(LogLevel.Error, `${command} command not found in ${library}.LIB`);
+                await testOutputLogger.log(LogLevel.Error, `${command} command not found in ${library}.LIB`);
                 return 'NotInstalled';
             }
         } catch (error) {
-            Logger.log(LogLevel.Error, `Failed to get remote state of CODECOV component. Error: ${error}`);
+            await testOutputLogger.log(LogLevel.Error, `Failed to get remote state of CODECOV component. Error: ${error}`);
             return 'Error';
         }
     }

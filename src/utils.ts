@@ -1,95 +1,9 @@
 import path from "path";
 import { ConfigurationChangeEvent, WorkspaceFolder, workspace } from "vscode";
-import { Env, TestingConfig } from "./types";
+
+export type Env = Record<string, string>;
 
 export namespace Utils {
-    /**
-     * Get IFS and QSYS test suffixes. IFS test suffixes are identical to QSYS ones,
-     * but include `.TEST` along with the file extension.
-     */
-    export function getTestSuffixes(options: { rpg: boolean, cobol: boolean }): { ifs: string[], qsys: string[] } {
-        const localSuffix = '.TEST';
-
-        // Supported extensions
-        const rpgleExt = `.RPGLE`;
-        const sqlrpgleExt = `.SQLRPGLE`;
-        const cobolExt = `.CBLLE`;
-        const sqlcobolExt = `.SQLCBLLE`;
-
-        const testSuffixes: { ifs: string[], qsys: string[] } = {
-            ifs: [],
-            qsys: []
-        };
-
-        if (options.rpg) {
-            testSuffixes.qsys.push(rpgleExt, sqlrpgleExt);
-        }
-
-        if (options.cobol) {
-            testSuffixes.qsys.push(cobolExt, sqlcobolExt);
-        }
-
-        testSuffixes.ifs.push(...testSuffixes.qsys.map(suffix => localSuffix + suffix));
-
-        return testSuffixes;
-    }
-
-    /**
-     * Reuse logic used in Source Orbit to convert a given file name to a 10 character system name.
-     * 
-     * Explanation:     https://ibm.github.io/sourceorbit/#/./pages/general/rules?id=long-file-names
-     * Original Source: https://github.com/IBM/sourceorbit/blob/main/cli/src/utils.ts#L12
-     */
-    function getSystemName(inputName: string) {
-        let baseName = inputName.includes(`-`) ? inputName.split(`-`)[0] : inputName;
-
-        // If the name is of valid length, return it
-        if (baseName.length <= 10) {
-            return baseName.toUpperCase();
-        }
-
-        // We also support prefixes to the name, such as UA_
-        let prefix = ``;
-        let name = baseName;
-
-        if (baseName.includes(`_`)) {
-            const parts = baseName.split(`_`);
-            prefix = parts[0];
-            name = parts[1];
-        }
-
-        // We start the system name with the suppliedPrefix
-        let systemName = prefix;
-
-        for (let i = 0; i < name.length && systemName.length < 10; i++) {
-            const char = name[i];
-            if (char === char.toUpperCase() || i === 0) {
-                systemName += char;
-            }
-        }
-
-        // If we only have one character, then no capitals were used in the name. Let's just use the first 10 characters
-        if (systemName.length === 1) {
-            systemName = name.substring(0, 10);
-        }
-
-        return systemName.toUpperCase();
-    }
-
-    export function getTestName(type: 'file' | 'member', originalTstPgmName: string, testingConfig: TestingConfig | undefined) {
-        const testSuffixes = Utils.getTestSuffixes({ rpg: true, cobol: true });
-        const relevantSuffixes = type === 'file' ? testSuffixes.ifs : testSuffixes.qsys;
-        for (const suffix of relevantSuffixes) {
-            if (originalTstPgmName.toLocaleUpperCase().endsWith(suffix)) {
-                originalTstPgmName = originalTstPgmName.replace(new RegExp(suffix, 'i'), '');
-            }
-        }
-        originalTstPgmName = originalTstPgmName.toLocaleUpperCase();
-
-        const prefix = testingConfig?.rpgunit?.prefix || '';
-        return getSystemName(`${prefix}${originalTstPgmName}`);
-    }
-
     /**
      * Retrieve the environment variables defined in a workspace folder's `.env` file. This implementation
      * is a modified version of the original source to include `&` as a prefix for each key.
