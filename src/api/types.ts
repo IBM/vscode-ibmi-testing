@@ -14,9 +14,9 @@ export interface Logger {
 }
 
 export interface BasicUri {
-  fsPath: string;
-  scheme: 'file' | 'member' | 'streamfile';
-  fragment: string;
+    fsPath: string;
+    scheme: 'file' | 'member' | 'streamfile';
+    fragment: string;
 }
 
 export interface TestRequest {
@@ -105,9 +105,10 @@ export interface TestMetrics {
 
 export interface TestingConfig {
     rpgunit?: {
-        rucrtrpg?: RUCRTRPG,
-        rucrtcbl?: RUCRTCBL
-    }
+        rucrtrpg?: RUCRTRPG & { wrapperCmd?: WrapperCmd },
+        rucrtcbl?: RUCRTCBL & { wrapperCmd?: WrapperCmd }
+    },
+    codecov?: CODECOV
 }
 
 export interface RUCRTRPG {
@@ -155,6 +156,11 @@ export interface RUCRTCBL {
     tgtCcsid?: number
 }
 
+export interface WrapperCmd {
+    cmd?: string,
+    params?: { [parameter: string]: string | number | undefined; }
+}
+
 export interface RUCALLTST {
     tstPgm: string,
     tstPrc?: string,
@@ -169,7 +175,7 @@ export interface RUCALLTST {
 
 export interface CODECOV {
     cmd: string,
-    module: string,
+    module: string[],
     ccLvl: string,
     ccView?: string,
     outDir?: string,
