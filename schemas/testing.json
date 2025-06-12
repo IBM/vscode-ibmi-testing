@@ -185,6 +185,32 @@
                             "type": "number",
                             "default": 37,
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
+                        },
+                        "wrapperCmd": {
+                            "type": "object",
+                            "markdownDescription": "Wrapper Command\n\nSpecifies a custom command to wrap the `RUCRTRPG` command.",
+                            "default": {
+                                "cmd": "",
+                                "params": {}
+                            },
+                            "properties": {
+                                "cmd": {
+                                    "type": "string",
+                                    "default": "",
+                                    "markdownDescription": "Command\n\nSpecifies the custom command."
+                                },
+                                "params": {
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": [
+                                            "string",
+                                            "number"
+                                        ]
+                                    },
+                                    "markdownDescription": "Parameters\n\nSpecifies the parameters for the custom command."
+                                }
+                            }
                         }
                     }
                 },
@@ -399,13 +425,63 @@
                             "type": "number",
                             "default": 37,
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
+                        },
+                        "wrapperCmd": {
+                            "type": "object",
+                            "markdownDescription": "Wrapper Command\n\nSpecifies a custom command to wrap the `RUCRTCBL` command.",
+                            "default": {
+                                "cmd": "",
+                                "params": {}
+                            },
+                            "properties": {
+                                "cmd": {
+                                    "type": "string",
+                                    "default": "",
+                                    "markdownDescription": "Command\n\nSpecifies the custom command."
+                                },
+                                "params": {
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": [
+                                            "string",
+                                            "number"
+                                        ]
+                                    },
+                                    "markdownDescription": "Arugments\n\nSpecifies the parameters for the custom command."
+                                }
+                            }
                         }
                     }
                 },
-                "prefix": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Prefix\n\nSpecifies a prefix (such as `T_`) to be used when compiling the service program for a test suite. This can be used to avoid naming conflicts with objects built as part of your application."
+                "codecov": {
+                    "type": "object",
+                    "markdownDescription": "The `CODECOV` command is used to start a code coverage session.",
+                    "properties": {
+                        "module": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Modules"
+                        },
+                        "testId": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Test ID"
+                        },
+                        "exclude": {
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "markdownDescription": "Objects to exclude"
+                        }
+                    }
                 }
             }
         }
@@ -429,6 +505,9 @@
                             "*EVENTF"
                         ]
                     }
+                },
+                "codecov": {
+                    "module": []
                 }
             }
         }
