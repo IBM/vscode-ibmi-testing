@@ -249,15 +249,7 @@ export class Runner {
         compileParams.incDir = compileParams.incDir.map((dir) => `'${dir}'`);
 
         // Flatten compile parameters and convert to strings
-        const flattenedCompileParams: any = { ...compileParams };
-        for (const key of Object.keys(compileParams) as (keyof typeof compileParams)[]) {
-            const value = compileParams[key];
-            if (Array.isArray(value)) {
-                flattenedCompileParams[key] = value.join(' ');
-            } else if (typeof value === 'number') {
-                flattenedCompileParams[key] = value.toString();
-            }
-        }
+        const flattenedCompileParams = ApiUtils.flattenCompileParams(compileParams);
 
         const productLibrary = this.testCallbacks.getProductLibrary();
         const languageSpecificCommand = isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
@@ -356,11 +348,22 @@ export class Runner {
             if (testSuite.ccLvl) {
                 coverageParams = {
                     cmd: testCommand,
-                    module: `(${qualifiedTstPgm} *SRVPGM *ALL)`,
+                    module: [],
                     ccLvl: testSuite.ccLvl,
-                    outStmf: testStorage.CODECOV
+                    ccView: testSuite.testingConfig?.codecov?.ccView,
+                    outStmf: testStorage.CODECOV,
+                    testId: testSuite.testingConfig?.codecov?.testId,
                 };
-                testCommand = `QDEVTOOLS/CODECOV CMD(${coverageParams.cmd}) MODULE(${coverageParams.module}) CCLVL(${coverageParams.ccLvl}) OUTSTMF('${coverageParams.outStmf}')`;
+
+                // Add the service program under test and modules from the testing config
+                coverageParams.module.push(`${qualifiedTstPgm} *SRVPGM *ALL`);
+                if (testSuite.testingConfig?.codecov?.module) {
+                    coverageParams.module.push(...testSuite.testingConfig.codecov.module);
+                }
+                coverageParams.module = coverageParams.module.map((m: string) => `(${m})`);
+
+                const flattenedCoverageParams = ApiUtils.flattenCompileParams(coverageParams);
+                testCommand = `QDEVTOOLS/CODECOV CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
             }
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Running ${testSuite.name}: ${testCommand}`);
 

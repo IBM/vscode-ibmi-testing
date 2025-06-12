@@ -89,4 +89,21 @@ export namespace ApiUtils {
         const rpgleTestSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: false });
         return rpgleTestSuffixes.qsys.some(suffix => fsPath.toLocaleUpperCase().endsWith(suffix));
     }
+
+    /**
+     * Flatten compile parameters and convert to strings.
+     */
+    export function flattenCompileParams(compileParams: any): any {
+        const flattenedCompileParams: any = { ...compileParams };
+        for (const key of Object.keys(compileParams) as (keyof typeof compileParams)[]) {
+            const value = compileParams[key];
+            if (Array.isArray(value)) {
+                flattenedCompileParams[key] = value.join(' ');
+            } else if (typeof value === 'number') {
+                flattenedCompileParams[key] = value.toString();
+            }
+        }
+
+        return flattenedCompileParams;
+    }
 }

@@ -158,7 +158,7 @@ export interface RUCRTCBL {
 
 export interface WrapperCmd {
     cmd?: string,
-    params?: any
+    params?: Record<string, string | number>
 }
 
 export interface RUCALLTST {
@@ -175,7 +175,7 @@ export interface RUCALLTST {
 
 export interface CODECOV {
     cmd: string,
-    module: string,
+    module: string[],
     ccLvl: string,
     ccView?: string,
     outDir?: string,
