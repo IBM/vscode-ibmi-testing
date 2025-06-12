@@ -15,4 +15,8 @@ export class TestResultLogger implements Logger {
     async log(level: LogLevel, message: string): Promise<void> {
         //  Not used
     }
+
+    async logWithNotification(level: LogLevel, message: string, details?: string, buttons?: { label: string; func: () => Promise<void>; }[]): Promise<void> {
+        // Not used
+    }
 }

@@ -1,13 +1,13 @@
 import { CancellationToken, DeclarationCoverage, FileCoverage, Position, StatementCoverage, TestCoverageCount, TestRun, Uri } from "vscode";
-import { CoverageData } from "./api/types";
+import { BasicUri, CoverageData } from "./api/types";
 
 export class IBMiFileCoverage extends FileCoverage {
     public isStatementCoverage: boolean;
     public readonly lines: StatementCoverage[] = [];
     public readonly procedures: DeclarationCoverage[] = [];
 
-    constructor(uri: Uri, coverageData: CoverageData, isStatementCoverage: boolean) {
-        super(uri, new TestCoverageCount(0, 0));
+    constructor(uri: BasicUri, coverageData: CoverageData, isStatementCoverage: boolean) {
+        super(Uri.from({ scheme: uri.scheme, path: uri.fsPath, fragment: uri.fragment }), new TestCoverageCount(0, 0));
         this.isStatementCoverage = isStatementCoverage;
         this.addCoverage(coverageData, isStatementCoverage);
     }

@@ -7,7 +7,7 @@ import { getInstance } from "../extensions/ibmi";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
 import { ApiUtils } from "./apiUtils";
 import { IBMiTestStorage } from "./storage";
-import { CodeCoverage } from "./codeCoverage";
+import { CodeCoverageParser } from "./codeCoverageParser";
 import { IBMiFileCoverage } from "../fileCoverage";
 import { XMLParser } from "./xmlParser";
 
@@ -222,12 +222,6 @@ export class Runner {
             compileParams.dbgView = "*SOURCE";
         }
 
-        // Override DBGVIEW to *LIST for SQLRPGLE files
-        // https://github.com/IBM/vscode-ibmi-testing/issues/95
-        if (testSuite.uri.fsPath.toLocaleUpperCase().endsWith('.SQLRPGLE')) {
-            compileParams.dbgView = "*LIST";
-        }
-
         if (compileParams.incDir) {
             // Resolve relative include directories with the deploy directory for local files
             if (deployDirectory) {
@@ -393,62 +387,62 @@ export class Runner {
             }
 
             if (testSuite.ccLvl) {
-                const codeCovResults = await CodeCoverage.getCoverage(coverageParams!.outStmf);
-                if (codeCovResults) {
+                const codeCoverageParser = new CodeCoverageParser(this.testLogger);
+                const codeCoverage = await codeCoverageParser.getCoverage(coverageParams!.outStmf);
+                if (codeCoverage) {
                     const isStatementCoverage = testSuite.ccLvl === '*LINE';
 
-                    // TODO: Support code coverage
-                    // for (const codeCovResult of codeCovResults) {
-                    //     let uri: Uri;
-                    //     if (testSuite.uri.schema === 'file') {
-                    //         // Map code coverage results from deploy directory to local workspace
-                    //         const deployDirectory = this.testCallbacks.getDeployDirectory(testBucket.uri.fsPath);
+                    for (const codeCovResult of codeCoverage) {
+                        let uri: BasicUri;
+                        if (testSuite.uri.scheme === 'file') {
+                            // Map code coverage results from deploy directory to local workspace
+                            const deployDirectory = this.testCallbacks.getDeployDirectory(testBucket.uri.fsPath);
 
-                    //         if (`/${codeCovResult.path}`.startsWith(deployDirectory)) {
-                    //             // Get relative remote path to test
-                    //             const relativePathToTest = path.posix.relative(deployDirectory, `/${codeCovResult.path}`);
+                            if (`/${codeCovResult.path}`.startsWith(deployDirectory)) {
+                                // Get relative remote path to test
+                                const relativePathToTest = path.posix.relative(deployDirectory, `/${codeCovResult.path}`);
 
-                    //             // Construct local path to test
-                    //             const localPath = path.join(testBucket.uri.fsPath, relativePathToTest);
-                    //             uri = Uri.file(localPath);
-                    //         } else {
-                    //             uri = Uri.file(codeCovResult.localPath);
-                    //         }
-                    //     } else {
-                    //         // Map code coverage results to source members
-                    //         let memberPath: string = '';
-                    //         const parts = codeCovResult.path.split('/');
+                                // Construct local path to test
+                                const localPath = path.join(testBucket.uri.fsPath, relativePathToTest);
+                                uri = { scheme: 'file', fsPath: localPath, fragment: '' };
+                            } else {
+                                uri = { scheme: 'file', fsPath: codeCovResult.localPath, fragment: '' };
+                            }
+                        } else {
+                            // Map code coverage results to source members
+                            let memberPath: string = '';
+                            const parts = codeCovResult.path.split('/');
 
-                    //         if (parts.length === 3 && parts[1].toLocaleUpperCase().endsWith('.FILE')) {
-                    //             // This is a temporary hack due to https://github.com/IBM/vscode-ibmi-testing/issues/70
-                    //             const library = parts[1].split('.')[0];
-                    //             const sourceFile = parts[0];
-                    //             const member = parts[2];
-                    //             memberPath = `/${library}/${sourceFile}/${member}`;
-                    //         } else {
-                    //             for (let index = 0; index < parts.length; index++) {
-                    //                 if (index !== parts.length - 1) {
-                    //                     const partName = parts[index].split('.');
-                    //                     if (partName.length > 0) {
-                    //                         memberPath += `/${partName[0]}`;
-                    //                     }
-                    //                 } else {
-                    //                     memberPath += `/${parts[index]}`;
-                    //                 }
-                    //             }
-                    //         }
+                            if (parts.length === 3 && parts[1].toLocaleUpperCase().endsWith('.FILE')) {
+                                // This is a temporary hack due to https://github.com/IBM/vscode-ibmi-testing/issues/70
+                                const library = parts[1].split('.')[0];
+                                const sourceFile = parts[0];
+                                const member = parts[2];
+                                memberPath = `/${library}/${sourceFile}/${member}`;
+                            } else {
+                                for (let index = 0; index < parts.length; index++) {
+                                    if (index !== parts.length - 1) {
+                                        const partName = parts[index].split('.');
+                                        if (partName.length > 0) {
+                                            memberPath += `/${partName[0]}`;
+                                        }
+                                    } else {
+                                        memberPath += `/${parts[index]}`;
+                                    }
+                                }
+                            }
 
-                    //         uri = Uri.from({ scheme: 'member', path: memberPath });
-                    //     }
+                            uri = { scheme: 'member', fsPath: memberPath, fragment: '' };
+                        }
 
-                    //     const existingFileCoverageIndex = this.fileCoverage.findIndex((coverage) => coverage.uri.toString() === uri.toString());
-                    //     if (existingFileCoverageIndex >= 0) {
-                    //         fileCoverage[existingFileCoverageIndex].addCoverage(codeCovResult, isStatementCoverage);
-                    //     } else {
-                    //         const newFileCoverage = new IBMiFileCoverage(uri, codeCovResult, isStatementCoverage);
-                    //         fileCoverage.push(newFileCoverage);
-                    //     }
-                    // }
+                        const existingFileCoverageIndex = this.fileCoverage.findIndex((coverage) => coverage.uri.toString() === uri.toString());
+                        if (existingFileCoverageIndex >= 0) {
+                            this.fileCoverage[existingFileCoverageIndex].addCoverage(codeCovResult, isStatementCoverage);
+                        } else {
+                            const newFileCoverage = new IBMiFileCoverage(uri, codeCovResult, isStatementCoverage);
+                            this.fileCoverage.push(newFileCoverage);
+                        }
+                    }
                 }
             }
 

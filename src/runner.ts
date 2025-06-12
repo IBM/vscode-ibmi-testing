@@ -111,13 +111,21 @@ export class IBMiTestRunner {
         // Add test suite
         let existingTestSuiteIndex = testBuckets[existingTestBucketIndex].testSuites.findIndex((testSuite) => testSuite.uri.fsPath === testFileItem.uri!.fsPath);
         if (existingTestSuiteIndex < 0) {
+            let ccLvl: '*LINE' | '*PROC' | undefined;
+            if (this.request.profile?.kind === TestRunProfileKind.Coverage) {
+                ccLvl = this.request.profile.label.includes('Line Coverage') ? '*LINE' : '*PROC';
+            } else {
+                ccLvl = undefined;
+            }
+
             testBuckets[existingTestBucketIndex].testSuites.push({
                 name: testFileItem.label,
                 systemName: ApiUtils.getSystemNameFromPath(path.parse(testFileItem.uri!.fsPath).name),
                 uri: { scheme: testFileItem.uri!.scheme as any, fsPath: testFileItem.uri!.fsPath, fragment: '' },
                 testCases: [],
                 isCompiled: testFileData.isCompiled,
-                isEntireSuite: true
+                isEntireSuite: true,
+                ccLvl: ccLvl
             });
             existingTestSuiteIndex = testBuckets[existingTestBucketIndex].testSuites.length - 1;
         }

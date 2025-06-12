@@ -32,7 +32,7 @@ export class TestOutputLogger implements Logger {
         }
     }
 
-    public logWithNotification(level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]): void {
+    public async logWithNotification(level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]): Promise<void> {
         this.log(level, details ? `${message}: ${details}` : message);
 
         let showMessage;
