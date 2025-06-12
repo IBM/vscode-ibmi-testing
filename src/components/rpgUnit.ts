@@ -3,10 +3,11 @@ import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { Configuration, Section } from "../configuration";
 import { compareVersions } from 'compare-versions';
 import { GitHub, Release } from "../github";
-import { LogLevel, QuickPickItem, window } from "vscode";
+import { commands, LogLevel, ProgressLocation, QuickPickItem, window } from "vscode";
 import * as tmp from "tmp";
 import * as path from "path";
-import { Logger } from "../logger";
+import { getInstance } from "../extensions/ibmi";
+import { testOutputLogger } from "../extension";
 
 export class RPGUnit implements IBMiComponent {
     static ID: string = "RPGUnit";
@@ -39,27 +40,27 @@ export class RPGUnit implements IBMiComponent {
                         const installedVersion = versionMatch[0];
 
                         // Compare installed version with minimum version
-                        if (this.compareVersions(installedVersion, RPGUnit.MINIMUM_VERSION) >= 0) {
-                            Logger.log(LogLevel.Info, `Installed version of RPGUnit is v${installedVersion}`);
+                        if (await this.compareVersions(installedVersion, RPGUnit.MINIMUM_VERSION) >= 0) {
+                            await testOutputLogger.log(LogLevel.Info, `Installed version of RPGUnit is v${installedVersion}`);
                             return 'Installed';
                         } else {
-                            Logger.log(LogLevel.Error, `Installed version of RPGUnit (v${installedVersion}) is lower than minimum version (v${RPGUnit.MINIMUM_VERSION})`);
+                            await testOutputLogger.log(LogLevel.Error, `Installed version of RPGUnit (v${installedVersion}) is lower than minimum version (v${RPGUnit.MINIMUM_VERSION})`);
                             return 'NeedsUpdate';
                         }
                     } else {
-                        Logger.log(LogLevel.Error, `Failed to parse installed version of RPGUnit`);
+                        await testOutputLogger.log(LogLevel.Error, `Failed to parse installed version of RPGUnit`);
                         return 'NeedsUpdate';
                     }
                 } else {
-                    Logger.log(LogLevel.Error, `Failed to get installed version of RPGUnit. Error: ${versionResult.stderr}`);
+                    await testOutputLogger.log(LogLevel.Error, `Failed to get installed version of RPGUnit. Error: ${versionResult.stderr}`);
                     return 'NeedsUpdate';
                 }
             } else {
-                Logger.log(LogLevel.Error, `Product library ${productLibrary}.LIB does not exist`);
+                await testOutputLogger.log(LogLevel.Error, `Product library ${productLibrary}.LIB does not exist`);
                 return 'NotInstalled';
             }
         } catch (error) {
-            Logger.log(LogLevel.Error, `Failed to get remote state of RPGUnit component. Error: ${error}`);
+            await testOutputLogger.log(LogLevel.Error, `Failed to get remote state of RPGUnit component. Error: ${error}`);
             return 'Error';
         }
     }
@@ -71,22 +72,22 @@ export class RPGUnit implements IBMiComponent {
         // Get releases from GitHub
         const releases = await GitHub.getReleases();
         if (releases.error) {
-            Logger.logWithNotification(LogLevel.Error, `Failed to retrieve GitHub releases`, releases.error);
+            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to retrieve GitHub releases`, releases.error);
             return state;
         }
 
         // Filter releases (exclude releases which are drafts, do not have the required asset, or are below the minimum version)
-        const filteredReleases = releases.data.filter(release => {
+        const filteredReleases = releases.data.filter(async release => {
             const version = release.name || release.tag_name;
             return (release.draft === false) &&
                 (release.assets.some(asset => asset.name === GitHub.ASSET_NAME)) &&
-                this.compareVersions(version, RPGUnit.MINIMUM_VERSION) >= 0;
+                (await this.compareVersions(version, RPGUnit.MINIMUM_VERSION)) >= 0;
         });
         if (filteredReleases.length === 0) {
-            Logger.logWithNotification(LogLevel.Error, `No GitHub releases found which are above the minimum version (${RPGUnit.MINIMUM_VERSION})`);
+            await testOutputLogger.logWithNotification(LogLevel.Error, `No GitHub releases found which are above the minimum version (${RPGUnit.MINIMUM_VERSION})`);
             return state;
         } else {
-            Logger.log(LogLevel.Info, `Found ${filteredReleases.length} compatible GitHub release(s) in ${GitHub.OWNER}/${GitHub.REPO}`);
+            await testOutputLogger.log(LogLevel.Info, `Found ${filteredReleases.length} compatible GitHub release(s) in ${GitHub.OWNER}/${GitHub.REPO}`);
         }
 
         // Prompt user to select a release
@@ -109,11 +110,11 @@ export class RPGUnit implements IBMiComponent {
             placeHolder: 'GitHub Release'
         });
         if (!selectedRelease) {
-            Logger.logWithNotification(LogLevel.Error, `Installation aborted as GitHub release was not selected`);
+            await testOutputLogger.logWithNotification(LogLevel.Error, `Installation aborted as GitHub release was not selected`);
             return state;
         }
 
-        Logger.show();
+        testOutputLogger.show();
         const content = connection.getContent();
         const config = connection.getConfig();
 
@@ -131,25 +132,25 @@ export class RPGUnit implements IBMiComponent {
             if (result === 'Yes') {
                 // Deleting product library
                 const deleteLibCommand = content.toCl(`DLTOBJ`, { 'OBJ': `QSYS/${productLibrary}`, 'OBJTYPE': `*LIB` });
-                Logger.log(LogLevel.Info, `Deleting product library ${productLibrary}.LIB: ${deleteLibCommand}`);
+                await testOutputLogger.log(LogLevel.Info, `Deleting product library ${productLibrary}.LIB: ${deleteLibCommand}`);
                 const deleteLibResult = await connection.runCommand({ command: deleteLibCommand, environment: `ile`, noLibList: true });
                 if (deleteLibResult.code !== 0) {
-                    Logger.logWithNotification(LogLevel.Error, `Failed to delete library`, deleteLibResult.stderr);
+                    await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to delete library`, deleteLibResult.stderr);
                     return state;
                 }
             } else {
-                Logger.logWithNotification(LogLevel.Error, `Installation aborted as product library was not deleted`);
+                await testOutputLogger.logWithNotification(LogLevel.Error, `Installation aborted as product library was not deleted`);
                 return state;
             }
         }
 
         // Downloading save file locally
         const localTempDir = tmp.dirSync({ unsafeCleanup: true });
-        Logger.log(LogLevel.Info, `Downloading ${GitHub.ASSET_NAME} GitHub release asset from ${selectedRelease.release.name} to ${localTempDir.name}`);
+        await testOutputLogger.log(LogLevel.Info, `Downloading ${GitHub.ASSET_NAME} GitHub release asset from ${selectedRelease.release.name} to ${localTempDir.name}`);
         const asset = selectedRelease.release.assets.find(asset => asset.name === GitHub.ASSET_NAME)!;
         const isDownloaded = await GitHub.downloadReleaseAsset(asset, localTempDir.name);
         if (!isDownloaded.data) {
-            Logger.logWithNotification(LogLevel.Error, `Failed to download GitHub release asset`, isDownloaded.error);
+            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to download GitHub release asset`, isDownloaded.error);
             return state;
         }
 
@@ -158,10 +159,10 @@ export class RPGUnit implements IBMiComponent {
         const remoteTempDir = config.tempDir;
         const remotePath = path.posix.join(remoteTempDir, GitHub.ASSET_NAME);
         try {
-            Logger.log(LogLevel.Info, `Uploading RPGUNIT save file to ${remotePath}`);
+            await testOutputLogger.log(LogLevel.Info, `Uploading RPGUNIT save file to ${remotePath}`);
             await content.uploadFiles([{ local: localPath, remote: remotePath }]);
         } catch (error: any) {
-            Logger.logWithNotification(LogLevel.Error, `Failed to upload save file`, error);
+            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to upload save file`, error);
             return state;
         }
 
@@ -169,10 +170,10 @@ export class RPGUnit implements IBMiComponent {
         const createSavfCommand = content.toCl(`CRTSAVF`, {
             'FILE': `${config.tempLibrary}/RPGUNIT`
         });
-        Logger.log(LogLevel.Info, `Creating RPGUNIT save file in ${config.tempLibrary}.LIB: ${createSavfCommand}`);
+        await testOutputLogger.log(LogLevel.Info, `Creating RPGUNIT save file in ${config.tempLibrary}.LIB: ${createSavfCommand}`);
         const createSavfResult = await connection.runCommand({ command: createSavfCommand, environment: `ile`, noLibList: true });
         if (createSavfResult.code !== 0 && !createSavfResult.stderr.includes('CPF5813')) {
-            Logger.logWithNotification(LogLevel.Error, `Failed to create save file`, createSavfResult.stderr);
+            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to create save file`, createSavfResult.stderr);
             return state;
         }
 
@@ -183,10 +184,10 @@ export class RPGUnit implements IBMiComponent {
             'STMFCCSID': 37,
             'MBROPT': `*REPLACE`
         });
-        Logger.log(LogLevel.Info, `Transferring RPGUNIT save file to ${config.tempLibrary}.LIB: ${transferCommand}`);
+        await testOutputLogger.log(LogLevel.Info, `Transferring RPGUNIT save file to ${config.tempLibrary}.LIB: ${transferCommand}`);
         const transferResult = await connection.runCommand({ command: transferCommand, environment: `ile`, noLibList: true });
         if (transferResult.code !== 0) {
-            Logger.logWithNotification(LogLevel.Error, `Failed to transfer save file`, transferResult.stderr);
+            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to transfer save file`, transferResult.stderr);
             return state;
         }
 
@@ -197,28 +198,28 @@ export class RPGUnit implements IBMiComponent {
             'SAVF': `${config.tempLibrary}/RPGUNIT`,
             'RSTLIB': productLibrary
         });
-        Logger.log(LogLevel.Info, `Restoring RPGUNIT save file contents into ${productLibrary}.LIB: ${restoreCommand}`);
+        await testOutputLogger.log(LogLevel.Info, `Restoring RPGUNIT save file contents into ${productLibrary}.LIB: ${restoreCommand}`);
         const restoreResult = await connection.runCommand({ command: restoreCommand, environment: `ile`, noLibList: true });
         if (restoreResult.code !== 0) {
-            Logger.logWithNotification(LogLevel.Error, `Failed to restore save file contents`, restoreResult.stderr);
+            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to restore save file contents`, restoreResult.stderr);
             return state;
         }
 
         // Clean up
-        Logger.log(LogLevel.Info, `Cleaning up temporary files`);
+        await testOutputLogger.log(LogLevel.Info, `Cleaning up temporary files`);
         localTempDir.removeCallback();
         await connection.runCommand({ command: `rm -rf ${remotePath}` });
 
         const newState = await this.getRemoteState(connection, installDirectory);
         if (newState === 'Installed') {
-            Logger.logWithNotification(LogLevel.Info, `RPGUnit ${selectedRelease.release.name} installed successfully into ${productLibrary}.LIB`);
+            await testOutputLogger.logWithNotification(LogLevel.Info, `RPGUnit ${selectedRelease.release.name} installed successfully into ${productLibrary}.LIB`);
         } else {
-            Logger.logWithNotification(LogLevel.Error, `RPGUnit ${selectedRelease.release.name} failed to install into ${productLibrary}.LIB`);
+            await testOutputLogger.logWithNotification(LogLevel.Error, `RPGUnit ${selectedRelease.release.name} failed to install into ${productLibrary}.LIB`);
         }
         return newState;
     }
 
-    compareVersions(v1: string, v2: string): number {
+    async compareVersions(v1: string, v2: string): Promise<number> {
         function normalize(v: string) {
             // Remove prefix
             v = v.replace('v', '');
@@ -235,8 +236,46 @@ export class RPGUnit implements IBMiComponent {
         try {
             return compareVersions(normalize(v1), normalize(v2));
         } catch (error) {
-            Logger.log(LogLevel.Error, `Failed to compare versions ${v1} and ${v2}. Error: ${error}`);
+            await testOutputLogger.log(LogLevel.Error, `Failed to compare versions ${v1} and ${v2}. Error: ${error}`);
             return -1;
+        }
+    }
+
+    static async checkInstallation(): Promise<{ status: boolean, error?: string }> {
+        const ibmi = getInstance();
+        const connection = ibmi!.getConnection();
+
+        const componentManager = connection?.getComponentManager();
+        const state = await componentManager?.getRemoteState(RPGUnit.ID);
+        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
+        const title = state === 'NeedsUpdate' ?
+            'RPGUnit Update Required' :
+            'RPGUnit Installation Required';
+        const installMessage = state === 'NeedsUpdate' ?
+            `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i.` :
+            (state !== 'Installed' ? `RPGUnit must be installed with at least v${RPGUnit.MINIMUM_VERSION} on the IBM i.` : undefined);
+        const installQuestion = state === 'NeedsUpdate' ?
+            `Can it be updated in ${productLibrary}.LIB?` :
+            (state !== 'Installed' ? `Can it be installed into ${productLibrary}.LIB?` : undefined);
+        const installButton = state === 'NeedsUpdate' ?
+            'Update' :
+            (state !== 'Installed' ? 'Install' : undefined);
+
+        if (installMessage && installQuestion && installButton) {
+            // Prompt user to install or update RPGUnit
+            window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}` }, installButton, 'Configure Product Library').then(async (value) => {
+                if (value === installButton) {
+                    await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
+                        progress.report({ message: `Installing ${RPGUnit.ID}` });
+                        await componentManager.installComponent(RPGUnit.ID);
+                    });
+                } else if (value === 'Configure Product Library') {
+                    await commands.executeCommand('workbench.action.openSettings', '@ext:IBM.vscode-ibmi-testing');
+                }
+            });
+            return { status: false, error: installMessage };
+        } else {
+            return { status: true };
         }
     }
 }

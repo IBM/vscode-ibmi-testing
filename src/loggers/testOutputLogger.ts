@@ -1,9 +1,18 @@
-import { LogLevel, LogOutputChannel, window } from "vscode";
+import { LogOutputChannel, window } from "vscode";
+import { Logger, LogLevel } from "../api/types";
 
-export class Logger {
-    private static logOutputChannel: LogOutputChannel = window.createOutputChannel('IBM i Testing', { log: true });
+export class TestOutputLogger implements Logger {
+    private logOutputChannel: LogOutputChannel;
 
-    public static log(level: LogLevel, message: string): void {
+    constructor() {
+        this.logOutputChannel = window.createOutputChannel('IBM i Testing', { log: true });
+    }
+
+    async append(message: string): Promise<void> {
+        await this.log(LogLevel.Info, message);
+    }
+
+    async log(level: LogLevel, message: string): Promise<void> {
         switch (level) {
             case LogLevel.Trace:
                 this.logOutputChannel.trace(message);
@@ -23,7 +32,7 @@ export class Logger {
         }
     }
 
-    public static logWithNotification(level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]): void {
+    public async logWithNotification(level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]): Promise<void> {
         this.log(level, details ? `${message}: ${details}` : message);
 
         let showMessage;
@@ -52,7 +61,7 @@ export class Logger {
         });
     }
 
-    public static show() {
+    public show() {
         this.logOutputChannel.show();
     }
 }

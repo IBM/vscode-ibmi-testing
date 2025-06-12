@@ -1,21 +1,22 @@
 import { ExtensionContext, LogLevel, workspace } from "vscode";
 import { IBMiTestManager } from "./manager";
-import { getComponentRegistry, getInstance, loadBase } from "./api/ibmi";
+import { getComponentRegistry, getInstance, loadBase } from "./extensions/ibmi";
 import { Configuration, Section } from "./configuration";
-import { Logger } from "./logger";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { RPGUnit } from "./components/rpgUnit";
 import { CodeCov } from "./components/codeCov";
-import { Utils } from "./utils";
 import * as tmp from "tmp";
+import { Utils } from "./utils";
+import { TestOutputLogger } from "./loggers/testOutputLogger";
 
+export let testOutputLogger: TestOutputLogger = new TestOutputLogger();
 export let manager: IBMiTestManager | undefined;
 let userLibraryList: string[] | undefined;
 
-export function activate(context: ExtensionContext) {
+export async function activate(context: ExtensionContext) {
 	console.log('Congratulations, your extension "vscode-ibmi-testing" is now active!');
 	const installedVersion = context.extension.packageJSON.version;
-	Logger.log(LogLevel.Info, `IBM i Testing (v${installedVersion}) extension activated!`);
+	await testOutputLogger.log(LogLevel.Info, `IBM i Testing (v${installedVersion}) extension activated!`);
 
 	// Load Code4i API
 	loadBase();
@@ -25,7 +26,7 @@ export function activate(context: ExtensionContext) {
 	Configuration.initialize();
 	workspace.onDidChangeConfiguration(async event => {
 		if (event.affectsConfiguration(Configuration.group)) {
-			Logger.log(LogLevel.Info, `Configurations changed`);
+			await testOutputLogger.log(LogLevel.Info, `Configurations changed`);
 			await Configuration.initialize();
 		}
 
@@ -48,7 +49,7 @@ export function activate(context: ExtensionContext) {
 			const newLibraryList = config.libraryList;
 
 			if (newLibraryList !== userLibraryList) {
-				Logger.log(LogLevel.Info, `Library list changed: ${userLibraryList}`);
+				await testOutputLogger.log(LogLevel.Info, `Library list changed: ${userLibraryList}`);
 				userLibraryList = newLibraryList;
 
 				if (manager) {
@@ -69,7 +70,7 @@ export function activate(context: ExtensionContext) {
 	let connection: IBMi | undefined;
 	ibmi!.subscribe(context, 'connected', 'Load IBM i Test Manager', async () => {
 		connection = ibmi!.getConnection();
-		Logger.log(LogLevel.Debug, `Connected to ${connection.currentUser}@${connection.currentHost}`);
+		await testOutputLogger.log(LogLevel.Debug, `Connected to ${connection.currentUser}@${connection.currentHost}`);
 
 		if (!manager) {
 			manager = new IBMiTestManager(context);
@@ -80,7 +81,7 @@ export function activate(context: ExtensionContext) {
 	});
 	ibmi!.subscribe(context, 'disconnected', 'Dispose IBM i Test Manager', async () => {
 		if (connection) {
-			Logger.log(LogLevel.Debug, `Disconnected from ${connection.currentUser}@${connection.currentHost}`);
+			await testOutputLogger.log(LogLevel.Debug, `Disconnected from ${connection.currentUser}@${connection.currentHost}`);
 		}
 
 		// Clean up test manager
@@ -99,6 +100,6 @@ export function activate(context: ExtensionContext) {
 	tmp.setGracefulCleanup();
 }
 
-export function deactivate() {
-	Logger.log(LogLevel.Info, 'IBM i Testing extension deactivated!');
+export async function deactivate() {
+	await testOutputLogger.log(LogLevel.Info, 'IBM i Testing extension deactivated!');
 }

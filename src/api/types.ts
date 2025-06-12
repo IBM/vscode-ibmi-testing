@@ -1,18 +1,78 @@
-import { TestItem } from "vscode";
-import { TestFile } from "./testFile";
-import { TestCase } from "./testCase";
-import { TestDirectory } from "./testDirectory";
-import { TestObject } from "./testObject";
+export enum LogLevel {
+    Off = 0,
+    Trace = 1,
+    Debug = 2,
+    Info = 3,
+    Warning = 4,
+    Error = 5
+}
+
+export interface Logger {
+    append: (message: string) => Promise<void>;
+    log: (level: LogLevel, message: string) => Promise<void>;
+    logWithNotification: (level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]) => Promise<void>;
+}
+
+export interface BasicUri {
+  fsPath: string;
+  scheme: 'file' | 'member' | 'streamfile';
+  fragment: string;
+}
+
+export interface TestRequest {
+    forceCompile: boolean;
+    testBuckets: TestBucket[];
+}
+
+// Test bucket is a workspace folder, library, or IFS directory
+export interface TestBucket {
+    name: string;
+    uri: BasicUri;
+    testSuites: TestSuite[];
+}
+
+// Test suite is a local file, source member, or stream file
+export interface TestSuite {
+    name: string;
+    systemName: string;
+    uri: BasicUri;
+    testCases: TestCase[];
+    isCompiled: boolean;
+    isEntireSuite: boolean;
+    ccLvl?: '*LINE' | '*PROC'
+    testingConfig?: TestingConfig;
+}
+
+// Test case is a test procedure
+export interface TestCase {
+    name: string;
+    uri: BasicUri;
+}
+
+export interface TestCaseResult {
+    name: string,
+    status: TestStatus,
+    time?: number,
+    assertions?: number,
+    failure?: {
+        line?: number,
+        message: string
+    }[],
+    error?: {
+        line?: number,
+        message: string
+    }[]
+}
 
 export type Env = Record<string, string>;
 
-export type IBMiTestData = TestDirectory | TestObject | TestFile | TestCase;
+export type TestStatus = 'passed' | 'failed' | 'errored';
 
-export type TestQueue = { item: TestItem, data: TestFile | TestCase }[];
+export type DeploymentStatus = 'success' | 'failed';
 
 export type CompilationStatus = 'success' | 'failed' | 'skipped';
 
-export type TestStatus = 'passed' | 'failed' | 'errored';
+export type ExecutionStatus = 'passed' | 'failed' | 'errored';
 
 export interface TestStorage {
     RPGUNIT: string,
@@ -43,26 +103,10 @@ export interface TestMetrics {
     }
 }
 
-export interface TestCaseResult {
-    name: string,
-    status: TestStatus,
-    time?: number,
-    assertions?: number,
-    failure?: {
-        line?: number,
-        message: string
-    }[],
-    error?: {
-        line?: number,
-        message: string
-    }[]
-}
-
 export interface TestingConfig {
     rpgunit?: {
         rucrtrpg?: RUCRTRPG,
-        rucrtcbl?: RUCRTCBL,
-        prefix?: string
+        rucrtcbl?: RUCRTCBL
     }
 }
 
