@@ -253,7 +253,7 @@ export class Runner {
         compileParams.incDir = compileParams.incDir.map((dir) => `'${dir}'`);
 
         // Flatten compile parameters and convert to strings
-        const flattenedCompileParams = ApiUtils.flattenCompileParams(compileParams);
+        const flattenedCompileParams = ApiUtils.flattenCommandParams(compileParams);
 
         // Build compile command
         const productLibrary = this.testCallbacks.getProductLibrary();
@@ -375,7 +375,7 @@ export class Runner {
                 }
                 coverageParams.module = coverageParams.module.map((m: string) => `(${m})`);
 
-                const flattenedCoverageParams = ApiUtils.flattenCompileParams(coverageParams);
+                const flattenedCoverageParams = ApiUtils.flattenCommandParams(coverageParams);
                 testCommand = `QDEVTOOLS/CODECOV CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
             }
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Running ${testSuite.name}: ${testCommand}`);
