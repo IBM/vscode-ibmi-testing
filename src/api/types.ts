@@ -105,8 +105,8 @@ export interface TestMetrics {
 
 export interface TestingConfig {
     rpgunit?: {
-        rucrtrpg?: RUCRTRPG & WrapperCmd,
-        rucrtcbl?: RUCRTCBL & WrapperCmd
+        rucrtrpg?: RUCRTRPG & { wrapperCmd?: WrapperCmd },
+        rucrtcbl?: RUCRTCBL & { wrapperCmd?: WrapperCmd }
     },
     codecov?: CODECOV
 }
@@ -158,7 +158,7 @@ export interface RUCRTCBL {
 
 export interface WrapperCmd {
     cmd?: string,
-    params?: Record<string, string | number>
+    params?: { [parameter: string]: string | number | undefined; }
 }
 
 export interface RUCALLTST {
