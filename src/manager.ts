@@ -229,56 +229,66 @@ export class IBMiTestManager {
                     data: fileData
                 };
             } else if (uri.scheme === 'member') {
-                let partPath: string = '';
-                let parentPartItem: TestItem | undefined;
-                let libraryItem: TestItem | undefined;
-                const parts = uri.path.split('/');
-                for (let index = 0; index < parts.length; index++) {
-                    const part = parts[index];
-                    if (part !== '') {
-                        const isMember = (index === parts.length - 1);
+                const ibmi = getInstance();
+                const connection = ibmi!.getConnection();
 
-                        // Construct uri
-                        partPath += '/' + part;
-                        const partUri = isMember ? uri : Uri.from({ scheme: 'object', path: partPath });
+                const parsedPath = connection.parserMemberPath(uri.path);
 
-                        // Create test item for part
-                        let partItem = parentPartItem ?
-                            parentPartItem.children.get(partUri.toString()) :
-                            this.controller.items.get(partUri.toString());
-                        if (!partItem) {
-                            partItem = this.createTestItem(partUri.toString(), partUri, part);
-                            if (parentPartItem) {
-                                parentPartItem.children.add(partItem);
-                            } else {
-                                this.controller.items.add(partItem);
-                            }
-                            parentPartItem = partItem;
+                // Create ASP test item if it does not exist
+                let aspItem: TestItem | undefined;
+                if (parsedPath.asp) {
+                    const aspUri = Uri.from({ scheme: 'object', path: `/${parsedPath.asp}` });
+                    aspItem = this.controller.items.get(aspUri.toString());
+                    if (!aspItem) {
+                        aspItem = this.createTestItem(aspUri.toString(), aspUri, path.parse(aspUri.path).base);
+                        this.controller.items.add(aspItem);
+                        await testOutputLogger.log(LogLevel.Info, `Created ASP test item for ${aspUri.toString()}`);
 
-                            if (isMember) {
-                                await testOutputLogger.log(LogLevel.Info, `Created member test item for ${partUri.toString()}`);
-
-                                const partData = new TestFileData(partItem, libraryItem!);
-                                this.testMap.set(partItem, partData);
-
-                                return {
-                                    item: partItem,
-                                    data: partData
-                                };
-                            } else {
-                                await testOutputLogger.log(LogLevel.Info, `Created object test item for ${partUri.toString()}`);
-                                const partData = new TestData(partItem, 'object');
-                                this.testMap.set(partItem, partData);
-
-                                if (!libraryItem) {
-                                    libraryItem = partItem;
-                                }
-                            }
-                        } else {
-                            parentPartItem = partItem;
-                        }
+                        const aspData = new TestData(aspItem, 'object');
+                        this.testMap.set(aspItem, aspData);
                     }
                 }
+
+                // Create library test item if it does not exist
+                const libraryUri = Uri.from({ scheme: 'object', path: `/${parsedPath.asp}/${parsedPath.library}` });
+                let libraryItem = aspItem ? aspItem.children.get(libraryUri.toString()) : this.controller.items.get(libraryUri.toString());
+                if (!libraryItem) {
+                    libraryItem = this.createTestItem(libraryUri.toString(), libraryUri, path.parse(libraryUri.path).base);
+                    if (aspItem) {
+                        aspItem.children.add(libraryItem);
+                    } else {
+                        this.controller.items.add(libraryItem);
+                    }
+                    await testOutputLogger.log(LogLevel.Info, `Created library test item for ${libraryUri.toString()}`);
+
+                    const libraryData = new TestData(libraryItem, 'object');
+                    this.testMap.set(libraryItem, libraryData);
+                }
+
+                // Create object test item if it does not exist
+                const objectUri = Uri.from({ scheme: 'object', path: `/${parsedPath.asp}/${parsedPath.library}/${parsedPath.file}` });
+                let objectItem = libraryItem.children.get(objectUri.toString());
+                if (!objectItem) {
+                    objectItem = this.createTestItem(objectUri.toString(), objectUri, path.parse(objectUri.path).base);
+                    libraryItem.children.add(objectItem);
+                    await testOutputLogger.log(LogLevel.Info, `Created object test item for ${objectUri.toString()}`);
+
+                    const objectData = new TestData(objectItem, 'object');
+                    this.testMap.set(objectItem, objectData);
+                }
+
+                // Create member test item
+                const memberItem = this.createTestItem(uri.toString(), uri, path.parse(uri.path).base);
+                objectItem.children.add(memberItem);
+                await testOutputLogger.log(LogLevel.Info, `Created member test item for ${uri.toString()}`);
+
+                const memberData = new TestFileData(memberItem, aspItem || libraryItem);
+                this.testMap.set(memberItem, memberData);
+
+                return {
+                    item: memberItem,
+                    data: memberData
+                };
             }
         }
     }
