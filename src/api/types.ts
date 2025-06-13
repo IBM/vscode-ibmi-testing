@@ -14,8 +14,9 @@ export interface Logger {
 }
 
 export interface BasicUri {
-    fsPath: string;
     scheme: 'file' | 'member' | 'streamfile';
+    path: string;
+    fsPath: string;
     fragment: string;
 }
 

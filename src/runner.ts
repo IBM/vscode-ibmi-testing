@@ -102,7 +102,12 @@ export class IBMiTestRunner {
         if (existingTestBucketIndex < 0) {
             testBuckets.push({
                 name: testBucketItem.label,
-                uri: { scheme: testBucketItem.uri!.scheme as any, fsPath: testBucketItem.uri!.fsPath, fragment: '' },
+                uri: {
+                    scheme: testBucketItem.uri!.scheme as any,
+                    path: testBucketItem.uri!.path,
+                    fsPath: testBucketItem.uri!.fsPath,
+                    fragment: ''
+                },
                 testSuites: []
             });
             existingTestBucketIndex = testBuckets.length - 1;
@@ -123,7 +128,12 @@ export class IBMiTestRunner {
             testBuckets[existingTestBucketIndex].testSuites.push({
                 name: testFileItem.label,
                 systemName: ApiUtils.getSystemNameFromPath(path.parse(testFileItem.uri!.fsPath).name),
-                uri: { scheme: testFileItem.uri!.scheme as any, fsPath: testFileItem.uri!.fsPath, fragment: '' },
+                uri: {
+                    scheme: testFileItem.uri!.scheme as any,
+                    path: testFileItem.uri!.path,
+                    fsPath: testFileItem.uri!.fsPath,
+                    fragment: ''
+                },
                 testCases: [],
                 isCompiled: testFileData.isCompiled,
                 isEntireSuite: true,
@@ -139,7 +149,12 @@ export class IBMiTestRunner {
             if (!this.request.exclude?.includes(testCaseItem)) {
                 testBuckets[existingTestBucketIndex].testSuites[existingTestSuiteIndex].testCases.push({
                     name: testCaseItem.label,
-                    uri: { scheme: testCaseItem.uri!.scheme as any, fsPath: testCaseItem.uri!.fsPath, fragment: testCaseItem.label }
+                    uri: {
+                        scheme: testCaseItem.uri!.scheme as any,
+                        path: testCaseItem.uri!.path,
+                        fsPath: testCaseItem.uri!.fsPath,
+                        fragment: testCaseItem.label
+                    }
                 });
                 testBuckets[existingTestBucketIndex].testSuites[existingTestSuiteIndex].isEntireSuite = false;
                 testRun.enqueued(testCaseItem);
@@ -149,7 +164,12 @@ export class IBMiTestRunner {
                 if (!this.request.exclude?.includes(childItem)) {
                     testBuckets[existingTestBucketIndex].testSuites[existingTestSuiteIndex].testCases.push({
                         name: childItem.label,
-                        uri: { scheme: childItem.uri!.scheme as any, fsPath: childItem.uri!.fsPath, fragment: childItem.label }
+                        uri: {
+                            scheme: childItem.uri!.scheme as any,
+                            path: childItem.uri!.path,
+                            fsPath: childItem.uri!.fsPath,
+                            fragment: childItem.label
+                        }
                     });
                     testRun.enqueued(childItem);
                 } else {
