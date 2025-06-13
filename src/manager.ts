@@ -7,7 +7,6 @@ import { ApiUtils } from "./api/apiUtils";
 import { Configuration, Section } from "./configuration";
 import { testOutputLogger } from "./extension";
 import { TestData, TestFileData } from "./testData";
-import { Utils } from "./utils";
 
 export class IBMiTestManager {
     public context: ExtensionContext;
@@ -120,7 +119,7 @@ export class IBMiTestManager {
 
         // Load tests from library list
         await testOutputLogger.log(LogLevel.Info, `Searching for tests in library list: ${libraries.join('.LIB, ')}.LIB`);
-        const testMembers = await Utils.getMemberList(libraries, testSourceFiles, qsysExtensions);
+        const testMembers = await ApiUtils.getMemberList(libraries, testSourceFiles, qsysExtensions);
         for (const testMember of testMembers) {
             const memberPath = testMember.asp ?
                 path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :

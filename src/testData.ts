@@ -1,6 +1,9 @@
-import { commands, DocumentSymbol, LogLevel, SymbolKind, TestItem, workspace } from "vscode";
+import { commands, DocumentSymbol, LogLevel, Position, Range, SymbolKind, TestItem, workspace } from "vscode";
 import { testOutputLogger, manager } from "./extension";
 import { ApiUtils } from "./api/apiUtils";
+import Parser from "vscode-rpgle/language/parser";
+import { getInstance } from "./extensions/ibmi";
+import * as fs from "fs";
 
 export type TestType = 'directory' | 'object' | 'file' | 'case';
 
@@ -30,43 +33,67 @@ export class TestFileData extends TestData {
         if (!this.isLoaded) {
             this.isLoaded = true;
 
-            // TODO: Remove this?
-            // Load test file content
-            // try {
-            //     const rawContent = await workspace.fs.readFile(this.item.uri!);
-            //     const textDecoder = new TextDecoder('utf-8');
-            //     this.content = textDecoder.decode(rawContent);
-            // } catch (error: any) {
-            //     await testOutputLogger.log(LogLevel.Error, `Failed to read test file ${this.item.label}: ${error}`);
-            // }
-
-            // Load test cases
             try {
-                const rpgleTestCaseRegex = /^TEST.*$/i;
-                const cobolTestCaseRegex = /^PROGRAM-ID\. +(TEST.+)$/i;
+                // Get test procedures for this file
+                const testProcedures: { name: string, range: Range }[] = [];
+                const isRPGLE = ApiUtils.isRPGLE(this.item.uri!.fsPath);
+                if (isRPGLE) {
+                    const ibmi = getInstance();
+                    const connection = ibmi!.getConnection();
 
-                const childItems: TestItem[] = [];
-                const documentSymbols = await commands.executeCommand<DocumentSymbol[]>(`vscode.executeDocumentSymbolProvider`, this.item.uri) || [];
-                for (const documentSymbol of documentSymbols) {
-                    const isRPGLE = ApiUtils.isRPGLE(this.item.uri!.fsPath);
-                    const isTestCase = isRPGLE ?
-                        documentSymbol.kind === SymbolKind.Function && rpgleTestCaseRegex.test(documentSymbol.name) :
-                        documentSymbol.kind === SymbolKind.Class && documentSymbol.name.match(cobolTestCaseRegex)?.[1];
+                    // Read file
+                    let memberContent: string;
+                    if (this.item.uri!.scheme === 'file') {
+                        memberContent = fs.readFileSync(this.item.uri!.fsPath, 'utf8');
+                    } else {
+                        const parsedPath = connection.parserMemberPath(this.item.uri!.path);
+                        memberContent = await ApiUtils.readMember(parsedPath.library, parsedPath.file, parsedPath.name);
+                    }
 
-                    if (isTestCase) {
-                        const testCaseName = isRPGLE ?
-                            documentSymbol.name :
-                            documentSymbol.name.match(cobolTestCaseRegex)![1];
-                        const childUri = this.item.uri!.with({ fragment: testCaseName });
-                        const childItem = manager!.createTestItem(childUri.toString(), this.item.uri!, testCaseName, false);
-                        childItem.range = documentSymbol.range;
+                    // Parse file
+                    const parser = new Parser();
+                    const parsedContent = await parser.getDocs(this.item.uri!.path, memberContent, { collectReferences: false, withIncludes: false });
 
-                        const childData = new TestCaseData(childItem, this.rootItem, this.item);
-                        manager!.testMap.set(childItem, childData);
-                        childItems.push(childItem);
+                    // Find RPGLE test procedures
+                    const rpgleTestCaseRegex = /^TEST.*$/i;
+                    for (const procedure of parsedContent.procedures) {
+                        if (rpgleTestCaseRegex.test(procedure.name)) {
+                            testProcedures.push({
+                                name: procedure.name,
+                                range: new Range(new Position(procedure.range.start, 0), new Position(procedure.range.end, 0))
+                            });
+                        }
+                    }
+                } else {
+                    // Find COBOL test procedures
+                    const documentSymbols = await commands.executeCommand<DocumentSymbol[]>(`vscode.executeDocumentSymbolProvider`, this.item.uri) || [];
+                    const cobolTestCaseRegex = /^PROGRAM-ID\. +(TEST.+)$/i;
+                    for (const documentSymbol of documentSymbols) {
+                        if (documentSymbol.kind === SymbolKind.Class) {
+                            const matches = documentSymbol.name.match(cobolTestCaseRegex);
+                            if (matches && matches.length >= 1) {
+                                testProcedures.push({
+                                    name: matches[1],
+                                    range: documentSymbol.range
+                                });
+                            }
+
+                        }
                     }
                 }
+
+                const childItems: TestItem[] = [];
+                for (const testProcedure of testProcedures) {
+                    const childUri = this.item.uri!.with({ fragment: testProcedure.name });
+                    const childItem = manager!.createTestItem(childUri.toString(), this.item.uri!, testProcedure.name, false);
+                    childItem.range = testProcedure.range;
+
+                    const childData = new TestCaseData(childItem, this.rootItem, this.item);
+                    manager!.testMap.set(childItem, childData);
+                    childItems.push(childItem);
+                }
                 this.item.children.replace(childItems);
+
                 await testOutputLogger.log(LogLevel.Info, `Loaded test file ${this.item.label} with ${childItems.length} test cases: ${childItems.map(item => item.label).join(', ')}`);
             } catch (error) {
                 await testOutputLogger.log(LogLevel.Error, `Failed to load test cases from ${this.item.label}: ${error}`);

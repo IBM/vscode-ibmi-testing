@@ -71,40 +71,4 @@ export namespace Utils {
             }
         });
     }
-
-    export async function getMemberList(libraries: string[], sourceFiles: string[], extensions: string[]): Promise<IBMiMember[]> {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-
-        const statement =
-            `WITH MEMBERS AS (
-                        SELECT RTRIM(CAST(a.SYSTEM_TABLE_SCHEMA AS CHAR(10) FOR BIT DATA)) AS LIBRARY,
-                            a.IASP_NUMBER AS ASP,
-                            RTRIM(CAST(a.SYSTEM_TABLE_NAME AS CHAR(10) FOR BIT DATA)) AS SOURCE_FILE,
-                            RTRIM(CAST(b.SYSTEM_TABLE_MEMBER AS CHAR(10) FOR BIT DATA)) AS NAME,
-                            COALESCE(RTRIM(CAST(b.SOURCE_TYPE AS VARCHAR(10) FOR BIT DATA)), '') AS TYPE
-                            FROM QSYS2.SYSTABLES AS a
-                                JOIN QSYS2.SYSPARTITIONSTAT AS b
-                                    ON (b.SYSTEM_TABLE_SCHEMA, b.SYSTEM_TABLE_NAME) = (a.SYSTEM_TABLE_SCHEMA, a.SYSTEM_TABLE_NAME)
-                    )
-                    SELECT *
-                        FROM MEMBERS
-                        WHERE LIBRARY IN (${libraries.map(library => `'${library}'`).join(`,`)})
-                            AND SOURCE_FILE IN (${sourceFiles.map(sourceFile => `'${sourceFile}'`).join(`,`)})
-                            AND TYPE IN (${extensions.map(extension => `'${extension}'`).join(`,`)})
-                        ORDER BY NAME DESC`;
-
-        const results = await connection.runSQL(statement);
-        if (results.length) {
-            return results.map(result => ({
-                asp: connection.getIAspName(Number(result.ASP)),
-                library: connection.sysNameInLocal(String(result.LIBRARY)),
-                file: connection.sysNameInLocal(String(result.SOURCE_FILE)),
-                name: connection.sysNameInLocal(String(result.NAME)),
-                extension: connection.sysNameInLocal(String(result.TYPE)),
-            } as IBMiMember));
-        } else {
-            return [];
-        }
-    }
 }
