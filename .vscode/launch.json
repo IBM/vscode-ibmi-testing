@@ -12,7 +12,8 @@
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
 				"${workspaceFolder}/examples/rpg-utils",
-				"${workspaceFolder}/examples/rpgunit-stmf"
+				"${workspaceFolder}/examples/rpgunit-stmf",
+				"${workspaceFolder}/examples/ibmi-company_system",
 			],
 			"outFiles": [
 				"${workspaceFolder}/dist/**/*.js"
