@@ -90,7 +90,8 @@ export namespace Utils {
                     SELECT *
                         FROM MEMBERS
                         WHERE LIBRARY IN (${libraries.map(library => `'${library}'`).join(`,`)})
-                            AND SOURCE_FILE IN (${sourceFiles.map(library => `'${library}'`).join(`,`)})
+                            AND SOURCE_FILE IN (${sourceFiles.map(sourceFile => `'${sourceFile}'`).join(`,`)})
+                            AND TYPE IN (${extensions.map(extension => `'${extension}'`).join(`,`)})
                         ORDER BY NAME DESC`;
 
         const results = await connection.runSQL(statement);
