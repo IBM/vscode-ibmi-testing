@@ -261,7 +261,7 @@ export class Runner {
         let compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand.toLocaleUpperCase()}`, flattenedCompileParams as any);
 
         // Wrap compile command if a wrapper command is specified
-        const wrapperCmd = testSuite.testingConfig?.rpgunit![languageSpecificCommand]?.wrapperCmd;
+        const wrapperCmd = testSuite.testingConfig.rpgunit ? testSuite.testingConfig.rpgunit[languageSpecificCommand]?.wrapperCmd : undefined;
         if (wrapperCmd && wrapperCmd.cmd) {
             const cmd = `${wrapperCmd.cmd}(${compileCommand})`;
             const params = wrapperCmd.params || {};
