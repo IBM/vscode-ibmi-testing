@@ -237,7 +237,7 @@ export class IBMiTestManager {
                 // Create ASP test item if it does not exist
                 let aspItem: TestItem | undefined;
                 if (parsedPath.asp) {
-                    const aspUri = Uri.from({ scheme: 'object', path: `/${parsedPath.asp}` });
+                    const aspUri = Uri.from({ scheme: 'object', path: path.format({ name: parsedPath.asp }) });
                     aspItem = this.controller.items.get(aspUri.toString());
                     if (!aspItem) {
                         aspItem = this.createTestItem(aspUri.toString(), aspUri, path.parse(aspUri.path).base);
@@ -250,7 +250,7 @@ export class IBMiTestManager {
                 }
 
                 // Create library test item if it does not exist
-                const libraryUri = Uri.from({ scheme: 'object', path: `/${parsedPath.asp}/${parsedPath.library}` });
+                const libraryUri = Uri.from({ scheme: 'object', path: path.posix.join(parsedPath.asp || '/', parsedPath.library) });
                 let libraryItem = aspItem ? aspItem.children.get(libraryUri.toString()) : this.controller.items.get(libraryUri.toString());
                 if (!libraryItem) {
                     libraryItem = this.createTestItem(libraryUri.toString(), libraryUri, path.parse(libraryUri.path).base);
@@ -266,7 +266,7 @@ export class IBMiTestManager {
                 }
 
                 // Create object test item if it does not exist
-                const objectUri = Uri.from({ scheme: 'object', path: `/${parsedPath.asp}/${parsedPath.library}/${parsedPath.file}` });
+                const objectUri = Uri.from({ scheme: 'object', path: path.posix.join(parsedPath.asp || '/', parsedPath.library, parsedPath.file) });
                 let objectItem = libraryItem.children.get(objectUri.toString());
                 if (!objectItem) {
                     objectItem = this.createTestItem(objectUri.toString(), objectUri, path.parse(objectUri.path).base);
@@ -278,7 +278,7 @@ export class IBMiTestManager {
                 }
 
                 // Create member test item
-                const memberItem = this.createTestItem(uri.toString(), uri, path.parse(uri.path).base);
+                const memberItem = this.createTestItem(uri.toString(), uri, path.posix.parse(uri.path).base);
                 objectItem.children.add(memberItem);
                 await testOutputLogger.log(LogLevel.Info, `Created member test item for ${uri.toString()}`);
 
