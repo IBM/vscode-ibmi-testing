@@ -7,7 +7,7 @@ export class IBMiFileCoverage extends FileCoverage {
     public readonly procedures: DeclarationCoverage[] = [];
 
     constructor(uri: BasicUri, coverageData: CoverageData, isStatementCoverage: boolean) {
-        super(Uri.from({ scheme: uri.scheme, path: uri.fsPath, fragment: uri.fragment }), new TestCoverageCount(0, 0));
+        super(Uri.from({ scheme: uri.scheme, path: uri.scheme === 'file' ? uri.fsPath : uri.path, fragment: uri.fragment }), new TestCoverageCount(0, 0));
         this.isStatementCoverage = isStatementCoverage;
         this.addCoverage(coverageData, isStatementCoverage);
     }

@@ -1,5 +1,7 @@
 import path from "path";
 import { ConfigurationChangeEvent, WorkspaceFolder, workspace } from "vscode";
+import { getInstance } from "./extensions/ibmi";
+import { IBMiMember } from "@halcyontech/vscode-ibmi-types/api/types";
 
 export type Env = Record<string, string>;
 

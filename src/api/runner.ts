@@ -153,6 +153,9 @@ export class Runner {
         const content = connection.getContent();
         const config = connection.getConfig();
 
+        let testBucketPath: string;
+        let testSuitePath: string;
+
         let deployDirectory: string | undefined;
         let tstPgm: { name: string, library: string };
         let srcFile: { name: string, library: string } | undefined;
@@ -160,20 +163,26 @@ export class Runner {
         let srcStmf: string | undefined;
 
         if (testSuite.uri.scheme === 'file') {
+            testBucketPath = testBucket.uri.fsPath;
+            testSuitePath = testSuite.uri.fsPath;
+
             // Use current library as the test library
-            const libraryList = await this.testCallbacks.getLibraryList(testBucket.uri.fsPath);
+            const libraryList = await this.testCallbacks.getLibraryList(testBucketPath);
             const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
             // Get relative local path to test
-            const relativePathToTest = path.relative(testBucket.uri.fsPath, testSuite.uri.fsPath).replace(/\\/g, '/');
+            const relativePathToTest = path.relative(testBucketPath, testSuitePath).replace(/\\/g, '/');
 
             // Construct remote path to test
-            deployDirectory = this.testCallbacks.getDeployDirectory(testBucket.uri.fsPath);
+            deployDirectory = this.testCallbacks.getDeployDirectory(testBucketPath);
             srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
         } else {
-            const parsedPath = connection.parserMemberPath(testSuite.uri.fsPath);
+            testBucketPath = testBucket.uri.path;
+            testSuitePath = testSuite.uri.path;
+
+            const parsedPath = connection.parserMemberPath(testSuitePath);
             const tstPgmName = parsedPath.name.toLocaleUpperCase();
             const tstLibrary = parsedPath.library;
             const srcFileName = parsedPath.file;
@@ -190,7 +199,7 @@ export class Runner {
             srcStmf: srcStmf
         };
 
-        const isRPGLE = ApiUtils.isRPGLE(testSuite.uri.fsPath);
+        const isRPGLE = ApiUtils.isRPGLE(testSuitePath);
         if (isRPGLE) {
             const { wrapperCmd, ...rucrtrpg } = testSuite.testingConfig?.rpgunit?.rucrtrpg || {};
 
@@ -261,7 +270,7 @@ export class Runner {
         let compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand.toLocaleUpperCase()}`, flattenedCompileParams as any);
 
         // Wrap compile command if a wrapper command is specified
-        const wrapperCmd = testSuite.testingConfig?.rpgunit![languageSpecificCommand]?.wrapperCmd;
+        const wrapperCmd = testSuite.testingConfig?.rpgunit ? testSuite.testingConfig.rpgunit[languageSpecificCommand]?.wrapperCmd : undefined;
         if (wrapperCmd && wrapperCmd.cmd) {
             const cmd = `${wrapperCmd.cmd}(${compileCommand})`;
             const params = wrapperCmd.params || {};
@@ -271,7 +280,7 @@ export class Runner {
 
         let compileResult: any;
         try {
-            const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucket.uri.fsPath) : {};
+            const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
             compileResult = await connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
         } catch (error: any) {
             await this.testLogger.logCompilation(testSuite.name, 'failed', [error.message ? error.message : error]);
@@ -282,8 +291,8 @@ export class Runner {
         try {
             // Retrieve diagnostics messages
             if (compileParams.cOption.includes('*EVENTF')) {
-                const ext = path.parse(testSuite.uri.fsPath).ext;
-                await this.testCallbacks.loadDiagnostics(`${compileParams.tstPgm}${ext}`, testBucket.uri.fsPath);
+                const ext = path.parse(testSuitePath).ext;
+                await this.testCallbacks.loadDiagnostics(`${compileParams.tstPgm}${ext}`, testBucketPath);
             }
         } catch (error: any) {
             await this.testLogger.testOutputLogger.log(LogLevel.Error, `Failed to retrieve diagnostics messages: ${error}`);
@@ -312,16 +321,25 @@ export class Runner {
         const content = connection.getContent();
         const config = connection.getConfig();
 
+        let testBucketPath: string;
+        let testSuitePath: string;
+
         let tstPgm: { name: string, library: string };
 
         if (testSuite.uri.scheme === 'file') {
+            testBucketPath = testBucket.uri.fsPath;
+            testSuitePath = testSuite.uri.fsPath;
+
             // Use current library as the test library
-            const libraryList = await this.testCallbacks.getLibraryList(testBucket.uri.fsPath);
+            const libraryList = await this.testCallbacks.getLibraryList(testBucketPath);
             const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
         } else {
-            const parsedPath = connection.parserMemberPath(testSuite.uri.fsPath);
+            testBucketPath = testBucket.uri.path;
+            testSuitePath = testSuite.uri.path;
+
+            const parsedPath = connection.parserMemberPath(testSuitePath);
             const tstLibrary = parsedPath.library;
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
@@ -382,7 +400,7 @@ export class Runner {
 
             let testResult: any;
             try {
-                const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucket.uri.fsPath) : {};
+                const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
                 testResult = await connection.runCommand({ command: testCommand, environment: `ile`, env: env });
             } catch (error: any) {
                 const messages = [{ message: error.message ? error.message : error }];
@@ -412,17 +430,17 @@ export class Runner {
                         let uri: BasicUri;
                         if (testSuite.uri.scheme === 'file') {
                             // Map code coverage results from deploy directory to local workspace
-                            const deployDirectory = this.testCallbacks.getDeployDirectory(testBucket.uri.fsPath);
+                            const deployDirectory = this.testCallbacks.getDeployDirectory(testBucketPath);
 
                             if (`/${codeCovResult.path}`.startsWith(deployDirectory)) {
                                 // Get relative remote path to test
                                 const relativePathToTest = path.posix.relative(deployDirectory, `/${codeCovResult.path}`);
 
                                 // Construct local path to test
-                                const localPath = path.join(testBucket.uri.fsPath, relativePathToTest);
-                                uri = { scheme: 'file', fsPath: localPath, fragment: '' };
+                                const localPath = path.join(testBucketPath, relativePathToTest);
+                                uri = { scheme: 'file', fsPath: localPath, path: localPath, fragment: '' };
                             } else {
-                                uri = { scheme: 'file', fsPath: codeCovResult.localPath, fragment: '' };
+                                uri = { scheme: 'file', fsPath: codeCovResult.localPath, path: codeCovResult.localPath, fragment: '' };
                             }
                         } else {
                             // Map code coverage results to source members
@@ -448,7 +466,7 @@ export class Runner {
                                 }
                             }
 
-                            uri = { scheme: 'member', fsPath: memberPath, fragment: '' };
+                            uri = { scheme: 'member', fsPath: memberPath, path: memberPath, fragment: '' };
                         }
 
                         const existingFileCoverageIndex = this.fileCoverage.findIndex((coverage) => coverage.uri.toString() === uri.toString());
