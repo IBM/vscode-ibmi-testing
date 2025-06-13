@@ -37,7 +37,7 @@ export class RPGUnit implements IBMiComponent {
                 if (versionResult.code === 0) {
                     const versionMatch = versionResult.stdout.match(RPGUnit.VERSION_REGEX);
                     if (versionMatch && versionMatch[0]) {
-                        const installedVersion = versionMatch[0];
+                        const installedVersion = versionMatch[0].startsWith('v') ? versionMatch[0].substring(1) : versionMatch[0];
 
                         // Compare installed version with minimum version
                         if (await this.compareVersions(installedVersion, RPGUnit.MINIMUM_VERSION) >= 0) {
