@@ -4,11 +4,34 @@
     "properties": {
         "rpgunit": {
             "type": "object",
-            "markdownDescription": "RPGUnit Test Configuration",
+            "markdownDescription": "RPGUnit Configuration",
+            "default": {
+                "rucrtrpg": {
+                    "tgtCcsid": 37,
+                    "dbgView": "*SOURCE",
+                    "cOption": [
+                        "*EVENTF"
+                    ]
+                },
+                "rucrtcbl": {
+                    "tgtCcsid": 37,
+                    "dbgView": "*SOURCE",
+                    "cOption": [
+                        "*EVENTF"
+                    ]
+                }
+            },
             "properties": {
                 "rucrtrpg": {
                     "type": "object",
                     "markdownDescription": "The Create RPG Test Suite (`RUCRTRPG`) command compiles RPGLE and SQLRPGLE source members containing test procedures into a iRPGUnit test suite service program.",
+                    "default": {
+                        "tgtCcsid": 37,
+                        "dbgView": "*SOURCE",
+                        "cOption": [
+                            "*EVENTF"
+                        ]
+                    },
                     "properties": {
                         "text": {
                             "type": "string",
@@ -185,12 +208,45 @@
                             "type": "number",
                             "default": 37,
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
+                        },
+                        "wrapperCmd": {
+                            "type": "object",
+                            "markdownDescription": "Wrapper Command\n\nSpecifies a custom command to wrap the `RUCRTRPG` command.",
+                            "default": {
+                                "cmd": "",
+                                "params": {}
+                            },
+                            "properties": {
+                                "cmd": {
+                                    "type": "string",
+                                    "default": "",
+                                    "markdownDescription": "Command\n\nSpecifies the custom command."
+                                },
+                                "params": {
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": [
+                                            "string",
+                                            "number"
+                                        ]
+                                    },
+                                    "markdownDescription": "Parameters\n\nSpecifies the parameters for the custom command."
+                                }
+                            }
                         }
                     }
                 },
                 "rucrtcbl": {
                     "type": "object",
                     "markdownDescription": "The Create COBOL Test Suite (`RUCRTCBL`) command compiles CBLLE and SQLCBLLE source members containing test procedures into a iRPGUnit test suite service program.",
+                    "default": {
+                        "tgtCcsid": 37,
+                        "dbgView": "*SOURCE",
+                        "cOption": [
+                            "*EVENTF"
+                        ]
+                    },
                     "properties": {
                         "text": {
                             "type": "string",
@@ -399,20 +455,73 @@
                             "type": "number",
                             "default": 37,
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
+                        },
+                        "wrapperCmd": {
+                            "type": "object",
+                            "markdownDescription": "Wrapper Command\n\nSpecifies a custom command to wrap the `RUCRTCBL` command.",
+                            "default": {
+                                "cmd": "",
+                                "params": {}
+                            },
+                            "properties": {
+                                "cmd": {
+                                    "type": "string",
+                                    "default": "",
+                                    "markdownDescription": "Command\n\nSpecifies the custom command."
+                                },
+                                "params": {
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": [
+                                            "string",
+                                            "number"
+                                        ]
+                                    },
+                                    "markdownDescription": "Parameters\n\nSpecifies the parameters for the custom command."
+                                }
+                            }
                         }
                     }
+                }
+            }
+        },
+        "codecov": {
+            "type": "object",
+            "markdownDescription": "Code Coverage Configuration",
+            "default": {
+                "module": []
+            },
+            "properties": {
+                "module": {
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "markdownDescription": "Modules\n\nSpecifies programs or service programs and optionally modules to include for code coverage."
                 },
-                "prefix": {
+                "testId": {
                     "type": "string",
                     "default": "",
-                    "markdownDescription": "Prefix\n\nSpecifies a prefix (such as `T_`) to be used when compiling the service program for a test suite. This can be used to avoid naming conflicts with objects built as part of your application."
+                    "markdownDescription": "Test ID"
+                },
+                "exclude": {
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "markdownDescription": "Exclude\n\nObjects to exclude"
                 }
             }
         }
     },
     "defaultSnippets": [
         {
-            "label": "RPGUnit Test Configuration",
+            "label": "IBM i Testing Configuration",
             "body": {
                 "rpgunit": {
                     "rucrtrpg": {
@@ -429,6 +538,9 @@
                             "*EVENTF"
                         ]
                     }
+                },
+                "codecov": {
+                    "module": []
                 }
             }
         }

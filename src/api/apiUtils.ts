@@ -91,6 +91,23 @@ export namespace ApiUtils {
         return rpgleTestSuffixes.qsys.some(suffix => fsPath.toLocaleUpperCase().endsWith(suffix));
     }
 
+    /**
+     * Flatten compile parameters and convert to strings.
+     */
+    export function flattenCommandParams(commandParams: any): any {
+        const flattenedCompileParams: any = { ...commandParams };
+        for (const key of Object.keys(commandParams) as (keyof typeof commandParams)[]) {
+            const value = commandParams[key];
+            if (Array.isArray(value)) {
+                flattenedCompileParams[key] = value.join(' ');
+            } else if (typeof value === 'number') {
+                flattenedCompileParams[key] = value.toString();
+            }
+        }
+
+        return flattenedCompileParams;
+    }
+
     export async function getMemberList(libraries: string[], sourceFiles: string[], extensions: string[]): Promise<IBMiMember[]> {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();

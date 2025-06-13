@@ -14,6 +14,7 @@ import { testOutputLogger } from "./extension";
 import { TestCaseData, TestFileData } from "./testData";
 import { ApiUtils } from "./api/apiUtils";
 import * as path from "path";
+import { ConfigHandler } from "./config";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
@@ -68,18 +69,18 @@ export class IBMiTestRunner {
             await data.load();
 
             if (data.item.children.size !== 0) {
-                this.addToTestBucket(testRun, testBuckets, data);
+                await this.addToTestBucket(testRun, testBuckets, data);
             } else {
                 await testOutputLogger.log(LogLevel.Warning, `Test file ${data.item.label} not queued (no test cases found)`);
             }
         } else if (data.type === 'case' && data instanceof TestCaseData) {
             if (!this.request.exclude?.includes(data.item)) {
-                this.addToTestBucket(testRun, testBuckets, data);
+                await this.addToTestBucket(testRun, testBuckets, data);
             }
         }
     }
 
-    private addToTestBucket(testRun: TestRun, testBuckets: TestBucket[], data: TestFileData | TestCaseData): void {
+    private async addToTestBucket(testRun: TestRun, testBuckets: TestBucket[], data: TestFileData | TestCaseData): Promise<void> {
         let testBucketItem: TestItem;
         let testFileItem: TestItem;
         let testFileData: TestFileData;
@@ -118,6 +119,7 @@ export class IBMiTestRunner {
                 ccLvl = undefined;
             }
 
+            const configHandler = new ConfigHandler();
             testBuckets[existingTestBucketIndex].testSuites.push({
                 name: testFileItem.label,
                 systemName: ApiUtils.getSystemNameFromPath(path.parse(testFileItem.uri!.fsPath).name),
@@ -125,7 +127,8 @@ export class IBMiTestRunner {
                 testCases: [],
                 isCompiled: testFileData.isCompiled,
                 isEntireSuite: true,
-                ccLvl: ccLvl
+                ccLvl: ccLvl,
+                testingConfig: testFileItem.uri!.scheme === 'file' ? (await configHandler.getLocalConfig(testFileItem.uri!)) : await configHandler.getRemoteConfig(testFileItem.uri!)
             });
             existingTestSuiteIndex = testBuckets[existingTestBucketIndex].testSuites.length - 1;
         }

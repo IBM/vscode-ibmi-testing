@@ -192,18 +192,22 @@ export class Runner {
 
         const isRPGLE = ApiUtils.isRPGLE(testSuite.uri.fsPath);
         if (isRPGLE) {
+            const { wrapperCmd, ...rucrtrpg } = testSuite.testingConfig?.rpgunit?.rucrtrpg || {};
+
             compileParams = {
                 ...compileParams,
-                ...testSuite.testingConfig?.rpgunit?.rucrtrpg
+                ...rucrtrpg
             };
 
             if (!(compileParams as RUCRTRPG).rpgPpOpt) {
                 (compileParams as RUCRTRPG).rpgPpOpt = "*LVL2";
             }
         } else {
+            const { wrapperCmd, ...rucrtcbl } = testSuite.testingConfig?.rpgunit?.rucrtcbl || {};
+
             compileParams = {
                 ...compileParams,
-                ...testSuite.testingConfig?.rpgunit?.rucrtcbl
+                ...rucrtcbl
             };
         }
 
@@ -249,19 +253,20 @@ export class Runner {
         compileParams.incDir = compileParams.incDir.map((dir) => `'${dir}'`);
 
         // Flatten compile parameters and convert to strings
-        const flattenedCompileParams: any = { ...compileParams };
-        for (const key of Object.keys(compileParams) as (keyof typeof compileParams)[]) {
-            const value = compileParams[key];
-            if (Array.isArray(value)) {
-                flattenedCompileParams[key] = value.join(' ');
-            } else if (typeof value === 'number') {
-                flattenedCompileParams[key] = value.toString();
-            }
-        }
+        const flattenedCompileParams = ApiUtils.flattenCommandParams(compileParams);
 
+        // Build compile command
         const productLibrary = this.testCallbacks.getProductLibrary();
-        const languageSpecificCommand = isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
-        const compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, flattenedCompileParams as any);
+        const languageSpecificCommand = isRPGLE ? 'rucrtrpg' : 'rucrtcbl';
+        let compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand.toLocaleUpperCase()}`, flattenedCompileParams as any);
+
+        // Wrap compile command if a wrapper command is specified
+        const wrapperCmd = testSuite.testingConfig?.rpgunit![languageSpecificCommand]?.wrapperCmd;
+        if (wrapperCmd && wrapperCmd.cmd) {
+            const cmd = `${wrapperCmd.cmd}(${compileCommand})`;
+            const params = wrapperCmd.params || {};
+            compileCommand = content.toCl(cmd, params);
+        }
         await this.testLogger.testOutputLogger.log(LogLevel.Info, `Compiling ${testSuite.name}: ${compileCommand}`);
 
         let compileResult: any;
@@ -341,7 +346,7 @@ export class Runner {
                 await this.testCallbacks.started(testCase.uri);
             }
 
-            const testStorage = IBMiTestStorage.getTestStorage(`${tstPgm.name}${testCase ? `_${testCase}` : ``}`);
+            const testStorage = IBMiTestStorage.getTestStorage(`${tstPgm.name}${testCase?.name ? `_${testCase?.name}` : ``}`);
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Test storage for ${testSuite.name}: ${JSON.stringify(testStorage)}`);
             const xmlStmf = testStorage.RPGUNIT;
 
@@ -356,11 +361,22 @@ export class Runner {
             if (testSuite.ccLvl) {
                 coverageParams = {
                     cmd: testCommand,
-                    module: `(${qualifiedTstPgm} *SRVPGM *ALL)`,
+                    module: [],
                     ccLvl: testSuite.ccLvl,
-                    outStmf: testStorage.CODECOV
+                    ccView: testSuite.testingConfig?.codecov?.ccView,
+                    outStmf: testStorage.CODECOV,
+                    testId: testSuite.testingConfig?.codecov?.testId,
                 };
-                testCommand = `QDEVTOOLS/CODECOV CMD(${coverageParams.cmd}) MODULE(${coverageParams.module}) CCLVL(${coverageParams.ccLvl}) OUTSTMF('${coverageParams.outStmf}')`;
+
+                // Add the service program under test and modules from the testing config
+                coverageParams.module.push(`${qualifiedTstPgm} *SRVPGM *ALL`);
+                if (testSuite.testingConfig?.codecov?.module) {
+                    coverageParams.module.push(...testSuite.testingConfig.codecov.module);
+                }
+                coverageParams.module = coverageParams.module.map((m: string) => `(${m})`);
+
+                const flattenedCoverageParams = ApiUtils.flattenCommandParams(coverageParams);
+                testCommand = `QDEVTOOLS/CODECOV CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
             }
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Running ${testSuite.name}: ${testCommand}`);
 
