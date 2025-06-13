@@ -14,7 +14,6 @@ import { testOutputLogger } from "./extension";
 import { TestCaseData, TestFileData } from "./testData";
 import { ApiUtils } from "./api/apiUtils";
 import * as path from "path";
-import { Test } from "mocha";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
@@ -44,6 +43,7 @@ export class IBMiTestRunner {
             await this.processRequestItems(testRun, testBuckets, requestItem);
         }
 
+        // TODO: Add logging here
         // await testOutputLogger.log(LogLevel.Info, `${testBucket.length} test item(s) queued: ${testBucket.map((item) => item.item.label).join(', ')}`);
         return testBuckets;
     }
