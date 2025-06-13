@@ -7,6 +7,7 @@ import { ApiUtils } from "./api/apiUtils";
 import { Configuration, Section } from "./configuration";
 import { testOutputLogger } from "./extension";
 import { TestData, TestFileData } from "./testData";
+import { Utils } from "./utils";
 
 export class IBMiTestManager {
     public context: ExtensionContext;
@@ -105,37 +106,27 @@ export class IBMiTestManager {
             }
         }
 
-        const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
-
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
-        const content = connection.getContent();
 
-        // Load tests from library list
+        // Get search parameters for tests in library list
         const workspaceFolders = workspace.workspaceFolders;
         const workspaceFolder = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0] : undefined;
         const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
-        const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles);
         const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
-        await testOutputLogger.log(LogLevel.Info, `Searching for tests in library list: ${libraries.join('.LIB, ')}.LIB`);
-        for await (const library of libraries) {
-            for await (const testSourceFile of testSourceFiles) {
-                const testMembers = await content.getMemberList({
-                    library: library,
-                    sourceFile: testSourceFile,
-                    extensions: testSuffixes.qsys.map((suffix) => suffix.slice(1)).join(','),
-                    filterType: 'simple',
-                    sort: { order: 'name' }
-                });
+        const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles);
+        const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
+        const qsysExtensions = testSuffixes.qsys.map((suffix) => suffix.slice(1));
 
-                for (const testMember of testMembers) {
-                    const memberPath = testMember.asp ?
-                        path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :
-                        path.posix.join(testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`);
-                    const uri = Uri.from({ scheme: 'member', path: `/${memberPath}` });
-                    await this.loadFileOrMember(uri, false);
-                }
-            }
+        // Load tests from library list
+        await testOutputLogger.log(LogLevel.Info, `Searching for tests in library list: ${libraries.join('.LIB, ')}.LIB`);
+        const testMembers = await Utils.getMemberList(libraries, testSourceFiles, qsysExtensions);
+        for (const testMember of testMembers) {
+            const memberPath = testMember.asp ?
+                path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :
+                path.posix.join(testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`);
+            const uri = Uri.from({ scheme: 'member', path: `/${memberPath}` });
+            await this.loadFileOrMember(uri, false);
         }
     }
 
@@ -231,7 +222,7 @@ export class IBMiTestManager {
                 parentItem.children.add(fileItem);
                 await testOutputLogger.log(LogLevel.Info, `Created file test item for ${uri.toString()}`);
 
-                const fileData = new TestFileData(fileItem, workspaceItem );
+                const fileData = new TestFileData(fileItem, workspaceItem);
                 this.testMap.set(fileItem, fileData);
 
                 return {
