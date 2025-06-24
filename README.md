@@ -7,8 +7,8 @@
 
 The [IBM i Testing](https://marketplace.visualstudio.com/items?itemName=IBM.vscode-ibmi-testing) extension allows developers to run unit tests and generate code coverage results for RPG and COBOL programs on IBM i. Under the covers, this extension leverages the [RPGUnit](https://irpgunit.sourceforge.io/help) testing framework.
 
-* ✍️ **Generate Stubs**: Generate test stubs for individual test cases or an entire test suite.
 * 👨‍💻 **Run Tests**: Visualize and run tests suites out of local files or source members.
+* ✍️ **Generate Stubs**: Generate test stubs for individual test cases or an entire test suite.
 * ⚙️ **Configure Tests**: Configure parameters to compile (`RUCRTRPG`/`RUCRTCLB`) and run (`RUCALLTST`) tests.
 * 📋 **View Test Results**: View detailed test results along with inline failure/error messages.
 * 🎯 **Generate Code Coverage**: View line and procedure level code coverage results as an overlay in the editor.
