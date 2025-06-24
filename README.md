@@ -13,4 +13,4 @@ The [IBM i Testing](https://marketplace.visualstudio.com/items?itemName=IBM.vsco
 * 📋 **View Test Results**: View detailed test results along with inline failure/error messages.
 * 🎯 **Generate Code Coverage**: View line and procedure level code coverage results as an overlay in the editor.
 
-✨ Check out the full documentation [here](https://codefori.github.io/docs/developing/testing/)!
+✨ Check out the full documentation [here](https://codefori.github.io/docs/developing/testing/overview)!
