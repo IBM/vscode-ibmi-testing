@@ -1,7 +1,7 @@
 
 import * as path from "path";
 import { parseStringPromise } from "xml2js";
-import { BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, ExecutionStatus, LogLevel, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestStatus, TestSuite } from "./types";
+import { BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestStatus, TestSuite, WrapperCmd } from "./types";
 import { TestLogger } from "./testLogger";
 import { getInstance } from "../extensions/ibmi";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
@@ -121,7 +121,6 @@ export class Runner {
                 // Check compilation status
                 if (!isCompiled) {
                     // Error out all test suites since deployment failed
-                    await this.testLogger.logTestSuite(testSuite.name, testSuite.systemName, testSuite.testCases.length);
                     await this.testLogger.logCompilation(testSuite.name, 'skipped', []);
                     this.testMetrics.compilations.skipped++;
 
@@ -192,6 +191,7 @@ export class Runner {
             srcMbr = tstPgmName;
         }
 
+        let wrapperCmd: WrapperCmd | undefined;
         let compileParams: RUCRTRPG | RUCRTCBL = {
             tstPgm: `${tstPgm.library}/${tstPgm.name}`,
             srcFile: srcFile ? `${srcFile.library}/${srcFile.name}` : undefined,
@@ -201,7 +201,11 @@ export class Runner {
 
         const isRPGLE = ApiUtils.isRPGLE(testSuitePath);
         if (isRPGLE) {
-            const { wrapperCmd, ...rucrtrpg } = testSuite.testingConfig?.rpgunit?.rucrtrpg || {};
+            const rucrtrpg = testSuite.testingConfig?.rpgunit?.rucrtrpg;
+            wrapperCmd = testSuite.testingConfig?.rpgunit?.rucrtrpg?.wrapperCmd;
+            if (wrapperCmd) {
+                delete rucrtrpg.wrapperCmd;
+            }
 
             compileParams = {
                 ...compileParams,
@@ -212,7 +216,11 @@ export class Runner {
                 (compileParams as RUCRTRPG).rpgPpOpt = "*LVL2";
             }
         } else {
-            const { wrapperCmd, ...rucrtcbl } = testSuite.testingConfig?.rpgunit?.rucrtcbl || {};
+            const rucrtcbl = testSuite.testingConfig?.rpgunit?.rucrtcbl;
+            wrapperCmd = testSuite.testingConfig?.rpgunit?.rucrtcbl?.wrapperCmd;
+            if (wrapperCmd) {
+                delete rucrtcbl.wrapperCmd;
+            }
 
             compileParams = {
                 ...compileParams,
@@ -270,7 +278,6 @@ export class Runner {
         let compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand.toLocaleUpperCase()}`, flattenedCompileParams as any);
 
         // Wrap compile command if a wrapper command is specified
-        const wrapperCmd = testSuite.testingConfig?.rpgunit ? testSuite.testingConfig.rpgunit[languageSpecificCommand]?.wrapperCmd : undefined;
         if (wrapperCmd && wrapperCmd.cmd) {
             const cmd = `${wrapperCmd.cmd}(${compileCommand})`;
             const params = wrapperCmd.params || {};

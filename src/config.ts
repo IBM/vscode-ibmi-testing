@@ -16,23 +16,23 @@ export class ConfigHandler {
         }
 
         try {
-            const localConfigUri = await this.findTestingConfig(workspaceFolder, uri);
-            const localConfig = localConfigUri ? await this.readTestingConfig(localConfigUri, 'local') : undefined;
-            if (localConfigUri && localConfig) {
-                await testOutputLogger.log(LogLevel.Info, `Found local testing configuration at ${localConfigUri.toString()}:\n${JSON.stringify(localConfig, null, 2)}`);
+            const directoryConfigUri = await this.findLocalTestingConfig(workspaceFolder, uri);
+            const directoryConfig = directoryConfigUri ? await this.readTestingConfig(directoryConfigUri, 'local') : undefined;
+            if (directoryConfigUri && directoryConfig) {
+                await testOutputLogger.log(LogLevel.Info, `Found directory testing configuration at ${directoryConfigUri.toString()}:\n${JSON.stringify(directoryConfig, null, 2)}`);
             }
 
             const globalConfigUri = Uri.joinPath(workspaceFolder.uri, ConfigHandler.GLOBAL_CONFIG_DIRECTORY, ConfigHandler.TESTING_CONFIG_FILE);
-            const globalConfig = await this.readTestingConfig(globalConfigUri, 'global');
+            const globalConfig = await this.readTestingConfig(globalConfigUri, 'local');
             if (globalConfig) {
                 await testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigUri.toString()}:\n${JSON.stringify(globalConfig, null, 2)}`);
             }
 
-            const mergedConfig = lodash.merge({}, globalConfig, localConfig);
-            await testOutputLogger.log(LogLevel.Info, `Merged local testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
+            const mergedConfig = lodash.merge({}, globalConfig, directoryConfig);
+            await testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
             return mergedConfig;
         } catch (error: any) {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to retrieve local testing configuration`, error);
+            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
             return;
         }
     }
@@ -41,21 +41,36 @@ export class ConfigHandler {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection();
 
-        const parsedPath = connection.parserMemberPath(uri.path);
-        const memberPath = parsedPath.asp ?
-            path.posix.join(parsedPath.asp, parsedPath.library, parsedPath.file, ConfigHandler.TESTING_CONFIG_FILE) :
-            path.posix.join(parsedPath.library, parsedPath.file, ConfigHandler.TESTING_CONFIG_FILE);
-        const remoteConfigUri = Uri.from({ scheme: 'member', path: `/${memberPath}` });
+        try {
+            const parsedPath = connection.parserMemberPath(uri.path);
+            const sourceFileConfigPath = parsedPath.asp ?
+                path.posix.join(parsedPath.asp, parsedPath.library, parsedPath.file, ConfigHandler.TESTING_CONFIG_FILE) :
+                path.posix.join(parsedPath.library, parsedPath.file, ConfigHandler.TESTING_CONFIG_FILE);
+            const sourceFileConfigUri = Uri.from({ scheme: 'member', path: `/${sourceFileConfigPath}` });
+            const sourceFileConfig = await this.readTestingConfig(sourceFileConfigUri, 'remote');
+            if (sourceFileConfig) {
+                await testOutputLogger.log(LogLevel.Info, `Found source file testing configuration at ${sourceFileConfigUri.toString()}:\n${JSON.stringify(sourceFileConfig, null, 2)}`);
+            }
 
-        const remoteConfig = await this.readTestingConfig(remoteConfigUri, 'remote');
-        if (remoteConfig) {
-            await testOutputLogger.log(LogLevel.Info, `Found remote testing configuration at ${remoteConfigUri.toString()}:\n${JSON.stringify(remoteConfig, null, 2)}`);
+            const globaConfigPath = parsedPath.asp ?
+                path.posix.join(parsedPath.asp, parsedPath.library, 'VSCODE', ConfigHandler.TESTING_CONFIG_FILE) :
+                path.posix.join(parsedPath.library, 'VSCODE', ConfigHandler.TESTING_CONFIG_FILE);
+            const globalConfigUri = Uri.from({ scheme: 'member', path: `/${globaConfigPath}` });
+            const globalConfig = await this.readTestingConfig(globalConfigUri, 'remote');
+            if (globalConfig) {
+                await testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigUri.toString()}:\n${JSON.stringify(globalConfig, null, 2)}`);
+            }
+
+            const mergedConfig = lodash.merge({}, globalConfig, sourceFileConfig);
+            await testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
+            return mergedConfig;
+        } catch (error: any) {
+            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
+            return;
         }
-
-        return remoteConfig;
     }
 
-    private async findTestingConfig(workspaceFolder: WorkspaceFolder, uri: Uri): Promise<Uri | undefined> {
+    private async findLocalTestingConfig(workspaceFolder: WorkspaceFolder, uri: Uri): Promise<Uri | undefined> {
         const parentDirectory = path.parse(uri.fsPath).dir;
         if (parentDirectory.startsWith(workspaceFolder.uri.fsPath)) {
             const testingConfigUris = await workspace.findFiles(new RelativePattern(parentDirectory, ConfigHandler.TESTING_CONFIG_FILE));
@@ -63,12 +78,12 @@ export class ConfigHandler {
             if (testingConfigUris.length > 0) {
                 return testingConfigUris[0];
             } else {
-                return this.findTestingConfig(workspaceFolder, Uri.parse(parentDirectory));
+                return this.findLocalTestingConfig(workspaceFolder, Uri.parse(parentDirectory));
             }
         }
     };
 
-    private async readTestingConfig(testingConfigUri: Uri, type: 'local' | 'remote' | 'global'): Promise<TestingConfig | undefined> {
+    private async readTestingConfig(testingConfigUri: Uri, type: 'local' | 'remote'): Promise<TestingConfig | undefined> {
         try {
             // Check if file exists
             await workspace.fs.stat(testingConfigUri);
@@ -80,7 +95,7 @@ export class ConfigHandler {
         try {
             // Read and parse file
             let testingConfig;
-            if (type === 'local' || type === 'global') {
+            if (type === 'local') {
                 testingConfig = await workspace.fs.readFile(testingConfigUri);
             } else {
                 const ibmi = getInstance();
