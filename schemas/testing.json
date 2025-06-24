@@ -145,7 +145,7 @@
                         },
                         "rpgPpOpt": {
                             "type": "string",
-                            "default": "",
+                            "default": "*LVL2",
                             "enum": [
                                 "*DEFAULT",
                                 "*NONE",
