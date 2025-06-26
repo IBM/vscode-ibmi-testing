@@ -78,7 +78,8 @@ export class RPGUnit implements IBMiComponent {
 
         // Filter releases (exclude releases which are drafts, do not have the required asset, or are below the minimum version)
         const filteredReleases = releases.data.filter(async release => {
-            const version = release.name || release.tag_name;
+            let version = release.name || release.tag_name;
+            version = version.startsWith('v') ? version.substring(1) : version;
             return (release.draft === false) &&
                 (release.assets.some(asset => asset.name === GitHub.ASSET_NAME)) &&
                 (await this.compareVersions(version, RPGUnit.MINIMUM_VERSION)) >= 0;
