@@ -3,7 +3,7 @@ import Cache from "vscode-rpgle/language/models/cache";
 import { Uri, commands } from "vscode";
 
 export type Keywords = { [key: string]: string | boolean };
-export type RpgleVariableType = `char` | `varchar` | `int` | `uns` | `packed` | `zoned` | `ind` | `date` | `time` | `timestamp` | `pointer` | `float` | `graph` | `vargraph`;
+export type RpgleVariableType = `char` | `varchar` | `ucs2` | `varucs2` | `int` | `uns` | `packed` | `zoned`  | `float` | `ind` | `date` | `time` | `timestamp` | `pointer` | `graph` | `vargraph`;
 export interface RpgleTypeDetail {
     type?: { name: RpgleVariableType, value?: string };
     reference?: Declaration;
@@ -63,7 +63,7 @@ export namespace LspUtils {
 
             return { reference }
         } else {
-            const validTypes: RpgleVariableType[] = [`char`, `varchar`, `int`, `uns`, `packed`, `zoned`, `ind`, `date`, `time`, `timestamp`, `pointer`, `float`, `graph`, `vargraph`];
+            const validTypes: RpgleVariableType[] = [`char`, `varchar`, `ucs2`, `varucs2`, `int`, `uns`, `packed`, `zoned`, `float`, `ind`, `date`, `time`, `timestamp`, `pointer`, `graph`, `vargraph`];
             const type = Object.keys(keywords).find(key => validTypes.includes(key.toLowerCase() as RpgleVariableType));
             if (type) {
                 return { type: { name: (type.toLowerCase() as RpgleVariableType), value: keywords[type] as string } };
