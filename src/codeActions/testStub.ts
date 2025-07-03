@@ -568,11 +568,11 @@ export namespace TestStubCodeActions {
         switch (type) {
             case `char`:
             case `varchar`:
-                return `''`;
+            case `ucs2`:
+            case `varucs2`:
             case `graph`:
-                return `*blanks`;
             case `vargraph`:
-                return `G''`;
+                return `''`;
             case `int`:
             case `uns`:
                 return `0`;
@@ -583,11 +583,11 @@ export namespace TestStubCodeActions {
             case `ind`:
                 return `*off`;
             case `date`:
-                return `%date('0001-01-01' : *iso)`;
+                return `d'0001-01-01'`;
             case `time`:
-                return `%time('00.00.00' : *iso)`;
+                return `t'00.00.00'`;
             case `timestamp`:
-                return `%timestamp('0001-01-01-00.00.00.000000' : *iso)`;
+                return `z'0001-01-01-00.00.00.000000'`;
             case `pointer`:
                 return `*null`;
             default:
@@ -597,30 +597,26 @@ export namespace TestStubCodeActions {
 
     function getAssertion(type: RpgleVariableType): string {
         switch (type) {
+            case `int`:
+                return `iEqual`;
+            case `ind`:
+                return `nEqual`;
             case `char`:
             case `varchar`:
+            case `ucs2`:
+            case `varucs2`:
             case `graph`:
             case `vargraph`:
-                return `aEqual`;
-            case `int`:
             case `uns`:
-                return `iEqual`;
             case `packed`:
             case `zoned`:
             case `float`:
-                return `assert`;
-            case `ind`:
-                return `nEqual`;
             case `date`:
-                return `assert`;
             case `time`:
-                return `assert`;
             case `timestamp`:
-                return `assert`;
             case `pointer`:
-                return `assert`;
             default:
-                return 'unknown';
+                return `assert`;
         }
     }
 
