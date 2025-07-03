@@ -103,60 +103,65 @@ export namespace TestStubCodeActions {
                 let newTestCases: { name: string, text: string[] }[] = testCaseSpecs.flatMap(tcs => tcs.testCase ? tcs.testCase : []);
 
                 let testDocument: TextDocument | undefined;
+                // Build test stub edit and insert code in appropriate places
+                const testStubEdit = new WorkspaceEdit();
+                const testDocs = await LspUtils.getDocs(testFileUri);
+
+                // Create test file if it does not exist
                 try {
-                    // Build test stub edit and insert code in appropriate places
-                    const testStubEdit = new WorkspaceEdit();
-                    const testDocs = await LspUtils.getDocs(testFileUri);
+                    testDocument = await workspace.openTextDocument(testFileUri);
+                } catch (error) {
+                    testStubEdit.createFile(
+                        testFileUri,
+                        {
+                            ignoreIfExists: true
+                        },
+                        {
+                            label: `Create '${testFileName}'`,
+                            needsConfirmation: showTestStubPreview,
+                            iconPath: new ThemeIcon('file')
+                        }
+                    );
+                }
 
-                    // Create test file if it does not exist
+                const text = testDocument ? testDocument.getText() : '';
+                const lastLine = testDocument ? testDocument.lineCount - 1 : 0;
+                function lineAt(line: number): string {
+                    return testDocument ? testDocument.lineAt(line).text : '';
+                }
+
+                // Add directive and control options
+                if (text === '') {
+                    const directiveAndControlOptions = [
+                        `**free`,
+                        ``,
+                        `ctl-opt nomain;`
+                    ];
+
+                    testStubEdit.insert(
+                        testFileUri,
+                        new Position(lastLine, 0),
+                        directiveAndControlOptions.join(`\n`),
+                        {
+                            label: `Add directive and control option(s)`,
+                            needsConfirmation: showTestStubPreview,
+                            iconPath: new ThemeIcon('symbol-misc')
+                        }
+                    );
+                }
+
+                // Add includes
+                let newIncludesInsert: { line: number, character: number } = { line: lastLine, character: lineAt(lastLine).length };
+                let newIncludesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
+                if (testDocs) {
                     try {
-                        testDocument = await workspace.openTextDocument(testFileUri);
-                    } catch (error) {
-                        testStubEdit.createFile(
-                            testFileUri,
-                            {
-                                ignoreIfExists: true
-                            },
-                            {
-                                label: `Create '${testFileName}'`,
-                                needsConfirmation: showTestStubPreview,
-                                iconPath: new ThemeIcon('file')
-                            }
-                        );
-                    }
-
-                    // Add directive and control options
-                    const text = testDocument.getText();
-                    if (text === '') {
-                        const directiveAndControlOptions = [
-                            `**free`,
-                            ``,
-                            `ctl-opt nomain;`
-                        ];
-
-                        testStubEdit.insert(
-                            testFileUri,
-                            new Position(testDocument.lineCount - 1, 0),
-                            directiveAndControlOptions.join(`\n`),
-                            {
-                                label: `Add directive and control options`,
-                                needsConfirmation: showTestStubPreview,
-                                iconPath: new ThemeIcon('symbol-misc')
-                            }
-                        );
-                    }
-
-                    // Add includes
-                    let newIncludesInsert: { line: number, character: number } = { line: testDocument.lineCount - 1, character: testDocument.lineAt(testDocument.lineCount - 1).text.length };
-                    let newIncludesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
-                    if (testDocs) {
                         // Filter out includes that already exist
                         newIncludes = newIncludes.filter(include => !text.includes(include));
 
                         if (testDocs.includes.length > 0) {
                             // Insert include after the last existing resolved include
                             newIncludesInsert.line = Math.max(...testDocs.includes.map(i => i.line));
-                            newIncludesInsert.character = testDocument.lineAt(newIncludesInsert.line).text.length;
+                            newIncludesInsert.character = lineAt(newIncludesInsert.line).length;
                             newIncludesTextWrap.prefix = `\n`;
                         } else if (text.toLocaleUpperCase().includes('/COPY') || text.toLocaleUpperCase().includes('/INCLUDE')) {
                             // Insert include after the last existing unresolved include
@@ -165,141 +170,103 @@ export namespace TestStubCodeActions {
                                 const line = splitText[i].toLocaleUpperCase().trim();
                                 if (line.startsWith('/COPY') || line.startsWith('/INCLUDE')) {
                                     newIncludesInsert.line = i;
-                                    newIncludesInsert.character = testDocument.lineAt(newIncludesInsert.line).text.length;
+                                    newIncludesInsert.character = lineAt(newIncludesInsert.line).length;
                                     break;
                                 }
                             }
                             newIncludesTextWrap.prefix = `\n`;
                         } else if (testDocs.procedures.length > 0) {
                             // Insert include before the first procedure or prototype
-                            const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testDocument.uri.toString());
+                            const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
                             newIncludesInsert.line = Math.min(...existingProcedures.map(proc => proc.range.start!));
+                            newIncludesInsert.character = 0;
                             newIncludesTextWrap.prefix = ``;
                             newIncludesTextWrap.suffix = `\n\n`;
                         }
-                    }
-                    if (newIncludes.length > 0) {
-                        const newIncludesPosition = new Position(newIncludesInsert.line, newIncludesInsert.character);
-                        const newIncludesText = `${newIncludesTextWrap.prefix}${newIncludes.join(`\n`)}${newIncludesTextWrap.suffix}`;
-                        testStubEdit.insert(
-                            testFileUri,
-                            newIncludesPosition,
-                            newIncludesText,
-                            {
-                                label: `Add includes`,
-                                needsConfirmation: showTestStubPreview,
-                                iconPath: new ThemeIcon('file-code')
-                            }
-                        );
-                    }
+                    } catch (error) { }
+                }
+                if (newIncludes.length > 0) {
+                    const newIncludesPosition = new Position(newIncludesInsert.line, newIncludesInsert.character);
+                    const newIncludesText = `${newIncludesTextWrap.prefix}${newIncludes.join(`\n`)}${newIncludesTextWrap.suffix}`;
+                    testStubEdit.insert(
+                        testFileUri,
+                        newIncludesPosition,
+                        newIncludesText,
+                        {
+                            label: `Add include(s)`,
+                            needsConfirmation: showTestStubPreview,
+                            iconPath: new ThemeIcon('file-code')
+                        }
+                    );
+                }
 
-                    // Add prototypes
-                    let newPrototypesInsert: { line: number, character: number } = { line: testDocument.lineCount - 1, character: testDocument.lineAt(testDocument.lineCount - 1).text.length };
-                    let newPrototypesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
-                    if (testDocs) {
+                // Add prototypes
+                let newPrototypesInsert: { line: number, character: number } = { line: lastLine, character: lineAt(lastLine).length };
+                let newPrototypesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
+                if (testDocs) {
+                    try {
                         // Filter out prototypes that already exist
-                        const existingPrototypes = testDocs.procedures.filter(proc => proc.position?.path === testDocument.uri.toString() && proc.keyword[`EXTPROC`]);
+                        const existingPrototypes = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString() && proc.keyword[`EXTPROC`]);
                         newPrototypes = newPrototypes.filter(proto => !existingPrototypes.some(existingProto => existingProto.name === proto.name));
 
                         if (existingPrototypes.length > 0) {
                             // Insert prototypes after the last existing prototype
                             newPrototypesInsert.line = Math.max(...existingPrototypes.map(proc => proc.range.end!));
-                            newPrototypesInsert.character = testDocument.lineAt(newPrototypesInsert.line).text.length;
+                            newPrototypesInsert.character = lineAt(newPrototypesInsert.line).length;
                         } else if (testDocs.procedures.length > 0) {
                             // Insert prototypes before the first procedure
-                            const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testDocument.uri.toString());
+                            const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
                             newPrototypesInsert.line = Math.min(...existingProcedures.map(proc => proc.range.start!));
+                            newIncludesInsert.character = 0;
                             newPrototypesTextWrap.prefix = ``;
                             newPrototypesTextWrap.suffix = `\n\n`;
                         }
-                    }
-                    if (newPrototypes.length > 0) {
-                        const newPrototypesPosition = new Position(newPrototypesInsert.line, newPrototypesInsert.character);
-                        const newPrototypesText = `${newPrototypesTextWrap.prefix}${newPrototypes.map(proto => proto.text.join('\n')).join('\n\n')}${newPrototypesTextWrap.suffix}`;
-                        testStubEdit.insert(
-                            testFileUri,
-                            newPrototypesPosition,
-                            newPrototypesText,
-                            {
-                                label: `Add prototypes`,
-                                needsConfirmation: showTestStubPreview,
-                                iconPath: new ThemeIcon('symbol-method')
-                            }
-                        );
-                    }
+                    } catch (error) { }
+                }
+                if (newPrototypes.length > 0) {
+                    const newPrototypesPosition = new Position(newPrototypesInsert.line, newPrototypesInsert.character);
+                    const newPrototypesText = `${newPrototypesTextWrap.prefix}${newPrototypes.map(proto => proto.text.join('\n')).join('\n\n')}${newPrototypesTextWrap.suffix}`;
+                    testStubEdit.insert(
+                        testFileUri,
+                        newPrototypesPosition,
+                        newPrototypesText,
+                        {
+                            label: `Add prototype(s)`,
+                            needsConfirmation: showTestStubPreview,
+                            iconPath: new ThemeIcon('symbol-method')
+                        }
+                    );
+                }
 
-                    // Add test cases
-                    let newTestCasesInsert: { line: number, character: number } = { line: testDocument.lineCount - 1, character: testDocument.lineAt(testDocument.lineCount - 1).text.length };
-                    let newTestCasesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
-                    if (testDocs) {
+                // Add test cases
+                let newTestCasesInsert: { line: number, character: number } = { line: lastLine, character: lineAt(lastLine).length };
+                let newTestCasesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
+                if (testDocs) {
+                    try {
                         if (testDocs.procedures.length > 0) {
                             // Insert test case after the last procedure
-                            const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testDocument.uri.toString());
+                            const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
                             newTestCasesInsert.line = Math.max(...existingProcedures.map(proc => proc.range.end!));
-                            newPrototypesInsert.character = testDocument.lineAt(newTestCasesInsert.line).text.length;
+                            newPrototypesInsert.character = lineAt(newTestCasesInsert.line).length;
                         }
-                    }
-                    if (newTestCases.length > 0) {
-                        const newTestCasesPosition = new Position(newTestCasesInsert.line, newTestCasesInsert.character);
-                        const newTestCasesText = `${newTestCasesTextWrap.prefix}${newTestCases.map(testCase => testCase.text.join('\n')).join('\n\n')}${newTestCasesTextWrap.suffix}`;
-                        testStubEdit.insert(
-                            testFileUri,
-                            newTestCasesPosition,
-                            newTestCasesText,
-                            {
-                                label: `Add test case(s)`,
-                                needsConfirmation: showTestStubPreview,
-                                iconPath: new ThemeIcon('beaker')
-                            }
-                        );
-                    }
-                } catch (error) {
-                    // Build default test stub and insert at the beginning of the file (this fallback may happen if the cache is outdated)
-                    const defaultTestStubEdit = new WorkspaceEdit();
-
-                    // Create test file if it does not exist
-                    try {
-                        testDocument = await workspace.openTextDocument(testFileUri);
-                    } catch (error) {
-                        defaultTestStubEdit.createFile(
-                            testFileUri,
-                            {
-                                ignoreIfExists: true
-                            },
-                            {
-                                label: `Create '${testFileName}'`,
-                                needsConfirmation: showTestStubPreview,
-                                iconPath: new ThemeIcon('file')
-                            }
-                        );
-                    }
-
-                    const testStubPosition = new Position(0, 0);
-                    const testStubText = [
-                        `**free`,
-                        ``,
-                        `ctl-opt nomain;`,
-                        ``,
-                        newIncludes.join(`\n`),
-                        ``,
-                        newPrototypes.map(proto => proto.text.join('\n')).join('\n\n'),
-                        ``,
-                        newTestCases.map(testCase => testCase.text.join('\n')).join('\n\n')
-                    ].join('\n');
-                    defaultTestStubEdit.insert(
+                    } catch (error) { }
+                }
+                if (newTestCases.length > 0) {
+                    const newTestCasesPosition = new Position(newTestCasesInsert.line, newTestCasesInsert.character);
+                    const newTestCasesText = `${newTestCasesTextWrap.prefix}${newTestCases.map(testCase => testCase.text.join('\n')).join('\n\n')}${newTestCasesTextWrap.suffix}`;
+                    testStubEdit.insert(
                         testFileUri,
-                        testStubPosition,
-                        testStubText,
+                        newTestCasesPosition,
+                        newTestCasesText,
                         {
-                            label: `Add directive, control options, includes, prototypes, and test case(s)`,
+                            label: `Add test case(s)`,
                             needsConfirmation: showTestStubPreview,
                             iconPath: new ThemeIcon('beaker')
                         }
                     );
-
-                    await workspace.applyEdit(defaultTestStubEdit);
                 }
 
+                await workspace.applyEdit(testStubEdit);
                 if (!testDocument) {
                     testDocument = await workspace.openTextDocument(testFileUri);
                 }
