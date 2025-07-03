@@ -568,9 +568,11 @@ export namespace TestStubCodeActions {
         switch (type) {
             case `char`:
             case `varchar`:
-            case `graph`:
-            case `vargraph`:
                 return `''`;
+            case `graph`:
+                return `*blanks`;
+            case `vargraph`:
+                return `G''`;
             case `int`:
             case `uns`:
                 return `0`;
