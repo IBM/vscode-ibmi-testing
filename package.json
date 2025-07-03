@@ -70,8 +70,14 @@
             },
             "markdownDescription": "A set of source files to search for tests in the library list."
           },
-          "IBM i Testing.libraryListValidation": {
+          "IBM i Testing.showTestStubPreview": {
             "order": 2,
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Controls whether to show a preview of the test stub before adding it to the file or source member."
+          },
+          "IBM i Testing.libraryListValidation": {
+            "order": 3,
             "type": "object",
             "default": {
               "RPGUNIT": true,
@@ -91,7 +97,7 @@
             "markdownDescription": "Controls whether checks are performed to ensure the required library is found on the library list before executing any tests. If not found, a notification is displayed. For RPGUNIT, note that the specific library which is checked for can be configured using the `IBM i Testing.productLibrary` setting."
           },
           "IBM i Testing.runOrder": {
-            "order": 3,
+            "order": 4,
             "type": "string",
             "default": "*API",
             "enum": [
@@ -105,7 +111,7 @@
             "markdownDescription": "Specifies the order for running the test procedures. Useful to check that there is no dependencies between test procedures."
           },
           "IBM i Testing.libraryList": {
-            "order": 4,
+            "order": 5,
             "type": "string",
             "default": "*CURRENT",
             "enum": [
@@ -119,19 +125,19 @@
             "markdownDescription": "Specifies the library list for executing the specified unit test."
           },
           "IBM i Testing.jobDescription": {
-            "order": 5,
+            "order": 6,
             "type": "string",
             "default": "*DFT",
             "markdownDescription": "Specifies the name of the job description that is used to set the library list, when the `IBM i Testing: Library List` setting is set to `*JOBD`. `*DFT` can be used here to indicate the library of the unit test suite (service program) is searched for job description `RPGUNIT`."
           },
           "IBM i Testing.jobDescriptionLibrary": {
-            "order": 6,
+            "order": 7,
             "type": "string",
             "default": "",
             "markdownDescription": "Specifies the library that is searched for the job description. `*LIBL` can be used here to indicate all libraries in the user and system portions of the job's library list are searched until the first match is found."
           },
           "IBM i Testing.reportDetail": {
-            "order": 7,
+            "order": 8,
             "type": "string",
             "default": "*BASIC",
             "enum": [
@@ -145,7 +151,7 @@
             "markdownDescription": "Specifies how detailed the test run report should be."
           },
           "IBM i Testing.createReport": {
-            "order": 8,
+            "order": 9,
             "type": "string",
             "default": "*ALLWAYS",
             "enum": [
@@ -161,7 +167,7 @@
             "markdownDescription": "Specifies whether a report is created."
           },
           "IBM i Testing.reclaimResources": {
-            "order": 9,
+            "order": 10,
             "type": "string",
             "default": "*NO",
             "enum": [

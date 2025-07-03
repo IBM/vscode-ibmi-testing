@@ -8,6 +8,7 @@ import { CodeCov } from "./components/codeCov";
 import * as tmp from "tmp";
 import { Utils } from "./utils";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
+import { TestStubCodeActions } from "./codeActions/testStub";
 
 export let testOutputLogger: TestOutputLogger = new TestOutputLogger();
 export let manager: IBMiTestManager | undefined;
@@ -97,6 +98,7 @@ export async function activate(context: ExtensionContext) {
 	});
 
 	// Miscellaneous setup
+	TestStubCodeActions.registerTestStubCodeActions(context);
 	tmp.setGracefulCleanup();
 }
 
