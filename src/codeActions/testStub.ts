@@ -9,7 +9,7 @@ import { Configuration, Section } from "../configuration";
 
 export namespace TestStubCodeActions {
     interface TestCaseSpec {
-        includes: string[];
+        includes: { name: string, text: string }[];
         prototype: { name: string, text: string[] } | undefined;
         testCase: { name: string, text: string[] };
     }
@@ -98,14 +98,11 @@ export namespace TestStubCodeActions {
 
                 // Generate test case spec
                 const testCaseSpecs = await Promise.all(exportProcedures.map(async proc => await getTestCaseSpec(docs, proc)));
-                let newIncludes: string[] = [...new Set([`/include qinclude,TESTCASE`, ...testCaseSpecs.map(tcs => tcs.includes).flat()])];
-                let newPrototypes: { name: string, text: string[] }[] = testCaseSpecs.flatMap(tcs => tcs.prototype ? tcs.prototype : []);
-                let newTestCases: { name: string, text: string[] }[] = testCaseSpecs.flatMap(tcs => tcs.testCase ? tcs.testCase : []);
 
-                let testDocument: TextDocument | undefined;
                 // Build test stub edit and insert code in appropriate places
                 const testStubEdit = new WorkspaceEdit();
                 const testDocs = await LspUtils.getDocs(testFileUri);
+                let testDocument: TextDocument | undefined;
 
                 // Create test file if it does not exist
                 try {
@@ -151,12 +148,15 @@ export namespace TestStubCodeActions {
                 }
 
                 // Add includes
+                const allIncludes = testCaseSpecs.flatMap(tcs => tcs.includes);
+                let newIncludes = Array.from(new Map(allIncludes.map(item => [item.name, item])).values());
                 let newIncludesInsert: { line: number, character: number } = { line: lastLine, character: lineAt(lastLine).length };
                 let newIncludesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
                 if (testDocs) {
                     try {
                         // Filter out includes that already exist
-                        newIncludes = newIncludes.filter(include => !text.includes(include));
+                        newIncludes = newIncludes.filter(include =>
+                            !text.toLocaleUpperCase().includes(`/INCLUDE ${include.name}`) || !text.toLocaleUpperCase().includes(`/COPY ${include.name}`));
 
                         if (testDocs.includes.length > 0) {
                             // Insert include after the last existing resolved include
@@ -207,7 +207,7 @@ export namespace TestStubCodeActions {
 
                     // Insert includes
                     for (let i = 0; i < newIncludes.length; i++) {
-                        const newIncludeText = i !== 0 ? `\n${newIncludes[i]}` : newIncludes[i];
+                        const newIncludeText = i !== 0 ? `\n${newIncludes[i].text}` : newIncludes[i].text;
                         insertInclude(newIncludeText);
                     }
 
@@ -218,6 +218,7 @@ export namespace TestStubCodeActions {
                 }
 
                 // Add prototypes
+                let newPrototypes: { name: string, text: string[] }[] = testCaseSpecs.flatMap(tcs => tcs.prototype ? tcs.prototype : []);
                 let newPrototypesInsert: { line: number, character: number } = { line: lastLine, character: lineAt(lastLine).length };
                 let newPrototypesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
                 if (testDocs) {
@@ -273,6 +274,7 @@ export namespace TestStubCodeActions {
                 }
 
                 // Add test cases
+                let newTestCases: { name: string, text: string[] }[] = testCaseSpecs.flatMap(tcs => tcs.testCase);
                 let newTestCasesInsert: { line: number, character: number } = { line: lastLine, character: lineAt(lastLine).length };
                 let newTestCasesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
                 if (testDocs) {
@@ -371,7 +373,7 @@ export namespace TestStubCodeActions {
         // Get inputs
         const inputDecs: string[] = [];
         const inputInits: string[] = [];
-        const inputIncludes: string[] = [];
+        const inputIncludes: { name: string, text: string }[] = [];
         for (const subItem of procedure.subItems) {
             const subItemType = LspUtils.resolveType(docs, subItem);
 
@@ -393,7 +395,10 @@ export namespace TestStubCodeActions {
         const returnIncludes = getIncludes(resolvedType);
 
         // Get unique includes
-        const includes = [...new Set([...inputIncludes, ...returnIncludes])];
+        const rpgUnitInclude = `qinclude,TESTCASE`;
+        const rpgUnitIncludeText = `/include ${rpgUnitInclude}`;
+        const allIncludes = [{ name: rpgUnitInclude, text: rpgUnitIncludeText }, ...inputIncludes, ...returnIncludes];
+        const includes = Array.from(new Map(allIncludes.map(item => [item.name, item])).values());
 
         // Get assertions
         const assertions = getAssertions(docs, resolvedType, 'expected', 'actual');
@@ -485,8 +490,8 @@ export namespace TestStubCodeActions {
         };
     }
 
-    function getIncludes(detail: RpgleTypeDetail): string[] {
-        const includes: string[] = [];
+    function getIncludes(detail: RpgleTypeDetail): { name: string, text: string }[] {
+        const includes: { name: string, text: string }[] = [];
 
         if (detail.reference) {
             const structUri = Uri.parse(detail.reference.position.path);
@@ -494,10 +499,11 @@ export namespace TestStubCodeActions {
             if (structUri.scheme === 'file') {
                 const workspaceFolder = workspace.getWorkspaceFolder(structUri);
                 if (workspaceFolder) {
-                    const newInclude = asPosix(path.relative(workspaceFolder.uri.fsPath, structUri.fsPath));
+                    const newInclude = `'${asPosix(path.relative(workspaceFolder.uri.fsPath, structUri.fsPath))}'`;
+                    const newIncludeText = `/include ${newInclude}`;
 
-                    if (!includes.includes(newInclude)) {
-                        includes.push(`/include '${newInclude}'`);
+                    if (!includes.some(include => include.text === newIncludeText)) {
+                        includes.push({ name: newInclude, text: newIncludeText });
                     }
                 }
             } else {
@@ -505,9 +511,10 @@ export namespace TestStubCodeActions {
                 const connection = ibmi!.getConnection();
                 const parsedPath = connection.parserMemberPath(structUri.path);
                 const newInclude = `${parsedPath.file},${parsedPath.name}`;
+                const newIncludeText = `/include ${newInclude}`;
 
-                if (!includes.includes(newInclude)) {
-                    includes.push(`/include ${newInclude}`);
+                if (!includes.some(include => include.text === newIncludeText)) {
+                    includes.push({ name: newInclude, text: newIncludeText });
                 }
             }
         }
