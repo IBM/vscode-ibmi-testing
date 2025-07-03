@@ -234,7 +234,7 @@ export namespace TestStubCodeActions {
                             // Insert prototypes before the first procedure
                             const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
                             newPrototypesInsert.line = Math.min(...existingProcedures.map(proc => proc.range.start!));
-                            newIncludesInsert.character = 0;
+                            newPrototypesInsert.character = 0;
                             newPrototypesTextWrap.prefix = ``;
                             newPrototypesTextWrap.suffix = `\n\n`;
                         }
@@ -281,7 +281,7 @@ export namespace TestStubCodeActions {
                             // Insert test case after the last procedure
                             const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
                             newTestCasesInsert.line = Math.max(...existingProcedures.map(proc => proc.range.end!));
-                            newPrototypesInsert.character = lineAt(newTestCasesInsert.line).length;
+                            newTestCasesInsert.character = lineAt(newTestCasesInsert.line).length;
                         }
                     } catch (error) { }
                 }
