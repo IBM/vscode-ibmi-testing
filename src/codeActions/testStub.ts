@@ -156,19 +156,19 @@ export namespace TestStubCodeActions {
                     try {
                         // Filter out includes that already exist
                         newIncludes = newIncludes.filter(include =>
-                            !text.toLocaleUpperCase().includes(`/INCLUDE ${include.name}`) || !text.toLocaleUpperCase().includes(`/COPY ${include.name}`));
+                            !(text.toLocaleLowerCase().includes(`/include ${include.name}`.toLocaleLowerCase()) || text.toLocaleLowerCase().includes(`/copy ${include.name}`.toLocaleLowerCase())));
 
                         if (testDocs.includes.length > 0) {
                             // Insert include after the last existing resolved include
                             newIncludesInsert.line = Math.max(...testDocs.includes.map(i => i.line));
                             newIncludesInsert.character = lineAt(newIncludesInsert.line).length;
                             newIncludesTextWrap.prefix = `\n`;
-                        } else if (text.toLocaleUpperCase().includes('/COPY') || text.toLocaleUpperCase().includes('/INCLUDE')) {
+                        } else if (text.toLocaleLowerCase().includes('/copy') || text.toLocaleLowerCase().includes('/include')) {
                             // Insert include after the last existing unresolved include
                             const splitText = text.split(/\r?\n/);
                             for (let i = splitText.length - 1; i >= 0; i--) {
-                                const line = splitText[i].toLocaleUpperCase().trim();
-                                if (line.startsWith('/COPY') || line.startsWith('/INCLUDE')) {
+                                const line = splitText[i].toLocaleLowerCase().trim();
+                                if (line.startsWith('/copy') || line.startsWith('/include')) {
                                     newIncludesInsert.line = i;
                                     newIncludesInsert.character = lineAt(newIncludesInsert.line).length;
                                     break;
@@ -201,19 +201,24 @@ export namespace TestStubCodeActions {
                     }
 
                     // Insert newline prefix
-                    if (newIncludesTextWrap.prefix !== '') {
-                        insertInclude(newIncludesTextWrap.prefix);
-                    }
-
-                    // Insert includes
-                    for (let i = 0; i < newIncludes.length; i++) {
-                        const newIncludeText = i !== 0 ? `\n${newIncludes[i].text}` : newIncludes[i].text;
+                    if (newIncludes.length === 1) {
+                        const newIncludeText = `${newIncludesTextWrap.prefix}${newIncludes[0].text}${newIncludesTextWrap.suffix}`;
                         insertInclude(newIncludeText);
-                    }
+                    } else {
+                        if (newIncludesTextWrap.prefix !== '') {
+                            insertInclude(newIncludesTextWrap.prefix);
+                        }
 
-                    // Insert newline suffix
-                    if (newIncludesTextWrap.suffix !== '') {
-                        insertInclude(newIncludesTextWrap.suffix);
+                        // Insert includes
+                        for (let i = 0; i < newIncludes.length; i++) {
+                            const newIncludeText = i !== 0 ? `\n${newIncludes[i].text}` : newIncludes[i].text;
+                            insertInclude(newIncludeText);
+                        }
+
+                        // Insert newline suffix
+                        if (newIncludesTextWrap.suffix !== '') {
+                            insertInclude(newIncludesTextWrap.suffix);
+                        }
                     }
                 }
 
@@ -256,20 +261,25 @@ export namespace TestStubCodeActions {
                         );
                     }
 
-                    // Insert newline prefix
-                    if (newPrototypesTextWrap.prefix !== '') {
-                        insertPrototype(newPrototypesTextWrap.prefix);
-                    }
-
-                    // Insert prototypes
-                    for (let i = 0; i < newPrototypes.length; i++) {
-                        const newPrototypeText = i !== 0 ? `\n\n${newPrototypes[i].text.join('\n')}` : newPrototypes[i].text.join('\n');
+                    if (newPrototypes.length === 1) {
+                        const newPrototypeText = `${newPrototypesTextWrap.prefix}${newPrototypes[0].text.join('\n')}${newPrototypesTextWrap.suffix}`;
                         insertPrototype(newPrototypeText);
-                    }
+                    } else {
+                        // Insert newline prefix
+                        if (newPrototypesTextWrap.prefix !== '') {
+                            insertPrototype(newPrototypesTextWrap.prefix);
+                        }
 
-                    // Insert newline suffix
-                    if (newPrototypesTextWrap.suffix !== '') {
-                        insertPrototype(newPrototypesTextWrap.suffix);
+                        // Insert prototypes
+                        for (let i = 0; i < newPrototypes.length; i++) {
+                            const newPrototypeText = i !== 0 ? `\n\n${newPrototypes[i].text.join('\n')}` : newPrototypes[i].text.join('\n');
+                            insertPrototype(newPrototypeText);
+                        }
+
+                        // Insert newline suffix
+                        if (newPrototypesTextWrap.suffix !== '') {
+                            insertPrototype(newPrototypesTextWrap.suffix);
+                        }
                     }
                 }
 
@@ -302,20 +312,25 @@ export namespace TestStubCodeActions {
                         );
                     }
 
-                    // Insert newline prefix
-                    if (newTestCasesTextWrap.prefix !== '') {
-                        insertTestCase(newTestCasesTextWrap.prefix);
-                    }
-
-                    // Insert test cases
-                    for (let i = 0; i < newTestCases.length; i++) {
-                        const newTestCaseText = i !== 0 ? `\n\n${newTestCases[i].text.join('\n')}` : newTestCases[i].text.join('\n');
+                    if (newTestCases.length === 1) {
+                        const newTestCaseText = `${newTestCasesTextWrap.prefix}${newTestCases[0].text.join('\n')}${newTestCasesTextWrap.suffix}`;
                         insertTestCase(newTestCaseText);
-                    }
+                    } else {
+                        // Insert newline prefix
+                        if (newTestCasesTextWrap.prefix !== '') {
+                            insertTestCase(newTestCasesTextWrap.prefix);
+                        }
 
-                    // Insert newline suffix
-                    if (newTestCasesTextWrap.suffix !== '') {
-                        insertTestCase(newTestCasesTextWrap.suffix);
+                        // Insert test cases
+                        for (let i = 0; i < newTestCases.length; i++) {
+                            const newTestCaseText = i !== 0 ? `\n\n${newTestCases[i].text.join('\n')}` : newTestCases[i].text.join('\n');
+                            insertTestCase(newTestCaseText);
+                        }
+
+                        // Insert newline suffix
+                        if (newTestCasesTextWrap.suffix !== '') {
+                            insertTestCase(newTestCasesTextWrap.suffix);
+                        }
                     }
                 }
 
