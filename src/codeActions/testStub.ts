@@ -187,17 +187,34 @@ export namespace TestStubCodeActions {
                 }
                 if (newIncludes.length > 0) {
                     const newIncludesPosition = new Position(newIncludesInsert.line, newIncludesInsert.character);
-                    const newIncludesText = `${newIncludesTextWrap.prefix}${newIncludes.join(`\n`)}${newIncludesTextWrap.suffix}`;
-                    testStubEdit.insert(
-                        testFileUri,
-                        newIncludesPosition,
-                        newIncludesText,
-                        {
-                            label: `Add include(s)`,
-                            needsConfirmation: showTestStubPreview,
-                            iconPath: new ThemeIcon('file-code')
-                        }
-                    );
+                    function insertInclude(text: string) {
+                        testStubEdit.insert(
+                            testFileUri,
+                            newIncludesPosition,
+                            text,
+                            {
+                                label: `Add include(s)`,
+                                needsConfirmation: showTestStubPreview,
+                                iconPath: new ThemeIcon('file-code')
+                            }
+                        );
+                    }
+
+                    // Insert newline prefix
+                    if (newIncludesTextWrap.prefix !== '') {
+                        insertInclude(newIncludesTextWrap.prefix);
+                    }
+
+                    // Insert includes
+                    for (let i = 0; i < newIncludes.length; i++) {
+                        const newIncludeText = i !== 0 ? `\n${newIncludes[i]}` : newIncludes[i];
+                        insertInclude(newIncludeText);
+                    }
+
+                    // Insert newline suffix
+                    if (newIncludesTextWrap.suffix !== '') {
+                        insertInclude(newIncludesTextWrap.suffix);
+                    }
                 }
 
                 // Add prototypes
@@ -225,17 +242,34 @@ export namespace TestStubCodeActions {
                 }
                 if (newPrototypes.length > 0) {
                     const newPrototypesPosition = new Position(newPrototypesInsert.line, newPrototypesInsert.character);
-                    const newPrototypesText = `${newPrototypesTextWrap.prefix}${newPrototypes.map(proto => proto.text.join('\n')).join('\n\n')}${newPrototypesTextWrap.suffix}`;
-                    testStubEdit.insert(
-                        testFileUri,
-                        newPrototypesPosition,
-                        newPrototypesText,
-                        {
-                            label: `Add prototype(s)`,
-                            needsConfirmation: showTestStubPreview,
-                            iconPath: new ThemeIcon('symbol-method')
-                        }
-                    );
+                    function insertPrototype(text: string) {
+                        testStubEdit.insert(
+                            testFileUri,
+                            newPrototypesPosition,
+                            text,
+                            {
+                                label: `Add prototype(s)`,
+                                needsConfirmation: showTestStubPreview,
+                                iconPath: new ThemeIcon('symbol-method')
+                            }
+                        );
+                    }
+
+                    // Insert newline prefix
+                    if (newPrototypesTextWrap.prefix !== '') {
+                        insertPrototype(newPrototypesTextWrap.prefix);
+                    }
+
+                    // Insert prototypes
+                    for (let i = 0; i < newPrototypes.length; i++) {
+                        const newPrototypeText = i !== 0 ? `\n\n${newPrototypes[i].text.join('\n')}` : newPrototypes[i].text.join('\n');
+                        insertPrototype(newPrototypeText);
+                    }
+
+                    // Insert newline suffix
+                    if (newPrototypesTextWrap.suffix !== '') {
+                        insertPrototype(newPrototypesTextWrap.suffix);
+                    }
                 }
 
                 // Add test cases
@@ -253,24 +287,43 @@ export namespace TestStubCodeActions {
                 }
                 if (newTestCases.length > 0) {
                     const newTestCasesPosition = new Position(newTestCasesInsert.line, newTestCasesInsert.character);
-                    const newTestCasesText = `${newTestCasesTextWrap.prefix}${newTestCases.map(testCase => testCase.text.join('\n')).join('\n\n')}${newTestCasesTextWrap.suffix}`;
-                    testStubEdit.insert(
-                        testFileUri,
-                        newTestCasesPosition,
-                        newTestCasesText,
-                        {
-                            label: `Add test case(s)`,
-                            needsConfirmation: showTestStubPreview,
-                            iconPath: new ThemeIcon('beaker')
-                        }
-                    );
+                    function insertTestCase(text: string) {
+                        testStubEdit.insert(
+                            testFileUri,
+                            newTestCasesPosition,
+                            text,
+                            {
+                                label: `Add test case(s)`,
+                                needsConfirmation: showTestStubPreview,
+                                iconPath: new ThemeIcon('beaker')
+                            }
+                        );
+                    }
+
+                    // Insert newline prefix
+                    if (newTestCasesTextWrap.prefix !== '') {
+                        insertTestCase(newTestCasesTextWrap.prefix);
+                    }
+
+                    // Insert test cases
+                    for (let i = 0; i < newTestCases.length; i++) {
+                        const newTestCaseText = i !== 0 ? `\n\n${newTestCases[i].text.join('\n')}` : newTestCases[i].text.join('\n');
+                        insertTestCase(newTestCaseText);
+                    }
+
+                    // Insert newline suffix
+                    if (newTestCasesTextWrap.suffix !== '') {
+                        insertTestCase(newTestCasesTextWrap.suffix);
+                    }
                 }
 
-                await workspace.applyEdit(testStubEdit);
-                if (!testDocument) {
-                    testDocument = await workspace.openTextDocument(testFileUri);
+                const isApplied = await workspace.applyEdit(testStubEdit);
+                if (isApplied) {
+                    if (!testDocument) {
+                        testDocument = await workspace.openTextDocument(testFileUri);
+                    }
+                    await window.showTextDocument(testDocument);
                 }
-                await window.showTextDocument(testDocument);
             })
         );
     }
