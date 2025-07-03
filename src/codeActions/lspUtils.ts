@@ -1,5 +1,6 @@
 import Declaration from "vscode-rpgle/language/models/declaration";
 import Cache from "vscode-rpgle/language/models/cache";
+import { Uri, commands } from "vscode";
 
 export type Keywords = { [key: string]: string | boolean };
 export type RpgleVariableType = `char` | `varchar` | `int` | `uns` | `packed` | `zoned` | `ind` | `date` | `time` | `timestamp` | `pointer` | `float` | `graph` | `vargraph`;
@@ -9,6 +10,10 @@ export interface RpgleTypeDetail {
 }
 
 export namespace LspUtils {
+    export async function getDocs(uri: Uri): Promise<Cache | undefined> {
+        return await commands.executeCommand('vscode-rpgle.server.getCache', uri);
+    }
+
     export function prettyKeywords(keywords: Keywords, filter: boolean = false): string {
         const filteredKeywords = ['QUALIFIED', 'EXPORT'];
 

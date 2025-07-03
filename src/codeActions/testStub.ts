@@ -1,10 +1,11 @@
-import { CodeAction, CodeActionKind, commands, Disposable, ExtensionContext, languages, Position, Range, TextDocument, Uri, window, workspace, WorkspaceEdit } from "vscode";
+import { CodeAction, CodeActionKind, commands, Disposable, ExtensionContext, languages, Position, Range, TextDocument, ThemeIcon, Uri, window, workspace, WorkspaceEdit } from "vscode";
 import Declaration from "vscode-rpgle/language/models/declaration";
 import Cache from "vscode-rpgle/language/models/cache";
 import { getInstance } from "../extensions/ibmi";
 import { LspUtils, RpgleTypeDetail, RpgleVariableType } from "./lspUtils";
 import * as path from "path";
 import { ApiUtils } from "../api/apiUtils";
+import { Configuration, Section } from "../configuration";
 
 export namespace TestStubCodeActions {
     interface TestCaseSpec {
@@ -21,7 +22,7 @@ export namespace TestStubCodeActions {
                         const codeActions: CodeAction[] = [];
 
                         if (document) {
-                            const docs = await getDocs(document.uri);
+                            const docs = await LspUtils.getDocs(document.uri);
                             if (docs) {
                                 const testStubCodeActions = await getTestStubCodeActions(document, docs, range);
                                 if (testStubCodeActions) {
@@ -65,35 +66,34 @@ export namespace TestStubCodeActions {
                     return;
                 }
 
-                // Create test file if it does not exist
-                let testDocument: TextDocument;
-                try {
-                    testDocument = await workspace.openTextDocument(testFileUri);
-                } catch (error) {
-                    if (testFileUri.scheme === 'member') {
-                        const parsedPath = connection.parserMemberPath(document.uri.path);
-                        const sourceFileExists = await content.checkObject({ library: parsedPath.library, name: 'QTESTSRC', type: '*FILE' });
+                const showTestStubPreview = Configuration.getOrFallback<boolean>(Section.showTestStubPreview);
+
+                if (testFileUri.scheme === 'member') {
+                    // Check if QTESTSRC exists
+                    const parsedPath = connection.parserMemberPath(document.uri.path);
+                    const sourceFileExists = await content.checkObject({ library: parsedPath.library, name: 'QTESTSRC', type: '*FILE' });
+
+                    // Prompt user to create QTESTSRC if in preview mode
+                    if (showTestStubPreview) {
                         if (!sourceFileExists) {
-                            const createFile = await connection.runCommand({
-                                command: `CRTSRCPF FILE(${parsedPath.library}/QTESTSRC) RCDLEN(112)`,
-                                noLibList: true
-                            });
-                            if (createFile.code !== 0) {
-                                window.showErrorMessage(`Failed to create ${parsedPath.library}/QTESTSRC: ${createFile.stderr}`);
+                            const value = await window.showErrorMessage(`The source file ${parsedPath.library}/QTESTSRC does not exist. Can it be created?`, { modal: true }, 'Yes', 'No');
+                            if (value === 'No') {
                                 return;
                             }
                         }
                     }
 
-                    const createTestEdit = new WorkspaceEdit();
-                    createTestEdit.createFile(
-                        testFileUri,
-                        {
-                            ignoreIfExists: true
+                    // Create QTESTSRC if it does not exist
+                    if (!sourceFileExists) {
+                        const createFile = await connection.runCommand({
+                            command: `CRTSRCPF FILE(${parsedPath.library}/QTESTSRC) RCDLEN(112)`,
+                            noLibList: true
+                        });
+                        if (createFile.code !== 0) {
+                            window.showErrorMessage(`Failed to create ${parsedPath.library}/QTESTSRC: ${createFile.stderr}`);
+                            return;
                         }
-                    );
-                    await workspace.applyEdit(createTestEdit);
-                    testDocument = await workspace.openTextDocument(testFileUri);
+                    }
                 }
 
                 // Generate test case spec
@@ -102,10 +102,28 @@ export namespace TestStubCodeActions {
                 let newPrototypes: { name: string, text: string[] }[] = testCaseSpecs.flatMap(tcs => tcs.prototype ? tcs.prototype : []);
                 let newTestCases: { name: string, text: string[] }[] = testCaseSpecs.flatMap(tcs => tcs.testCase ? tcs.testCase : []);
 
-                // Build test stub edit
-                let testStubEdit = new WorkspaceEdit();
+                let testDocument: TextDocument | undefined;
                 try {
-                    const testDocs = await getDocs(testFileUri);
+                    // Build test stub edit and insert code in appropriate places
+                    const testStubEdit = new WorkspaceEdit();
+                    const testDocs = await LspUtils.getDocs(testFileUri);
+
+                    // Create test file if it does not exist
+                    try {
+                        testDocument = await workspace.openTextDocument(testFileUri);
+                    } catch (error) {
+                        testStubEdit.createFile(
+                            testFileUri,
+                            {
+                                ignoreIfExists: true
+                            },
+                            {
+                                label: `Create '${testFileName}'`,
+                                needsConfirmation: showTestStubPreview,
+                                iconPath: new ThemeIcon('file')
+                            }
+                        );
+                    }
 
                     // Add directive and control options
                     const text = testDocument.getText();
@@ -119,7 +137,12 @@ export namespace TestStubCodeActions {
                         testStubEdit.insert(
                             testFileUri,
                             new Position(testDocument.lineCount - 1, 0),
-                            directiveAndControlOptions.join(`\n`)
+                            directiveAndControlOptions.join(`\n`),
+                            {
+                                label: `Add directive and control options`,
+                                needsConfirmation: showTestStubPreview,
+                                iconPath: new ThemeIcon('symbol-misc')
+                            }
                         );
                     }
 
@@ -133,7 +156,7 @@ export namespace TestStubCodeActions {
                         if (testDocs.includes.length > 0) {
                             // Insert include after the last existing resolved include
                             newIncludesInsert.line = Math.max(...testDocs.includes.map(i => i.line));
-                            newIncludesInsert.character = testDocument.lineAt(newIncludesInsert.line).text.length
+                            newIncludesInsert.character = testDocument.lineAt(newIncludesInsert.line).text.length;
                             newIncludesTextWrap.prefix = `\n`;
                         } else if (text.toLocaleUpperCase().includes('/COPY') || text.toLocaleUpperCase().includes('/INCLUDE')) {
                             // Insert include after the last existing unresolved include
@@ -142,7 +165,7 @@ export namespace TestStubCodeActions {
                                 const line = splitText[i].toLocaleUpperCase().trim();
                                 if (line.startsWith('/COPY') || line.startsWith('/INCLUDE')) {
                                     newIncludesInsert.line = i;
-                                    newIncludesInsert.character = testDocument.lineAt(newIncludesInsert.line).text.length
+                                    newIncludesInsert.character = testDocument.lineAt(newIncludesInsert.line).text.length;
                                     break;
                                 }
                             }
@@ -157,11 +180,16 @@ export namespace TestStubCodeActions {
                     }
                     if (newIncludes.length > 0) {
                         const newIncludesPosition = new Position(newIncludesInsert.line, newIncludesInsert.character);
-                        const newIncludesText = `${newIncludesTextWrap.prefix}${newIncludes.join(`\n`)}${newIncludesTextWrap.suffix}`
+                        const newIncludesText = `${newIncludesTextWrap.prefix}${newIncludes.join(`\n`)}${newIncludesTextWrap.suffix}`;
                         testStubEdit.insert(
                             testFileUri,
                             newIncludesPosition,
-                            newIncludesText
+                            newIncludesText,
+                            {
+                                label: `Add includes`,
+                                needsConfirmation: showTestStubPreview,
+                                iconPath: new ThemeIcon('file-code')
+                            }
                         );
                     }
 
@@ -176,7 +204,7 @@ export namespace TestStubCodeActions {
                         if (existingPrototypes.length > 0) {
                             // Insert prototypes after the last existing prototype
                             newPrototypesInsert.line = Math.max(...existingPrototypes.map(proc => proc.range.end!));
-                            newPrototypesInsert.character = testDocument.lineAt(newPrototypesInsert.line).text.length
+                            newPrototypesInsert.character = testDocument.lineAt(newPrototypesInsert.line).text.length;
                         } else if (testDocs.procedures.length > 0) {
                             // Insert prototypes before the first procedure
                             const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testDocument.uri.toString());
@@ -191,7 +219,12 @@ export namespace TestStubCodeActions {
                         testStubEdit.insert(
                             testFileUri,
                             newPrototypesPosition,
-                            newPrototypesText
+                            newPrototypesText,
+                            {
+                                label: `Add prototypes`,
+                                needsConfirmation: showTestStubPreview,
+                                iconPath: new ThemeIcon('symbol-method')
+                            }
                         );
                     }
 
@@ -203,7 +236,7 @@ export namespace TestStubCodeActions {
                             // Insert test case after the last procedure
                             const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testDocument.uri.toString());
                             newTestCasesInsert.line = Math.max(...existingProcedures.map(proc => proc.range.end!));
-                            newPrototypesInsert.character = testDocument.lineAt(newTestCasesInsert.line).text.length
+                            newPrototypesInsert.character = testDocument.lineAt(newTestCasesInsert.line).text.length;
                         }
                     }
                     if (newTestCases.length > 0) {
@@ -212,12 +245,36 @@ export namespace TestStubCodeActions {
                         testStubEdit.insert(
                             testFileUri,
                             newTestCasesPosition,
-                            newTestCasesText
+                            newTestCasesText,
+                            {
+                                label: `Add test case(s)`,
+                                needsConfirmation: showTestStubPreview,
+                                iconPath: new ThemeIcon('beaker')
+                            }
                         );
                     }
                 } catch (error) {
-                    // Fallback to inserting stub at the end of the file (this may happen if the cache is outdated)
-                    const testStubPosition = new Position(testDocument.lineCount - 1, 0);
+                    // Build default test stub and insert at the beginning of the file (this fallback may happen if the cache is outdated)
+                    const defaultTestStubEdit = new WorkspaceEdit();
+
+                    // Create test file if it does not exist
+                    try {
+                        testDocument = await workspace.openTextDocument(testFileUri);
+                    } catch (error) {
+                        defaultTestStubEdit.createFile(
+                            testFileUri,
+                            {
+                                ignoreIfExists: true
+                            },
+                            {
+                                label: `Create '${testFileName}'`,
+                                needsConfirmation: showTestStubPreview,
+                                iconPath: new ThemeIcon('file')
+                            }
+                        );
+                    }
+
+                    const testStubPosition = new Position(0, 0);
                     const testStubText = [
                         `**free`,
                         ``,
@@ -229,23 +286,26 @@ export namespace TestStubCodeActions {
                         ``,
                         newTestCases.map(testCase => testCase.text.join('\n')).join('\n\n')
                     ].join('\n');
-
-                    testStubEdit = new WorkspaceEdit();
-                    testStubEdit.insert(
+                    defaultTestStubEdit.insert(
                         testFileUri,
                         testStubPosition,
-                        testStubText
+                        testStubText,
+                        {
+                            label: `Add directive, control options, includes, prototypes, and test case(s)`,
+                            needsConfirmation: showTestStubPreview,
+                            iconPath: new ThemeIcon('beaker')
+                        }
                     );
+
+                    await workspace.applyEdit(defaultTestStubEdit);
                 }
 
-                await workspace.applyEdit(testStubEdit);
+                if (!testDocument) {
+                    testDocument = await workspace.openTextDocument(testFileUri);
+                }
                 await window.showTextDocument(testDocument);
             })
         );
-    }
-
-    async function getDocs(uri: Uri): Promise<Cache | undefined> {
-        return await commands.executeCommand('vscode-rpgle.server.getCache', uri);
     }
 
     export async function getTestStubCodeActions(document: TextDocument, docs: Cache, range: Range): Promise<CodeAction[] | undefined> {
@@ -277,7 +337,7 @@ export namespace TestStubCodeActions {
                 title: title,
                 command: `vscode-rpgle.generateTestStub`,
                 arguments: [document, docs, exportProcedures]
-            }
+            };
             codeActions.push(testSuiteAction);
         }
 
@@ -386,9 +446,9 @@ export namespace TestStubCodeActions {
 
     async function getPrototype(procedure: Declaration): Promise<{ name: string, text: string[] } | undefined> {
         for (const reference of procedure.references) {
-            const docs = await getDocs(Uri.parse(reference.uri));
+            const docs = await LspUtils.getDocs(Uri.parse(reference.uri));
             if (docs) {
-                const prototype = docs.procedures.some(proc => proc.name === procedure.name && proc.keyword['EXTPROC'])
+                const prototype = docs.procedures.some(proc => proc.name === procedure.name && proc.keyword['EXTPROC']);
                 if (prototype) {
                     return;
                 }
