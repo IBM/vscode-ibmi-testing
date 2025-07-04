@@ -258,7 +258,7 @@ export class IBMiTestRunner {
                 const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
                 return productLibrary;
             },
-            getTestParams: (tstpgm: string, xmlStmf: string, tstPrc?: string): RUCALLTST => {
+            getBaseExecutionParams: (tstpgm: string, xmlStmf: string, tstPrc?: string): RUCALLTST => {
                 const testParams: RUCALLTST = {
                     tstPgm: tstpgm,
                     tstPrc: tstPrc,

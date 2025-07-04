@@ -107,7 +107,8 @@ export interface TestMetrics {
 export interface TestingConfig {
     rpgunit?: {
         rucrtrpg?: RUCRTRPG & { wrapperCmd?: WrapperCmd },
-        rucrtcbl?: RUCRTCBL & { wrapperCmd?: WrapperCmd }
+        rucrtcbl?: RUCRTCBL & { wrapperCmd?: WrapperCmd },
+        rucalltst?: RUCALLTST & { wrapperCmd?: WrapperCmd }
     },
     codecov?: CODECOV
 }

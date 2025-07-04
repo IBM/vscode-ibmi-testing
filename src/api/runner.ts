@@ -20,7 +20,7 @@ export interface TestCallbacks {
     loadDiagnostics: (qualifiedObject: string, workspaceFolderPath?: string) => Promise<void>;
     getEnvConfig: (workspaceFolderPath: string) => Promise<Env>;
     getProductLibrary: () => string;
-    getTestParams: (tstpgm: string, xmlStmf: string, tstPrc?: string) => RUCALLTST;
+    getBaseExecutionParams: (tstpgm: string, xmlStmf: string, tstPrc?: string) => RUCALLTST;
     setIsCompiled: (uri: BasicUri, isCompiled: boolean) => Promise<void>;
     started: (uri: BasicUri) => Promise<void>;
     skipped: (uri: BasicUri) => Promise<void>;
@@ -375,11 +375,28 @@ export class Runner {
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Test storage for ${testSuite.name}: ${JSON.stringify(testStorage)}`);
             const xmlStmf = testStorage.RPGUNIT;
 
-            const testParams = this.testCallbacks.getTestParams(qualifiedTstPgm, xmlStmf, testCase?.name);
+            // Merge base execution params (ie. from VS Code settings) and execution params from config file
+            const baseExecutionParams = this.testCallbacks.getBaseExecutionParams(qualifiedTstPgm, xmlStmf, testCase?.name);
+            const rucalltst = testSuite.testingConfig?.rpgunit?.rucalltst;
+            const wrapperCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.wrapperCmd;
+            if (wrapperCmd) {
+                delete rucalltst.wrapperCmd;
+            }
+            const testParams: RUCALLTST = {
+                ...baseExecutionParams,
+                ...rucalltst
+            };
 
-            // Build RUCALLTST command
+            // Build call tests command
             const productLibrary = this.testCallbacks.getProductLibrary();
             let testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
+
+            // Wrap call tests command if a wrapper command is specified
+            if (wrapperCmd && wrapperCmd.cmd) {
+                const cmd = `${wrapperCmd.cmd}(${testCommand})`;
+                const params = wrapperCmd.params || {};
+                testCommand = content.toCl(cmd, params);
+            }
 
             // Build CODECOV command if code coverage is enabled
             let coverageParams: CODECOV | undefined;
