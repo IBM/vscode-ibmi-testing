@@ -132,7 +132,7 @@ export interface RUCRTRPG {
     compileOpt?: string,
     tgtRls?: string
     incDir?: string[],
-    tgtCcsid?: number
+    tgtCcsid?: string | number
 }
 
 export interface RUCRTCBL {

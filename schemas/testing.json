@@ -205,7 +205,18 @@
                             "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
                         },
                         "tgtCcsid": {
-                            "type": "number",
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "*SRC",
+                                        "*JOB"
+                                    ]
+                                },
+                                {
+                                    "type": "number"
+                                }
+                            ],
                             "default": 37,
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
                         },
@@ -452,7 +463,18 @@
                             "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
                         },
                         "tgtCcsid": {
-                            "type": "number",
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "*SRC",
+                                        "*JOB"
+                                    ]
+                                },
+                                {
+                                    "type": "number"
+                                }
+                            ],
                             "default": 37,
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
                         },
