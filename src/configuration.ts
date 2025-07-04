@@ -15,7 +15,6 @@ export enum Section {
     runOrder = 'runOrder',
     libraryList = 'libraryList',
     jobDescription = 'jobDescription',
-    jobDescriptionLibrary = 'jobDescriptionLibrary',
     reportDetail = 'reportDetail',
     createReport = 'createReport',
     reclaimResources = 'reclaimResources'
@@ -31,7 +30,6 @@ export const defaultConfigurations: { [T in Section]: ValueType } = {
     [Section.runOrder]: '*API',
     [Section.libraryList]: '*CURRENT',
     [Section.jobDescription]: '*DFT',
-    [Section.jobDescriptionLibrary]: '',
     [Section.reportDetail]: '*BASIC',
     [Section.createReport]: '*ALLWAYS',
     [Section.reclaimResources]: '*NO'
