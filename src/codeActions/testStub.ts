@@ -158,13 +158,12 @@ export namespace TestStubCodeActions {
                         newIncludes = newIncludes.filter(include =>
                             !(text.toLocaleLowerCase().includes(`/include ${include.name}`.toLocaleLowerCase()) || text.toLocaleLowerCase().includes(`/copy ${include.name}`.toLocaleLowerCase())));
 
-                        // Add this back if IncludeStatement adds fromPath
-                        // if (testDocs.includes.length > 0) {
-                        //     // Insert include after the last existing resolved include
-                        //     newIncludesInsert.line = Math.max(...testDocs.includes.map(i => i.line));
-                        //     newIncludesInsert.character = lineAt(newIncludesInsert.line).length;
-                        //     newIncludesTextWrap.prefix = `\n`;
-                        // } else
+                        if (testDocs.includes.length > 0) {
+                            // Insert include after the last existing resolved include
+                            newIncludesInsert.line = Math.max(...testDocs.includes.filter(i => i.fromPath === testFileUri.toString()).map(i => i.line));
+                            newIncludesInsert.character = lineAt(newIncludesInsert.line).length;
+                            newIncludesTextWrap.prefix = `\n`;
+                        } else
                         if (text.toLocaleLowerCase().includes('/copy') || text.toLocaleLowerCase().includes('/include')) {
                             // Insert include after the last existing unresolved include
                             const splitText = text.split(/\r?\n/);
