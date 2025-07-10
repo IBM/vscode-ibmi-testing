@@ -14,6 +14,10 @@ export class TestLogger {
         await this.testResultLogger.append(c.red(error));
     }
 
+    async logRunTimeWarning(error: string) {
+        await this.testResultLogger.append(`\t${c.yellow(`⚠  ${error}`)}`);
+    }
+
     async logWorkspace(workspaceName: string, numTestSuites: number) {
         await this.testResultLogger.append(`${c.bgBlue(` WORKSPACE `)} ${workspaceName} ${c.grey(`(${numTestSuites})`)}`);
         await this.testOutputLogger.log(LogLevel.Info, `Running tests in ${workspaceName}`);
