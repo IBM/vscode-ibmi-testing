@@ -381,7 +381,7 @@ export namespace TestStubCodeActions {
     export async function getTestStubCodeActions(document: TextDocument, docs: Cache, range: Range): Promise<CodeAction[] | undefined> {
         const codeActions: CodeAction[] = [];
 
-        const exportProcedures = docs.procedures.filter(proc => proc.keyword[`EXPORT`]);
+        const exportProcedures = docs.procedures.filter(proc => !proc.prototype && proc.keyword[`EXPORT`]);
         if (exportProcedures.length > 0) {
             // Build test file name
             const parsedPath = path.parse(document.uri.fsPath);
