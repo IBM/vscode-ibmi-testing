@@ -2,7 +2,7 @@
     "rpgunit": {
         "rucrtrpg": {
             "text": "QTEMPLATE tests",
-            "tgtCcsid": 37,
+            "tgtCcsid": "*JOB",
             "dbgView": "*SOURCE",
             "cOption": [
                 "*EVENTF"
@@ -10,7 +10,7 @@
         },
         "rucrtcbl": {
             "text": "QTEMPLATE tests",
-            "tgtCcsid": 37,
+            "tgtCcsid": "*JOB",
             "dbgView": "*SOURCE",
             "cOption": [
                 "*EVENTF"

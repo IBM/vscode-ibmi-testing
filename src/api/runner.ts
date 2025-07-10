@@ -228,9 +228,9 @@ export class Runner {
             };
         }
 
-        // Set TGTCCSID to 37 by default
+        // Set TGTCCSID to *JOB by default
         if (!compileParams.tgtCcsid) {
-            compileParams.tgtCcsid = 37;
+            compileParams.tgtCcsid = "*JOB";
         }
 
         // SET COPTION to *EVEVENTF by default to be able to later get diagnostic messages
