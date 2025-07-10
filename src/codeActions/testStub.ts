@@ -178,8 +178,8 @@ export namespace TestStubCodeActions {
                             newIncludesTextWrap.prefix = `\n`;
                         } else if (testDocs.procedures.length > 0) {
                             // Insert include before the first procedure or prototype
-                            const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
-                            newIncludesInsert.line = Math.min(...existingProcedures.map(proc => proc.range.start!));
+                            const existingProcOrProto = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
+                            newIncludesInsert.line = Math.min(...existingProcOrProto.map(proc => proc.range.start!));
                             newIncludesInsert.character = 0;
                             newIncludesTextWrap.prefix = ``;
                             newIncludesTextWrap.suffix = `\n\n`;
@@ -230,7 +230,7 @@ export namespace TestStubCodeActions {
                 if (testDocs) {
                     try {
                         // Filter out prototypes that already exist
-                        const existingPrototypes = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString() && proc.keyword[`EXTPROC`]);
+                        const existingPrototypes = testDocs.procedures.filter(proc => proc.prototype && proc.position?.path === testFileUri.toString());
                         newPrototypes = newPrototypes.filter(proto => !existingPrototypes.some(existingProto => existingProto.name === proto.name));
 
                         if (existingPrototypes.length > 0) {
@@ -239,7 +239,7 @@ export namespace TestStubCodeActions {
                             newPrototypesInsert.character = lineAt(newPrototypesInsert.line).length;
                         } else if (testDocs.procedures.length > 0) {
                             // Insert prototypes before the first procedure
-                            const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
+                            const existingProcedures = testDocs.procedures.filter(proc => !proc.prototype && proc.position?.path === testFileUri.toString());
                             newPrototypesInsert.line = Math.min(...existingProcedures.map(proc => proc.range.start!));
                             newPrototypesInsert.character = 0;
                             newPrototypesTextWrap.prefix = ``;
@@ -291,9 +291,9 @@ export namespace TestStubCodeActions {
                 if (testDocs) {
                     try {
                         if (testDocs.procedures.length > 0) {
-                            // Insert test case after the last procedure
-                            const existingProcedures = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
-                            newTestCasesInsert.line = Math.max(...existingProcedures.map(proc => proc.range.end!));
+                            // Insert test case after the last procedure or prototype
+                            const existingProcOrProto = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
+                            newTestCasesInsert.line = Math.max(...existingProcOrProto.map(proc => proc.range.end!));
                             newTestCasesInsert.character = lineAt(newTestCasesInsert.line).length;
                         }
                     } catch (error) { }
@@ -489,7 +489,7 @@ export namespace TestStubCodeActions {
         for (const reference of procedure.references) {
             const docs = await LspUtils.getDocs(Uri.parse(reference.uri));
             if (docs) {
-                const prototype = docs.procedures.some(proc => proc.name === procedure.name && proc.keyword['EXTPROC']);
+                const prototype = docs.procedures.some(proc => proc.prototype && proc.name === procedure.name);
                 if (prototype) {
                     return;
                 }
