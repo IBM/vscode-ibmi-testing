@@ -434,6 +434,7 @@ export class Runner {
                 this.testMetrics.testFiles.errored++;
             }
 
+            let hitRunTimeError: boolean = false;
             if (testResult.stdout.length > 0) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Info, `${testSuite.name} execution output:\n${testResult.stdout}`);
                 const lines = testResult.stdout.split('\n');
@@ -441,6 +442,7 @@ export class Runner {
                     const trimmedLine = line.trim();
                     if(trimmedLine.startsWith('Runtime error: No test case found')) {
                         await this.testLogger.logRunTimeWarning(trimmedLine);
+                        hitRunTimeError = true;
                     }
                 }
             }
@@ -524,7 +526,7 @@ export class Runner {
             }
 
             // Process test case results
-            let testFileStatus: TestStatus = 'passed';
+            let testFileStatus: TestStatus = hitRunTimeError ? 'errored' : 'passed';
             for (const testCaseResult of testCaseResults) {
                 // const parentItem = isTestCase ? item.parent! : item;
 
