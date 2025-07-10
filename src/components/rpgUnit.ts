@@ -3,7 +3,7 @@ import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { Configuration, Section } from "../configuration";
 import { compareVersions } from 'compare-versions';
 import { GitHub, Release } from "../github";
-import { commands, LogLevel, ProgressLocation, QuickPickItem, window } from "vscode";
+import { commands, LogLevel, ProgressLocation, QuickPickItem, QuickPickItemKind, window } from "vscode";
 import * as tmp from "tmp";
 import * as path from "path";
 import { getInstance } from "../extensions/ibmi";
@@ -77,43 +77,61 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Filter releases (exclude releases which are drafts, do not have the required asset, or are below the minimum version)
-        const filteredReleases = releases.data.filter(async release => {
+        const supportedReleases: Release[] = [];
+        const unsupportedReleases: Release[] = [];
+        for await (const release of releases.data) {
             let version = release.name || release.tag_name;
             version = version.startsWith('v') ? version.substring(1) : version;
-            return (release.draft === false) &&
+            const isValid = (release.draft === false) &&
                 (release.assets.some(asset => asset.name === GitHub.ASSET_NAME)) &&
                 (await this.compareVersions(version, RPGUnit.MINIMUM_VERSION)) >= 0;
-        });
-        if (filteredReleases.length === 0) {
+
+            if (isValid) {
+                supportedReleases.push(release);
+            } else {
+                unsupportedReleases.push(release);
+            }
+        }
+
+        if (supportedReleases.length === 0) {
             await testOutputLogger.logWithNotification(LogLevel.Error, `No GitHub releases found which are above the minimum version (${RPGUnit.MINIMUM_VERSION})`);
             return state;
         } else {
-            await testOutputLogger.log(LogLevel.Info, `Found ${filteredReleases.length} compatible GitHub release(s) in ${GitHub.OWNER}/${GitHub.REPO}`);
+            await testOutputLogger.log(LogLevel.Info, `Found ${supportedReleases.length} compatible and ${unsupportedReleases.length} incompatible GitHub release(s) in ${GitHub.OWNER}/${GitHub.REPO}`);
         }
 
         // Prompt user to select a release
-        const items: (QuickPickItem & { release: Release })[] = filteredReleases.map(release => {
-            const version = release.name || release.tag_name;
-            const publishedAt = release.published_at ? new Date(release.published_at).toLocaleString() : undefined;
-            const preRelease = release.prerelease ? ' (Pre-release)' : '';
-            const description = (publishedAt ?
-                (preRelease ? `${publishedAt} (Pre-release)` : publishedAt) :
-                (preRelease ? `(Pre-release)` : ''));
+        function getQuickPickItems(releases: Release[]): (QuickPickItem & { release: Release })[] {
+            const items: (QuickPickItem & { release: Release })[] = releases.map(release => {
+                const version = release.name || release.tag_name;
+                const publishedAt = release.published_at ? new Date(release.published_at).toLocaleString() : undefined;
+                const preRelease = release.prerelease ? ' (Pre-release)' : '';
+                const description = (publishedAt ?
+                    (preRelease ? `${publishedAt} (Pre-release)` : publishedAt) :
+                    (preRelease ? `(Pre-release)` : ''));
 
-            return {
-                label: version,
-                description: description,
-                release: release
-            };
-        });
-        const selectedRelease = await window.showQuickPick(items, {
+                return {
+                    label: version,
+                    description: description,
+                    release: release
+                };
+            });
+            return items;
+        }
+        const selectedItem = await window.showQuickPick([
+            { label: 'Supported', kind: QuickPickItemKind.Separator },
+            ...getQuickPickItems(supportedReleases),
+            { label: 'Unsupported', kind: QuickPickItemKind.Separator },
+            ...getQuickPickItems(unsupportedReleases)
+        ], {
             title: 'Select the GitHub release to install from',
             placeHolder: 'GitHub Release'
         });
-        if (!selectedRelease) {
+        if (!selectedItem) {
             await testOutputLogger.logWithNotification(LogLevel.Error, `Installation aborted as GitHub release was not selected`);
             return state;
         }
+        const selectedRelease = selectedItem as (QuickPickItem & { release: Release });
 
         testOutputLogger.show();
         const content = connection.getContent();
@@ -229,7 +247,9 @@ export class RPGUnit implements IBMiComponent {
             v = v.replace('.r', '');
 
             // Convert beta suffix
-            v = v.replace('.b', '-beta.');
+            if (!v.includes('-beta.')) {
+                v = v.includes('.b') ? v.replace('.b', '-beta.') : v.includes('b') ? v.replace('b', '-beta.') : v;
+            }
 
             return v;
         }
