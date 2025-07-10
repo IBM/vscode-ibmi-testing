@@ -5,7 +5,7 @@ import { getInstance } from "../extensions/ibmi";
 import { LspUtils, RpgleTypeDetail, RpgleVariableType } from "./lspUtils";
 import * as path from "path";
 import { ApiUtils } from "../api/apiUtils";
-import { Configuration, Section } from "../configuration";
+import { Configuration, Section, TestStubPreferences } from "../configuration";
 
 export namespace TestStubCodeActions {
     interface TestCaseSpec {
@@ -40,15 +40,37 @@ export namespace TestStubCodeActions {
                 const connection = ibmi!.getConnection();
                 const content = ibmi!.getContent();
 
-                // Build test file name and URI
+                // Get test stub generation preferences
+                const testStubPreferences = Configuration.getOrFallback<TestStubPreferences>(Section.testStubPreferences);
+                const showTestStubPreview = testStubPreferences["Show Test Stub Preview"];
+                const promptForTestName = testStubPreferences["Prompt For Test Name"];
+                const addControlOptionsAndDirectives = testStubPreferences["Add Control Options and Directives"];
+                const addIncludes = testStubPreferences["Add Includes"];
+                const addPrototypes = testStubPreferences["Add Prototypes"];
+                const addStubComments = testStubPreferences["Add Stub Comments"];
+
+                // Build test file name, parent name (directory or source file) and URI
                 let testFileName: string;
+                let testFileParentName: string;
                 let testFileUri: Uri;
                 if (document.uri.scheme === 'file') {
                     const workspaceFolder = workspace.getWorkspaceFolder(document.uri);
                     if (workspaceFolder) {
                         const parsedPath = path.parse(document.uri.fsPath);
                         testFileName = `${parsedPath.name}.test${parsedPath.ext}`;
-                        const testFilePath = path.posix.join(workspaceFolder.uri.fsPath, 'qtestsrc', testFileName);
+                        testFileParentName = 'qtestsrc';
+
+                        if (promptForTestName) {
+                            const userInput = await promptUserForTestName(testFileParentName, testFileName, true);
+                            if (userInput) {
+                                testFileParentName = userInput.testFileParentName;
+                                testFileName = userInput.testFileName;
+                            } else {
+                                return;
+                            }
+                        }
+
+                        const testFilePath = path.posix.join(workspaceFolder.uri.fsPath, testFileParentName, testFileName);
                         testFileUri = Uri.file(testFilePath);
                     } else {
                         window.showErrorMessage(`No workspace folder found for the document.`);
@@ -57,47 +79,54 @@ export namespace TestStubCodeActions {
                 } else if (document.uri.scheme === 'member') {
                     const parsedPath = connection.parserMemberPath(document.uri.path);
                     testFileName = `${ApiUtils.getSystemNameFromPath(`${parsedPath.name}.test`)}.${parsedPath.extension}`;
+                    testFileParentName = 'QTESTSRC';
+
+                    if (promptForTestName) {
+                        const userInput = await promptUserForTestName(testFileParentName, testFileName, false);
+                        if (userInput) {
+                            testFileParentName = userInput.testFileParentName;
+                            testFileName = userInput.testFileName;
+                        } else {
+                            return;
+                        }
+                    }
+
                     const testFilePath = parsedPath.asp ?
-                        path.posix.join(parsedPath.asp, parsedPath.library, 'QTESTSRC', testFileName) :
-                        path.posix.join(parsedPath.library, 'QTESTSRC', testFileName);
+                        path.posix.join(parsedPath.asp, parsedPath.library, testFileParentName, testFileName) :
+                        path.posix.join(parsedPath.library, testFileParentName, testFileName);
                     testFileUri = Uri.from({ scheme: 'member', path: `/${testFilePath}` });
-                } else {
-                    window.showErrorMessage(`Unsupported URI scheme: ${document.uri.scheme}`);
-                    return;
                 }
 
-                const showTestStubPreview = Configuration.getOrFallback<boolean>(Section.showTestStubPreview);
-
                 if (testFileUri.scheme === 'member') {
-                    // Check if QTESTSRC exists
+                    // Check if test source file exists
                     const parsedPath = connection.parserMemberPath(document.uri.path);
-                    const sourceFileExists = await content.checkObject({ library: parsedPath.library, name: 'QTESTSRC', type: '*FILE' });
+                    const sourceFileExists = await content.checkObject({ library: parsedPath.library, name: testFileParentName, type: '*FILE' });
 
-                    // Prompt user to create QTESTSRC if in preview mode
+                    // Prompt user to create test source file if in preview mode
                     if (showTestStubPreview) {
                         if (!sourceFileExists) {
-                            const value = await window.showErrorMessage(`The source file ${parsedPath.library}/QTESTSRC does not exist. Can it be created?`, { modal: true }, 'Yes', 'No');
+                            const value = await window.showErrorMessage(`The source file ${parsedPath.library}/${testFileParentName} does not exist. Can it be created?`, { modal: true }, 'Yes', 'No');
                             if (value === 'No') {
                                 return;
                             }
                         }
                     }
 
-                    // Create QTESTSRC if it does not exist
+                    // Create test source file if it does not exist
                     if (!sourceFileExists) {
                         const createFile = await connection.runCommand({
-                            command: `CRTSRCPF FILE(${parsedPath.library}/QTESTSRC) RCDLEN(112)`,
+                            command: `CRTSRCPF FILE(${parsedPath.library}/${testFileParentName}) RCDLEN(112)`,
                             noLibList: true
                         });
                         if (createFile.code !== 0) {
-                            window.showErrorMessage(`Failed to create ${parsedPath.library}/QTESTSRC: ${createFile.stderr}`);
+                            window.showErrorMessage(`Failed to create ${parsedPath.library}/${testFileParentName}: ${createFile.stderr}`);
                             return;
                         }
                     }
                 }
 
                 // Generate test case spec
-                const testCaseSpecs = await Promise.all(exportProcedures.map(async proc => await getTestCaseSpec(docs, proc)));
+                const testCaseSpecs = await Promise.all(exportProcedures.map(async proc => await getTestCaseSpec(docs, proc, addStubComments)));
 
                 // Build test stub edit and insert code in appropriate places
                 const testStubEdit = new WorkspaceEdit();
@@ -128,7 +157,7 @@ export namespace TestStubCodeActions {
                 }
 
                 // Add directive and control options
-                if (text === '') {
+                if (addControlOptionsAndDirectives && text === '') {
                     const directiveAndControlOptions = [
                         `**free`,
                         ``,
@@ -148,137 +177,141 @@ export namespace TestStubCodeActions {
                 }
 
                 // Add includes
-                const allIncludes = testCaseSpecs.flatMap(tcs => tcs.includes);
-                let newIncludes = Array.from(new Map(allIncludes.map(item => [item.name, item])).values());
-                let newIncludesInsert: { line: number, character: number } = { line: lastLine, character: lineAt(lastLine).length };
-                let newIncludesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
-                if (testDocs) {
-                    try {
-                        // Filter out includes that already exist
-                        newIncludes = newIncludes.filter(include =>
-                            !(text.toLocaleLowerCase().includes(`/include ${include.name}`.toLocaleLowerCase()) || text.toLocaleLowerCase().includes(`/copy ${include.name}`.toLocaleLowerCase())));
+                if (addIncludes) {
+                    const allIncludes = testCaseSpecs.flatMap(tcs => tcs.includes);
+                    let newIncludes = Array.from(new Map(allIncludes.map(item => [item.name, item])).values());
+                    let newIncludesInsert: { line: number, character: number } = { line: lastLine, character: lineAt(lastLine).length };
+                    let newIncludesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
+                    if (testDocs) {
+                        try {
+                            // Filter out includes that already exist
+                            newIncludes = newIncludes.filter(include =>
+                                !(text.toLocaleLowerCase().includes(`/include ${include.name}`.toLocaleLowerCase()) || text.toLocaleLowerCase().includes(`/copy ${include.name}`.toLocaleLowerCase())));
 
-                        if (testDocs.includes.length > 0) {
-                            // Insert include after the last existing resolved include
-                            newIncludesInsert.line = Math.max(...testDocs.includes.filter(i => i.fromPath === testFileUri.toString()).map(i => i.line));
-                            newIncludesInsert.character = lineAt(newIncludesInsert.line).length;
-                            newIncludesTextWrap.prefix = `\n`;
-                        } else if (text.toLocaleLowerCase().includes('/copy') || text.toLocaleLowerCase().includes('/include')) {
-                            // Insert include after the last existing unresolved include
-                            const splitText = text.split(/\r?\n/);
-                            for (let i = splitText.length - 1; i >= 0; i--) {
-                                const line = splitText[i].toLocaleLowerCase().trim();
-                                if (line.startsWith('/copy') || line.startsWith('/include')) {
-                                    newIncludesInsert.line = i;
-                                    newIncludesInsert.character = lineAt(newIncludesInsert.line).length;
-                                    break;
+                            if (testDocs.includes.length > 0) {
+                                // Insert include after the last existing resolved include
+                                newIncludesInsert.line = Math.max(...testDocs.includes.filter(i => i.fromPath === testFileUri.toString()).map(i => i.line));
+                                newIncludesInsert.character = lineAt(newIncludesInsert.line).length;
+                                newIncludesTextWrap.prefix = `\n`;
+                            } else if (text.toLocaleLowerCase().includes('/copy') || text.toLocaleLowerCase().includes('/include')) {
+                                // Insert include after the last existing unresolved include
+                                const splitText = text.split(/\r?\n/);
+                                for (let i = splitText.length - 1; i >= 0; i--) {
+                                    const line = splitText[i].toLocaleLowerCase().trim();
+                                    if (line.startsWith('/copy') || line.startsWith('/include')) {
+                                        newIncludesInsert.line = i;
+                                        newIncludesInsert.character = lineAt(newIncludesInsert.line).length;
+                                        break;
+                                    }
                                 }
+                                newIncludesTextWrap.prefix = `\n`;
+                            } else if (testDocs.procedures.length > 0) {
+                                // Insert include before the first procedure or prototype
+                                const existingProcOrProto = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
+                                newIncludesInsert.line = Math.min(...existingProcOrProto.map(proc => proc.range.start!));
+                                newIncludesInsert.character = 0;
+                                newIncludesTextWrap.prefix = ``;
+                                newIncludesTextWrap.suffix = `\n\n`;
                             }
-                            newIncludesTextWrap.prefix = `\n`;
-                        } else if (testDocs.procedures.length > 0) {
-                            // Insert include before the first procedure or prototype
-                            const existingProcOrProto = testDocs.procedures.filter(proc => proc.position?.path === testFileUri.toString());
-                            newIncludesInsert.line = Math.min(...existingProcOrProto.map(proc => proc.range.start!));
-                            newIncludesInsert.character = 0;
-                            newIncludesTextWrap.prefix = ``;
-                            newIncludesTextWrap.suffix = `\n\n`;
-                        }
-                    } catch (error) { }
-                }
-                if (newIncludes.length > 0) {
-                    const newIncludesPosition = new Position(newIncludesInsert.line, newIncludesInsert.character);
-                    function insertInclude(text: string) {
-                        testStubEdit.insert(
-                            testFileUri,
-                            newIncludesPosition,
-                            text,
-                            {
-                                label: `Add include(s)`,
-                                needsConfirmation: showTestStubPreview,
-                                iconPath: new ThemeIcon('file-code')
-                            }
-                        );
+                        } catch (error) { }
                     }
-
-                    // Insert newline prefix
-                    if (newIncludes.length === 1) {
-                        const newIncludeText = `${newIncludesTextWrap.prefix}${newIncludes[0].text}${newIncludesTextWrap.suffix}`;
-                        insertInclude(newIncludeText);
-                    } else {
-                        if (newIncludesTextWrap.prefix !== '') {
-                            insertInclude(newIncludesTextWrap.prefix);
+                    if (newIncludes.length > 0) {
+                        const newIncludesPosition = new Position(newIncludesInsert.line, newIncludesInsert.character);
+                        function insertInclude(text: string) {
+                            testStubEdit.insert(
+                                testFileUri,
+                                newIncludesPosition,
+                                text,
+                                {
+                                    label: `Add include(s)`,
+                                    needsConfirmation: showTestStubPreview,
+                                    iconPath: new ThemeIcon('file-code')
+                                }
+                            );
                         }
 
-                        // Insert includes
-                        for (let i = 0; i < newIncludes.length; i++) {
-                            const newIncludeText = i !== 0 ? `\n${newIncludes[i].text}` : newIncludes[i].text;
+                        // Insert newline prefix
+                        if (newIncludes.length === 1) {
+                            const newIncludeText = `${newIncludesTextWrap.prefix}${newIncludes[0].text}${newIncludesTextWrap.suffix}`;
                             insertInclude(newIncludeText);
-                        }
+                        } else {
+                            if (newIncludesTextWrap.prefix !== '') {
+                                insertInclude(newIncludesTextWrap.prefix);
+                            }
 
-                        // Insert newline suffix
-                        if (newIncludesTextWrap.suffix !== '') {
-                            insertInclude(newIncludesTextWrap.suffix);
+                            // Insert includes
+                            for (let i = 0; i < newIncludes.length; i++) {
+                                const newIncludeText = i !== 0 ? `\n${newIncludes[i].text}` : newIncludes[i].text;
+                                insertInclude(newIncludeText);
+                            }
+
+                            // Insert newline suffix
+                            if (newIncludesTextWrap.suffix !== '') {
+                                insertInclude(newIncludesTextWrap.suffix);
+                            }
                         }
                     }
                 }
 
                 // Add prototypes
-                let newPrototypes: { name: string, text: string[] }[] = testCaseSpecs.flatMap(tcs => tcs.prototype ? tcs.prototype : []);
-                let newPrototypesInsert: { line: number, character: number } = { line: lastLine, character: lineAt(lastLine).length };
-                let newPrototypesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
-                if (testDocs) {
-                    try {
-                        // Filter out prototypes that already exist
-                        const existingPrototypes = testDocs.procedures.filter(proc => proc.prototype && proc.position?.path === testFileUri.toString());
-                        newPrototypes = newPrototypes.filter(proto => !existingPrototypes.some(existingProto => existingProto.name === proto.name));
+                if (addPrototypes) {
+                    let newPrototypes: { name: string, text: string[] }[] = testCaseSpecs.flatMap(tcs => tcs.prototype ? tcs.prototype : []);
+                    let newPrototypesInsert: { line: number, character: number } = { line: lastLine, character: lineAt(lastLine).length };
+                    let newPrototypesTextWrap: { prefix: string, suffix: string } = { prefix: '\n\n', suffix: '' };
+                    if (testDocs) {
+                        try {
+                            // Filter out prototypes that already exist
+                            const existingPrototypes = testDocs.procedures.filter(proc => proc.prototype && proc.position?.path === testFileUri.toString());
+                            newPrototypes = newPrototypes.filter(proto => !existingPrototypes.some(existingProto => existingProto.name === proto.name));
 
-                        if (existingPrototypes.length > 0) {
-                            // Insert prototypes after the last existing prototype
-                            newPrototypesInsert.line = Math.max(...existingPrototypes.map(proc => proc.range.end!));
-                            newPrototypesInsert.character = lineAt(newPrototypesInsert.line).length;
-                        } else if (testDocs.procedures.length > 0) {
-                            // Insert prototypes before the first procedure
-                            const existingProcedures = testDocs.procedures.filter(proc => !proc.prototype && proc.position?.path === testFileUri.toString());
-                            newPrototypesInsert.line = Math.min(...existingProcedures.map(proc => proc.range.start!));
-                            newPrototypesInsert.character = 0;
-                            newPrototypesTextWrap.prefix = ``;
-                            newPrototypesTextWrap.suffix = `\n\n`;
-                        }
-                    } catch (error) { }
-                }
-                if (newPrototypes.length > 0) {
-                    const newPrototypesPosition = new Position(newPrototypesInsert.line, newPrototypesInsert.character);
-                    function insertPrototype(text: string) {
-                        testStubEdit.insert(
-                            testFileUri,
-                            newPrototypesPosition,
-                            text,
-                            {
-                                label: `Add prototype(s)`,
-                                needsConfirmation: showTestStubPreview,
-                                iconPath: new ThemeIcon('symbol-method')
+                            if (existingPrototypes.length > 0) {
+                                // Insert prototypes after the last existing prototype
+                                newPrototypesInsert.line = Math.max(...existingPrototypes.map(proc => proc.range.end!));
+                                newPrototypesInsert.character = lineAt(newPrototypesInsert.line).length;
+                            } else if (testDocs.procedures.length > 0) {
+                                // Insert prototypes before the first procedure
+                                const existingProcedures = testDocs.procedures.filter(proc => !proc.prototype && proc.position?.path === testFileUri.toString());
+                                newPrototypesInsert.line = Math.min(...existingProcedures.map(proc => proc.range.start!));
+                                newPrototypesInsert.character = 0;
+                                newPrototypesTextWrap.prefix = ``;
+                                newPrototypesTextWrap.suffix = `\n\n`;
                             }
-                        );
+                        } catch (error) { }
                     }
-
-                    if (newPrototypes.length === 1) {
-                        const newPrototypeText = `${newPrototypesTextWrap.prefix}${newPrototypes[0].text.join('\n')}${newPrototypesTextWrap.suffix}`;
-                        insertPrototype(newPrototypeText);
-                    } else {
-                        // Insert newline prefix
-                        if (newPrototypesTextWrap.prefix !== '') {
-                            insertPrototype(newPrototypesTextWrap.prefix);
+                    if (newPrototypes.length > 0) {
+                        const newPrototypesPosition = new Position(newPrototypesInsert.line, newPrototypesInsert.character);
+                        function insertPrototype(text: string) {
+                            testStubEdit.insert(
+                                testFileUri,
+                                newPrototypesPosition,
+                                text,
+                                {
+                                    label: `Add prototype(s)`,
+                                    needsConfirmation: showTestStubPreview,
+                                    iconPath: new ThemeIcon('symbol-method')
+                                }
+                            );
                         }
 
-                        // Insert prototypes
-                        for (let i = 0; i < newPrototypes.length; i++) {
-                            const newPrototypeText = i !== 0 ? `\n\n${newPrototypes[i].text.join('\n')}` : newPrototypes[i].text.join('\n');
+                        if (newPrototypes.length === 1) {
+                            const newPrototypeText = `${newPrototypesTextWrap.prefix}${newPrototypes[0].text.join('\n')}${newPrototypesTextWrap.suffix}`;
                             insertPrototype(newPrototypeText);
-                        }
+                        } else {
+                            // Insert newline prefix
+                            if (newPrototypesTextWrap.prefix !== '') {
+                                insertPrototype(newPrototypesTextWrap.prefix);
+                            }
 
-                        // Insert newline suffix
-                        if (newPrototypesTextWrap.suffix !== '') {
-                            insertPrototype(newPrototypesTextWrap.suffix);
+                            // Insert prototypes
+                            for (let i = 0; i < newPrototypes.length; i++) {
+                                const newPrototypeText = i !== 0 ? `\n\n${newPrototypes[i].text.join('\n')}` : newPrototypes[i].text.join('\n');
+                                insertPrototype(newPrototypeText);
+                            }
+
+                            // Insert newline suffix
+                            if (newPrototypesTextWrap.suffix !== '') {
+                                insertPrototype(newPrototypesTextWrap.suffix);
+                            }
                         }
                     }
                 }
@@ -381,7 +414,7 @@ export namespace TestStubCodeActions {
         return codeActions;
     }
 
-    async function getTestCaseSpec(docs: Cache, procedure: Declaration): Promise<TestCaseSpec> {
+    async function getTestCaseSpec(docs: Cache, procedure: Declaration, addStubComments: boolean): Promise<TestCaseSpec> {
         // Get prototype
         const { prototype, prototypeInclude } = await getPrototype(procedure);
 
@@ -428,16 +461,16 @@ export namespace TestStubCodeActions {
                 ...actualDec.map(dec => `  ${dec}`),
                 ...expectedDec.map(dec => `  ${dec}`),
                 ``,
-                `  // Input`,
+                ...(addStubComments ? [`  // Input`] : []),
                 ...inputInits.map(init => `  ${init}`),
                 ``,
-                `  // Actual results`,
+                ...(addStubComments ? [`  // Actual results`] : []),
                 `  actual = ${procedure.name}(${procedure.subItems.map(s => s.name).join(` : `)});`,
                 ``,
-                `  // Expected results`,
+                ...(addStubComments ? [`  // Expected results`] : []),
                 ...expectedInits.map(init => `  ${init}`),
                 ``,
-                `  // Assertions`,
+                ...(addStubComments ? [`  // Assertions`] : []),
                 ...assertions.map(assert => `  ${assert}`),
                 `end-proc;`
             ]
@@ -629,5 +662,41 @@ export namespace TestStubCodeActions {
 
     function asPosix(inPath?: string) {
         return inPath ? inPath.split(path.sep).join(path.posix.sep) : ``;
+    }
+
+    async function promptUserForTestName(testFileParentName: string, testFileName: string, isLocal: boolean): Promise<{ testFileParentName: string, testFileName: string } | undefined> {
+        const errorMessage = isLocal ?
+            'Invalid format. Valid example: qtestsrc/example.test.rpgle' :
+            'Invalid format. Valid example: QTESTSRC/EXAMPLET.RPGLE';
+        const testName = await window.showInputBox({
+            prompt: 'Enter test name',
+            placeHolder: 'Test name',
+            value: `${testFileParentName}/${testFileName}`,
+            validateInput: (value) => {
+                if (!/^[^\s\/]+\/[^\s\/]+\.[^\s\/\.]+$/.test(value)) {
+                    return errorMessage;
+                } else {
+                    return null;
+                }
+            }
+        });
+        if (!testName) {
+            return;
+        }
+
+        // Update test file name and parent name based on user input
+        const testNameParts = testName.split('/');
+        if (testNameParts.length === 2) {
+            testFileParentName = testNameParts[0];
+            testFileName = testNameParts[1];
+        } else {
+            window.showErrorMessage(errorMessage);
+            return;
+        }
+
+        return {
+            testFileParentName,
+            testFileName
+        };
     }
 }
