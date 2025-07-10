@@ -161,7 +161,7 @@ export namespace TestStubCodeActions {
                     const directiveAndControlOptions = [
                         `**free`,
                         ``,
-                        `ctl-opt nomain ccsidcvt(*excp) ccsid(*jobrun);`
+                        `ctl-opt nomain ccsidcvt(*excp) ccsid(*char : *jobrun);`
                     ];
 
                     testStubEdit.insert(
