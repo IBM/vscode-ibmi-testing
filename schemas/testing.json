@@ -9,6 +9,7 @@
                 "rucrtrpg": {
                     "tgtCcsid": 37,
                     "dbgView": "*SOURCE",
+                    "rpgPpOpt": "*LVL2",
                     "cOption": [
                         "*EVENTF"
                     ]
@@ -28,6 +29,7 @@
                     "default": {
                         "tgtCcsid": 37,
                         "dbgView": "*SOURCE",
+                        "rpgPpOpt": "*LVL2",
                         "cOption": [
                             "*EVENTF"
                         ]
@@ -205,7 +207,18 @@
                             "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
                         },
                         "tgtCcsid": {
-                            "type": "number",
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "*SRC",
+                                        "*JOB"
+                                    ]
+                                },
+                                {
+                                    "type": "number"
+                                }
+                            ],
                             "default": 37,
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
                         },
@@ -452,13 +465,138 @@
                             "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
                         },
                         "tgtCcsid": {
-                            "type": "number",
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "*SRC",
+                                        "*JOB"
+                                    ]
+                                },
+                                {
+                                    "type": "number"
+                                }
+                            ],
                             "default": 37,
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
                         },
                         "wrapperCmd": {
                             "type": "object",
                             "markdownDescription": "Wrapper Command\n\nSpecifies a custom command to wrap the `RUCRTCBL` command.",
+                            "default": {
+                                "cmd": "",
+                                "params": {}
+                            },
+                            "properties": {
+                                "cmd": {
+                                    "type": "string",
+                                    "default": "",
+                                    "markdownDescription": "Command\n\nSpecifies the custom command."
+                                },
+                                "params": {
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": [
+                                            "string",
+                                            "number"
+                                        ]
+                                    },
+                                    "markdownDescription": "Parameters\n\nSpecifies the parameters for the custom command."
+                                }
+                            }
+                        }
+                    }
+                },
+                "rucalltst": {
+                    "type": "object",
+                    "markdownDescription": "The Call Tests (`RUCALLTST`) command runs a test suite or a test procedure.",
+                    "default": {
+                        "order": "*API",
+                        "libl": "*CURRENT",
+                        "jobD": "*DFT",
+                        "detail": "*BASIC",
+                        "output": "*ALLWAYS",
+                        "rclRsc": "*NO"
+                    },
+                    "properties": {
+                        "order": {
+                            "type": "string",
+                            "default": "*API",
+                            "enum": [
+                                "*API",
+                                "*REVERSE"
+                            ],
+                            "enumDescriptions": [
+                                "Run test procedures in the order provided by the system API.",
+                                "Run test procedures in reverse order."
+                            ],
+                            "markdownDescription": "Run Order\n\nSpecifies the order for running the test procedures. Useful to check that there is no dependencies between test procedures."
+                        },
+                        "libl": {
+                            "type": "string",
+                            "default": "*CURRENT",
+                            "enum": [
+                                "*CURRENT",
+                                "*JOBD"
+                            ],
+                            "enumDescriptions": [
+                                "The current library list is used to execute the unit test suite.",
+                                "The initial library list part of the specified job description is used to execute the unit test suite."
+                            ],
+                            "markdownDescription": "Library List\n\nSpecifies the library list for executing the specified unit test."
+                        },
+                        "jobD": {
+                            "type": "string",
+                            "default": "*DFT",
+                            "markdownDescription": "Job Description\n\nSpecifies the name of the job description that is used to set the library list, when the `libl` parameter is set to `*JOBD`. `*DFT` can be used here to indicate the library of the unit test suite (service program) is searched for job description `RPGUNIT`."
+                        },
+                        "detail": {
+                            "type": "string",
+                            "default": "*BASIC",
+                            "enum": [
+                                "*BASIC",
+                                "*ALL"
+                            ],
+                            "enumDescriptions": [
+                                "Full detail for failures and errors, no detail for successes.",
+                                "Full detail in all cases."
+                            ],
+                            "markdownDescription": "Report Detail\n\nSpecifies how detailed the test run report should be."
+                        },
+                        "output": {
+                            "type": "string",
+                            "default": "*ALLWAYS",
+                            "enum": [
+                                "*ALLWAYS",
+                                "*ERROR",
+                                "*NONE"
+                            ],
+                            "enumDescriptions": [
+                                "Creates a report regardless of the test result.",
+                                "Creates a report in case of failures and errors, only.",
+                                "Does not create any report."
+                            ],
+                            "markdownDescription": "Create Report\n\nSpecifies whether a report is created."
+                        },
+                        "rclRsc": {
+                            "type": "string",
+                            "default": "*NO",
+                            "enum": [
+                                "*NO",
+                                "*ALLWAYS",
+                                "*ONCE"
+                            ],
+                            "enumDescriptions": [
+                                "Resources are not reclaimed.",
+                                "Resources are reclaimed after each test case and at the end of the test suite.",
+                                "Resources are reclaimed at the end of the test suite."
+                            ],
+                            "markdownDescription": "Reclaim Resources\n\nSpecifies when to reclaim resources. Resources, such as open files, can be reclaimed after each test case or at the end of the test suite. This option is useful if the test suite calls OPM programs, which do not set the `*INLR` indicator."
+                        },
+                        "wrapperCmd": {
+                            "type": "object",
+                            "markdownDescription": "Wrapper Command\n\nSpecifies a custom command to wrap the `RUCALLTST` command.",
                             "default": {
                                 "cmd": "",
                                 "params": {}
@@ -527,6 +665,7 @@
                     "rucrtrpg": {
                         "tgtCcsid": 37,
                         "dbgView": "*SOURCE",
+                        "rpgPpOpt": "*LVL2",
                         "cOption": [
                             "*EVENTF"
                         ]
