@@ -163,8 +163,7 @@ export namespace TestStubCodeActions {
                             newIncludesInsert.line = Math.max(...testDocs.includes.filter(i => i.fromPath === testFileUri.toString()).map(i => i.line));
                             newIncludesInsert.character = lineAt(newIncludesInsert.line).length;
                             newIncludesTextWrap.prefix = `\n`;
-                        } else
-                        if (text.toLocaleLowerCase().includes('/copy') || text.toLocaleLowerCase().includes('/include')) {
+                        } else if (text.toLocaleLowerCase().includes('/copy') || text.toLocaleLowerCase().includes('/include')) {
                             // Insert include after the last existing unresolved include
                             const splitText = text.split(/\r?\n/);
                             for (let i = splitText.length - 1; i >= 0; i--) {
@@ -356,7 +355,7 @@ export namespace TestStubCodeActions {
             const fileName = parsedPath.base;
 
             // Test case generation
-            const currentProcedure = exportProcedures.find(sub => sub.range.start && sub.range.end && range.start.line >= sub.range.start && range.end.line <= sub.range.end);
+            const currentProcedure = exportProcedures.find(proc => proc.range.start && proc.range.end && range.start.line >= proc.range.start && range.end.line <= proc.range.end);
             if (currentProcedure) {
                 const title = `Generate test case for '${currentProcedure.name}'`;
                 const testCaseAction = new CodeAction(title, CodeActionKind.RefactorExtract);
@@ -383,8 +382,8 @@ export namespace TestStubCodeActions {
     }
 
     async function getTestCaseSpec(docs: Cache, procedure: Declaration): Promise<TestCaseSpec> {
-        // Get procedure prototype
-        const prototype = await getPrototype(procedure);
+        // Get prototype
+        const { prototype, prototypeInclude } = await getPrototype(procedure);
 
         // Get inputs
         const inputDecs: string[] = [];
@@ -413,7 +412,7 @@ export namespace TestStubCodeActions {
         // Get unique includes
         const rpgUnitInclude = `qinclude,TESTCASE`;
         const rpgUnitIncludeText = `/include ${rpgUnitInclude}`;
-        const allIncludes = [{ name: rpgUnitInclude, text: rpgUnitIncludeText }, ...inputIncludes, ...returnIncludes];
+        const allIncludes = [{ name: rpgUnitInclude, text: rpgUnitIncludeText }, ...prototypeInclude, ...inputIncludes, ...returnIncludes];
         const includes = Array.from(new Map(allIncludes.map(item => [item.name, item])).values());
 
         // Get assertions
@@ -485,24 +484,30 @@ export namespace TestStubCodeActions {
         return inits;
     }
 
-    async function getPrototype(procedure: Declaration): Promise<{ name: string, text: string[] } | undefined> {
+    async function getPrototype(procedure: Declaration): Promise<{ prototype?: { name: string, text: string[] }, prototypeInclude: { name: string, text: string }[] }> {
         for (const reference of procedure.references) {
             const docs = await LspUtils.getDocs(Uri.parse(reference.uri));
             if (docs) {
-                const prototype = docs.procedures.some(proc => proc.prototype && proc.name === procedure.name);
+                const prototype = docs.procedures.find(proc => proc.prototype && proc.prototype && proc.name === procedure.name);
                 if (prototype) {
-                    return;
+                    const prototypeInclude = constructInclude(Uri.parse(prototype.position.path));
+                    return {
+                        prototypeInclude: [prototypeInclude]
+                    };
                 }
             }
         }
 
         return {
-            name: procedure.name,
-            text: [
-                `dcl-pr ${procedure.name} ${LspUtils.prettyKeywords(procedure.keyword, true)} extproc('${procedure.name.toLocaleUpperCase()}');`,
-                ...procedure.subItems.map(s => `  ${s.name} ${LspUtils.prettyKeywords(s.keyword, true)};`),
-                `end-pr;`
-            ]
+            prototype: {
+                name: procedure.name,
+                text: [
+                    `dcl-pr ${procedure.name} ${LspUtils.prettyKeywords(procedure.keyword, true)} extproc('${procedure.name.toLocaleUpperCase()}');`,
+                    ...procedure.subItems.map(s => `  ${s.name} ${LspUtils.prettyKeywords(s.keyword, true)};`),
+                    `end-pr;`
+                ]
+            },
+            prototypeInclude: []
         };
     }
 
@@ -512,30 +517,33 @@ export namespace TestStubCodeActions {
         if (detail.reference) {
             const structUri = Uri.parse(detail.reference.position.path);
 
-            if (structUri.scheme === 'file') {
-                const workspaceFolder = workspace.getWorkspaceFolder(structUri);
-                if (workspaceFolder) {
-                    const newInclude = `'${asPosix(path.relative(workspaceFolder.uri.fsPath, structUri.fsPath))}'`;
-                    const newIncludeText = `/include ${newInclude}`;
-
-                    if (!includes.some(include => include.text === newIncludeText)) {
-                        includes.push({ name: newInclude, text: newIncludeText });
-                    }
-                }
-            } else {
-                const ibmi = getInstance();
-                const connection = ibmi!.getConnection();
-                const parsedPath = connection.parserMemberPath(structUri.path);
-                const newInclude = `${parsedPath.file},${parsedPath.name}`;
-                const newIncludeText = `/include ${newInclude}`;
-
-                if (!includes.some(include => include.text === newIncludeText)) {
-                    includes.push({ name: newInclude, text: newIncludeText });
-                }
+            const newInclude = constructInclude(structUri);
+            if (!includes.some(include => include.text === newInclude.text)) {
+                includes.push(newInclude);
             }
         }
 
         return includes;
+    }
+
+    function constructInclude(uri: Uri): { name: string, text: string } {
+        if (uri.scheme === 'file') {
+            const workspaceFolder = workspace.getWorkspaceFolder(uri);
+            if (workspaceFolder) {
+                const newInclude = `'${asPosix(path.relative(workspaceFolder.uri.fsPath, uri.fsPath))}'`;
+                const newIncludeText = `/include ${newInclude}`;
+
+                return { name: newInclude, text: newIncludeText };
+            }
+        } else {
+            const ibmi = getInstance();
+            const connection = ibmi!.getConnection();
+            const parsedPath = connection.parserMemberPath(uri.path);
+            const newInclude = `${parsedPath.file},${parsedPath.name}`;
+            const newIncludeText = `/include ${newInclude}`;
+
+            return { name: newInclude, text: newIncludeText };
+        }
     }
 
     function getAssertions(docs: Cache, detail: RpgleTypeDetail, expected: string, actual: string): string[] {
