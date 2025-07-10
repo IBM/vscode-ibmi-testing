@@ -68,11 +68,7 @@ export class IBMiTestRunner {
             // Request is a test file so ensure test cases are loaded
             await data.load();
 
-            if (data.item.children.size !== 0) {
-                await this.addToTestBucket(testRun, testBuckets, data);
-            } else {
-                await testOutputLogger.log(LogLevel.Warning, `Test file ${data.item.label} not queued (no test cases found)`);
-            }
+            await this.addToTestBucket(testRun, testBuckets, data);
         } else if (data.type === 'case' && data instanceof TestCaseData) {
             if (!this.request.exclude?.includes(data.item)) {
                 await this.addToTestBucket(testRun, testBuckets, data);

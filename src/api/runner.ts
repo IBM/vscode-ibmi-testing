@@ -436,6 +436,13 @@ export class Runner {
 
             if (testResult.stdout.length > 0) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Info, `${testSuite.name} execution output:\n${testResult.stdout}`);
+                const lines = testResult.stdout.split('\n');
+                for(const line of lines) {
+                    const trimmedLine = line.trim();
+                    if(trimmedLine.startsWith('Runtime error: No test case found')) {
+                        await this.testLogger.logRunTimeWarning(trimmedLine);
+                    }
+                }
             }
             if (testResult.stderr.length > 0) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Error, `${testSuite.name} execution error(s):\n${testResult.stderr}`);
