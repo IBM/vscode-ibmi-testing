@@ -109,10 +109,18 @@ export class IBMiTestManager {
         const connection = ibmi!.getConnection();
 
         // Get search parameters for tests in library list
+        let libraries: string[] = [];
         const workspaceFolders = workspace.workspaceFolders;
-        const workspaceFolder = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0] : undefined;
-        const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
-        const libraries: string[] = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
+        if (workspaceFolders && workspaceFolders.length > 0) {
+            for (const workspaceFolder of workspaceFolders) {
+                const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
+                libraries.push(libraryList.currentLibrary, ...libraryList.libraryList);
+            }
+            libraries = Array.from(new Set(libraries));
+        } else {
+            const libraryList = await ibmi!.getLibraryList(connection);
+            libraries = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
+        }
         const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles);
         const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
         const qsysExtensions = testSuffixes.qsys.map((suffix) => suffix.slice(1));
