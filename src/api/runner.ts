@@ -120,10 +120,7 @@ export class Runner {
 
                 // Check compilation status
                 if (!isCompiled) {
-                    // Error out all test suites since deployment failed
-                    await this.testLogger.logCompilation(testSuite.name, 'skipped', []);
-                    this.testMetrics.compilations.skipped++;
-
+                    // Error out all test cases since compile failed
                     for (const testCase of testSuite.testCases) {
                         await this.testLogger.logTestCaseErrored(testCase.name, []);
                         await this.testCallbacks.errored(testCase.uri, []);
