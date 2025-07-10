@@ -1,4 +1,4 @@
-import { CodeAction, CodeActionKind, commands, Disposable, ExtensionContext, languages, Position, Range, TextDocument, ThemeIcon, Uri, window, workspace, WorkspaceEdit } from "vscode";
+import { CodeAction, CodeActionKind, commands, ExtensionContext, languages, Position, Range, TextDocument, ThemeIcon, Uri, window, workspace, WorkspaceEdit } from "vscode";
 import Declaration from "vscode-rpgle/language/models/declaration";
 import Cache from "vscode-rpgle/language/models/cache";
 import { getInstance } from "../extensions/ibmi";
