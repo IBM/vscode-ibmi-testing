@@ -1,16 +1,26 @@
 import { ConfigurationTarget, LogLevel, workspace } from "vscode";
 import { testOutputLogger } from "./extension";
 
-export interface libraryListValidation {
+export interface TestStubPreferences {
+    "Show Test Stub Preview": boolean;
+    "Prompt For Test Name": boolean;
+    "Add Control Options and Directives": boolean;
+    "Add Includes": boolean;
+    "Add Prototypes": boolean;
+    "Add Stub Comments": boolean;
+}
+
+export interface LibraryListValidation {
     "RPGUNIT": boolean;
     "QDEVTOOLS": boolean;
 }
 
-type ValueType = string | string[] | libraryListValidation;
+type ValueType = string | string[] | TestStubPreferences | LibraryListValidation;
 
 export enum Section {
     productLibrary = 'productLibrary',
     testSourceFiles = 'testSourceFiles',
+    testStubPreferences = 'testStubPreferences',
     libraryListValidation = 'libraryListValidation',
     runOrder = 'runOrder',
     libraryList = 'libraryList',
@@ -23,6 +33,14 @@ export enum Section {
 export const defaultConfigurations: { [T in Section]: ValueType } = {
     [Section.productLibrary]: 'RPGUNIT',
     [Section.testSourceFiles]: ['QTESTSRC'],
+    [Section.testStubPreferences]: {
+        "Show Test Stub Preview": true,
+        "Prompt For Test Name": false,
+        "Add Control Options and Directives": true,
+        "Add Includes": true,
+        "Add Prototypes": true,
+        "Add Stub Comments": false
+    },
     [Section.libraryListValidation]: {
         "RPGUNIT": true,
         "QDEVTOOLS": true

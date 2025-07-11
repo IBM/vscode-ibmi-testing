@@ -1,7 +1,7 @@
 import { TestRunRequest, TestItem, TestRun, workspace, TestRunProfileKind, Uri, commands, TestMessage, Position, Location } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { getDeployTools, getInstance } from "./extensions/ibmi";
-import { Configuration, libraryListValidation, Section } from "./configuration";
+import { Configuration, LibraryListValidation, Section } from "./configuration";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { RPGUnit } from "./components/rpgUnit";
 import { Runner, TestCallbacks } from "./api/runner";
@@ -364,7 +364,7 @@ export class IBMiTestRunner {
     }
 
     private async validateLibraryList(testBuckets: TestBucket[]): Promise<void> {
-        const libraryListValidation = Configuration.get<libraryListValidation>(Section.libraryListValidation);
+        const libraryListValidation = Configuration.get<LibraryListValidation>(Section.libraryListValidation);
         if (libraryListValidation) {
             const ibmi = getInstance();
             const connection = ibmi!.getConnection();
