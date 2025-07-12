@@ -1,0 +1,51 @@
+{
+  "name": "@ibm/itest",
+  "displayName": "itest",
+  "description": "IBM i Testing CLI and API",
+  "author": {
+    "name": "IBM",
+    "url": "https://github.com/IBM"
+  },
+  "publisher": "IBM",
+  "license": "Apache-2.0",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/IBM/vscode-ibmi-testing/blob/main/src/cli"
+  },
+  "homepage": "https://codefori.github.io/docs/developing/testing/overview",
+  "bugs": {
+    "url": "https://github.com/IBM/vscode-ibmi-testing/issues"
+  },
+  "keywords": [
+    "ibmi",
+    "iseries",
+    "as400",
+    "test",
+    "irpgunit"
+  ],
+  "categories": [
+    "Testing"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/src/index.d.ts",
+  "bin": {
+    "itest": "./dist/index.js"
+  },
+  "scripts": {
+    "test": "vitest",
+    "webpack:dev": "webpack --mode none --config ./webpack.config.js",
+    "webpack": "webpack --mode production --config ./webpack.config.js",
+    "local": "npm run webpack:dev && npm i -g",
+    "deploy": "npm run webpack && npm i && npm publish --access public"
+  },
+  "devDependencies": {
+    "ts-loader": "^9.4.4",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8",
+    "webpack": "^5.24.3",
+    "webpack-cli": "^4.5.0"
+  },
+  "dependencies": {
+    "commander": "^13.1.0"
+  }
+}

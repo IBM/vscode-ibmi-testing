@@ -3,7 +3,7 @@ import * as tmp from "tmp";
 import * as path from "path";
 import * as unzipper from "unzipper";
 import * as xml2js from "xml2js";
-import { getInstance } from "../extensions/ibmi";
+import { getInstance } from "../../../extensions/ibmi";
 import { CoverageData } from "./types";
 import { TestLogger } from "./testLogger";
 

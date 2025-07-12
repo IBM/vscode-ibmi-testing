@@ -1,0 +1,21 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug itest",
+			"type": "node",
+			"request": "launch",
+			"cwd": "${workspaceFolder:cli}",
+			"program": "${workspaceFolder:cli}/dist/index.js",
+			"sourceMaps": true,
+			"args": [],
+			"preLaunchTask": {
+				"type": "npm",
+				"script": "webpack:dev"
+			},
+		}
+	]
+}

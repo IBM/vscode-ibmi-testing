@@ -3,7 +3,7 @@ import * as path from "path";
 import { IBMiTestRunner } from "./runner";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { getInstance } from "./extensions/ibmi";
-import { ApiUtils } from "./api/apiUtils";
+import { ApiUtils } from "./cli/src/api/apiUtils";
 import { Configuration, Section } from "./configuration";
 import { testOutputLogger } from "./extension";
 import { TestData, TestFileData } from "./testData";

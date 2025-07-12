@@ -3,12 +3,12 @@ import * as path from "path";
 import { parseStringPromise } from "xml2js";
 import { BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestStatus, TestSuite, WrapperCmd } from "./types";
 import { TestLogger } from "./testLogger";
-import { getInstance } from "../extensions/ibmi";
+import { getInstance } from "../../../extensions/ibmi";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
 import { ApiUtils } from "./apiUtils";
 import { IBMiTestStorage } from "./storage";
 import { CodeCoverageParser } from "./codeCoverageParser";
-import { IBMiFileCoverage } from "../fileCoverage";
+import { IBMiFileCoverage } from "../../../fileCoverage";
 import { XMLParser } from "./xmlParser";
 
 export interface TestCallbacks {
@@ -201,7 +201,7 @@ export class Runner {
             const rucrtrpg = testSuite.testingConfig?.rpgunit?.rucrtrpg;
             wrapperCmd = testSuite.testingConfig?.rpgunit?.rucrtrpg?.wrapperCmd;
             if (wrapperCmd) {
-                delete rucrtrpg.wrapperCmd;
+                delete rucrtrpg?.wrapperCmd;
             }
 
             compileParams = {
@@ -216,7 +216,7 @@ export class Runner {
             const rucrtcbl = testSuite.testingConfig?.rpgunit?.rucrtcbl;
             wrapperCmd = testSuite.testingConfig?.rpgunit?.rucrtcbl?.wrapperCmd;
             if (wrapperCmd) {
-                delete rucrtcbl.wrapperCmd;
+                delete rucrtcbl?.wrapperCmd;
             }
 
             compileParams = {
@@ -377,7 +377,7 @@ export class Runner {
             const rucalltst = testSuite.testingConfig?.rpgunit?.rucalltst;
             const wrapperCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.wrapperCmd;
             if (wrapperCmd) {
-                delete rucalltst.wrapperCmd;
+                delete rucalltst?.wrapperCmd;
             }
             const testParams: RUCALLTST = {
                 ...baseExecutionParams,

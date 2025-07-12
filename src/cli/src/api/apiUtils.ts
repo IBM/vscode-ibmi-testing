@@ -1,5 +1,5 @@
 import { IBMiMember } from "@halcyontech/vscode-ibmi-types/api/types";
-import { getInstance } from "../extensions/ibmi";
+import { getInstance } from "../../../extensions/ibmi";
 
 export namespace ApiUtils {
     /**

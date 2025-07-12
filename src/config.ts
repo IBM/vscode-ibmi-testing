@@ -2,7 +2,7 @@ import { LogLevel, RelativePattern, Uri, workspace, WorkspaceFolder } from "vsco
 import * as path from "path";
 import lodash from "lodash";
 import { getInstance } from "./extensions/ibmi";
-import { TestingConfig } from "./api/types";
+import { TestingConfig } from "./cli/src/api/types";
 import { testOutputLogger } from "./extension";
 
 export class ConfigHandler {

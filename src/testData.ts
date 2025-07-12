@@ -1,6 +1,6 @@
 import { commands, DocumentSymbol, LogLevel, Position, Range, SymbolKind, TestItem, workspace } from "vscode";
 import { testOutputLogger, manager } from "./extension";
-import { ApiUtils } from "./api/apiUtils";
+import { ApiUtils } from "./cli/src/api/apiUtils";
 import Parser from "vscode-rpgle/language/parser";
 import { getInstance } from "./extensions/ibmi";
 import * as fs from "fs";

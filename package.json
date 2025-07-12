@@ -13,7 +13,7 @@
   "repository": {
     "url": "https://github.com/IBM/vscode-ibmi-testing"
   },
-  "homepage": "https://github.com/IBM/vscode-ibmi-testing/blob/main/README.md",
+  "homepage": "https://codefori.github.io/docs/developing/testing/overview",
   "bugs": {
     "url": "https://github.com/IBM/vscode-ibmi-testing/issues"
   },
