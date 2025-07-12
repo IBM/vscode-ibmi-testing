@@ -1,6 +1,6 @@
 {
-  "name": "@ibm/itest",
-  "displayName": "itest",
+  "name": "@ibm/ibmi-testing",
+  "displayName": "IBM i Testing CLI",
   "description": "IBM i Testing CLI",
   "author": {
     "name": "IBM",
