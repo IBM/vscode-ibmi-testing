@@ -36,7 +36,8 @@ const extensionConfig = {
   },
   devtool: `source-map`,
   plugins: [
-    new webpack.BannerPlugin({banner: `#! /usr/bin/env node`, raw: true})
+    new webpack.BannerPlugin({banner: `#! /usr/bin/env node`, raw: true}),
+    new webpack.IgnorePlugin({ resourceRegExp: /(cpu-features|sshcrypto\.node)/u })
   ]
 };
 module.exports = [extensionConfig];
