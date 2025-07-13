@@ -12,28 +12,8 @@ export class TestOutputLogger implements Logger {
         await this.log(LogLevel.Info, message);
     }
 
-    async log(level: LogLevel, message: string): Promise<void> {
-        switch (level) {
-            case LogLevel.Trace:
-                this.logOutputChannel.trace(message);
-                break;
-            case LogLevel.Debug:
-                this.logOutputChannel.debug(message);
-                break;
-            case LogLevel.Info:
-                this.logOutputChannel.info(message);
-                break;
-            case LogLevel.Warning:
-                this.logOutputChannel.warn(message);
-                break;
-            case LogLevel.Error:
-                this.logOutputChannel.error(message);
-                break;
-        }
-    }
-
-    public async logWithNotification(level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]): Promise<void> {
-        this.log(level, details ? `${message}: ${details}` : message);
+    public async appendWithNotification(level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]): Promise<void> {
+        await this.log(level, details ? `${message}: ${details}` : message);
 
         let showMessage;
         switch (level) {
@@ -59,6 +39,26 @@ export class TestOutputLogger implements Logger {
                 }
             }
         });
+    }
+
+    async log(level: LogLevel, message: string): Promise<void> {
+        switch (level) {
+            case LogLevel.Trace:
+                this.logOutputChannel.trace(message);
+                break;
+            case LogLevel.Debug:
+                this.logOutputChannel.debug(message);
+                break;
+            case LogLevel.Info:
+                this.logOutputChannel.info(message);
+                break;
+            case LogLevel.Warning:
+                this.logOutputChannel.warn(message);
+                break;
+            case LogLevel.Error:
+                this.logOutputChannel.error(message);
+                break;
+        }
     }
 
     public show() {

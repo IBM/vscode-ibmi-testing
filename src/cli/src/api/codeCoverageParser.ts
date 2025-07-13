@@ -1,16 +1,18 @@
-import { LogLevel, Uri, workspace } from "vscode";
+import * as fs from "fs";
 import * as tmp from "tmp";
 import * as path from "path";
 import * as unzipper from "unzipper";
 import * as xml2js from "xml2js";
-import { getInstance } from "../../../extensions/ibmi";
-import { CoverageData } from "./types";
+import { CoverageData, LogLevel } from "./types";
 import { TestLogger } from "./testLogger";
+import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 
 export class CodeCoverageParser {
+    private connection: IBMi;
     private testLogger: TestLogger;
 
-    constructor(testLogger: TestLogger) {
+    constructor(connection: IBMi, testLogger: TestLogger) {
+        this.connection = connection;
         this.testLogger = testLogger;
     }
 
@@ -28,9 +30,7 @@ export class CodeCoverageParser {
 
     private async downloadCczip(outputZipPath: string, tmpDir: tmp.DirResult): Promise<any> {
         try {
-            const ibmi = getInstance();
-            const connection = ibmi!.getConnection();
-            const content = connection.getContent();
+            const content = this.connection.getContent();
 
             // Download remote cczip to local temp file
             const tmpFile = tmp.fileSync();
@@ -43,13 +43,13 @@ export class CodeCoverageParser {
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Extracted code coverage results to ${tmpDir.name}`);
 
             // Read and parse xml file from temp directory
-            const ccdata = Uri.file(path.join(tmpDir.name, `ccdata`));
-            const ccdataContent = await workspace.fs.readFile(ccdata);
+            const ccdata = path.join(tmpDir.name, `ccdata`);
+            const ccdataContent = fs.readFileSync(ccdata);
             const xml = await xml2js.parseStringPromise(ccdataContent);
 
             return xml;
         } catch (error: any) {
-            await this.testLogger.testOutputLogger.logWithNotification(LogLevel.Error, `Failed to download code coverage results`, `${outputZipPath} - ${error}`);
+            await this.testLogger.testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to download code coverage results`, `${outputZipPath} - ${error}`);
         }
     }
 
@@ -64,8 +64,7 @@ export class CodeCoverageParser {
                     source.testcase[0][`$`];
 
                 const sourcePath = path.join(tmpdir.name, `src`, data.sourceFile);
-                const sourceUri = Uri.file(sourcePath);
-                const rawSource = await workspace.fs.readFile(sourceUri);
+                const rawSource = fs.readFileSync(sourcePath);
                 const sourceCode = rawSource.toString().split(`\n`);
 
                 const realHits = testCase.v2fileHits || testCase.hits;
@@ -99,7 +98,7 @@ export class CodeCoverageParser {
 
             return items;
         } catch (error) {
-            await this.testLogger.testOutputLogger.logWithNotification(LogLevel.Error, `Failed to parse code coverage results`, `${error}`);
+            await this.testLogger.testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to parse code coverage results`, `${error}`);
         }
     }
 

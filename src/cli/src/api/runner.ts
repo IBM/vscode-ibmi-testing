@@ -3,13 +3,13 @@ import * as path from "path";
 import { parseStringPromise } from "xml2js";
 import { BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestStatus, TestSuite, WrapperCmd } from "./types";
 import { TestLogger } from "./testLogger";
-import { getInstance } from "../../../extensions/ibmi";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
 import { ApiUtils } from "./apiUtils";
 import { IBMiTestStorage } from "./storage";
 import { CodeCoverageParser } from "./codeCoverageParser";
 import { IBMiFileCoverage } from "../../../fileCoverage";
 import { XMLParser } from "./xmlParser";
+import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 
 export interface TestCallbacks {
     deploy: (workspaceFolderPath: string) => Promise<DeploymentStatus>;
@@ -32,13 +32,15 @@ export interface TestCallbacks {
 }
 
 export class Runner {
+    private connection: IBMi;
     private testRequest: TestRequest;
     private testCallbacks: TestCallbacks;
     private testLogger: TestLogger;
     private testMetrics: TestMetrics;
     private fileCoverage: IBMiFileCoverage[];
 
-    constructor(testRequest: TestRequest, testCallbacks: TestCallbacks, testLogger: TestLogger) {
+    constructor(connection: IBMi, testRequest: TestRequest, testCallbacks: TestCallbacks, testLogger: TestLogger) {
+        this.connection = connection;
         this.testRequest = testRequest;
         this.testCallbacks = testCallbacks;
         this.testLogger = testLogger;
@@ -55,7 +57,7 @@ export class Runner {
 
     async run(): Promise<void> {
         // Setup RPGUNIT and CODECOV storage directories
-        IBMiTestStorage.setupTestStorage();
+        IBMiTestStorage.setupTestStorage(this.connection);
 
         let isDiagnosticsCleared = this.testCallbacks.isDiagnosticsCleared();
 
@@ -144,10 +146,8 @@ export class Runner {
     }
 
     async compileTest(testBucket: TestBucket, testSuite: TestSuite): Promise<CompilationStatus> {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-        const content = connection.getContent();
-        const config = connection.getConfig();
+        const content = this.connection.getContent();
+        const config = this.connection.getConfig();
 
         let testBucketPath: string;
         let testSuitePath: string;
@@ -178,7 +178,7 @@ export class Runner {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 
-            const parsedPath = connection.parserMemberPath(testSuitePath);
+            const parsedPath = this.connection.parserMemberPath(testSuitePath);
             const tstPgmName = parsedPath.name.toLocaleUpperCase();
             const tstLibrary = parsedPath.library;
             const srcFileName = parsedPath.file;
@@ -285,7 +285,7 @@ export class Runner {
         let compileResult: any;
         try {
             const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
-            compileResult = await connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
+            compileResult = await this.connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
         } catch (error: any) {
             await this.testLogger.logCompilation(testSuite.name, 'failed', [error.message ? error.message : error]);
             this.testMetrics.compilations.failed++;
@@ -320,10 +320,8 @@ export class Runner {
     }
 
     async runTest(testBucket: TestBucket, testSuite: TestSuite): Promise<void> {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-        const content = connection.getContent();
-        const config = connection.getConfig();
+        const content = this.connection.getContent();
+        const config = this.connection.getConfig();
 
         let testBucketPath: string;
         let testSuitePath: string;
@@ -343,7 +341,7 @@ export class Runner {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 
-            const parsedPath = connection.parserMemberPath(testSuitePath);
+            const parsedPath = this.connection.parserMemberPath(testSuitePath);
             const tstLibrary = parsedPath.library;
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
@@ -368,7 +366,7 @@ export class Runner {
                 await this.testCallbacks.started(testCase.uri);
             }
 
-            const testStorage = IBMiTestStorage.getTestStorage(`${tstPgm.name}${testCase?.name ? `_${testCase?.name}` : ``}`);
+            const testStorage = IBMiTestStorage.getTestStorage(this.connection, `${tstPgm.name}${testCase?.name ? `_${testCase?.name}` : ``}`);
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Test storage for ${testSuite.name}: ${JSON.stringify(testStorage)}`);
             const xmlStmf = testStorage.RPGUNIT;
 
@@ -422,7 +420,7 @@ export class Runner {
             let testResult: any;
             try {
                 const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
-                testResult = await connection.runCommand({ command: testCommand, environment: `ile`, env: env });
+                testResult = await this.connection.runCommand({ command: testCommand, environment: `ile`, env: env });
             } catch (error: any) {
                 const messages = [{ message: error.message ? error.message : error }];
                 for (const testCase of testSuite.testCases) {
@@ -438,9 +436,9 @@ export class Runner {
             if (testResult.stdout.length > 0) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Info, `${testSuite.name} execution output:\n${testResult.stdout}`);
                 const lines = testResult.stdout.split('\n');
-                for(const line of lines) {
+                for (const line of lines) {
                     const trimmedLine = line.trim();
-                    if(trimmedLine.startsWith('Runtime error: No test case found')) {
+                    if (trimmedLine.startsWith('Runtime error: No test case found')) {
                         await this.testLogger.logRunTimeWarning(trimmedLine);
                         hitRunTimeError = true;
                     }
@@ -451,7 +449,7 @@ export class Runner {
             }
 
             if (testSuite.ccLvl) {
-                const codeCoverageParser = new CodeCoverageParser(this.testLogger);
+                const codeCoverageParser = new CodeCoverageParser(this.connection, this.testLogger);
                 const codeCoverage = await codeCoverageParser.getCoverage(coverageParams!.outStmf);
                 if (codeCoverage) {
                     const isStatementCoverage = testSuite.ccLvl === '*LINE';

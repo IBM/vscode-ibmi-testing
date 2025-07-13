@@ -32,7 +32,7 @@ export class ConfigHandler {
             await testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
             return mergedConfig;
         } catch (error: any) {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
             return;
         }
     }
@@ -65,7 +65,7 @@ export class ConfigHandler {
             await testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
             return mergedConfig;
         } catch (error: any) {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
             return;
         }
     }
@@ -108,7 +108,7 @@ export class ConfigHandler {
 
             return JSON.parse(testingConfig.toString()) as TestingConfig;
         } catch (error: any) {
-            testOutputLogger.logWithNotification(LogLevel.Error, `Failed to read testing configuration`, `${testingConfigUri} - ${error}`);
+            testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to read testing configuration`, `${testingConfigUri} - ${error}`);
             return;
         }
     }

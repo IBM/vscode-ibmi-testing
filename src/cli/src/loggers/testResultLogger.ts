@@ -1,15 +1,10 @@
-import { TestRun } from "vscode";
-import { Logger, LogLevel } from "../cli/src/api/types";
+import { Logger, LogLevel } from "../api/types";
 
 export class TestResultLogger implements Logger {
-    private testRun: TestRun;
-
-    constructor(testRun: TestRun) {
-        this.testRun = testRun;
-    }
+    constructor() { }
 
     async append(message: string): Promise<void> {
-        this.testRun.appendOutput(message);
+        console.log(message);
     }
 
     async log(level: LogLevel, message: string): Promise<void> {

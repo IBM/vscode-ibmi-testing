@@ -1,5 +1,5 @@
+import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { IBMiMember } from "@halcyontech/vscode-ibmi-types/api/types";
-import { getInstance } from "../../../extensions/ibmi";
 
 export namespace ApiUtils {
     /**
@@ -114,10 +114,7 @@ export namespace ApiUtils {
         return flattenedCompileParams;
     }
 
-    export async function getMemberList(libraries: string[], sourceFiles: string[], extensions: string[]): Promise<IBMiMember[]> {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-
+    export async function getMemberList(connection: IBMi, libraries: string[], sourceFiles: string[], extensions: string[]): Promise<IBMiMember[]> {
         const statement =
             `WITH MEMBERS AS (
                         SELECT RTRIM(CAST(a.SYSTEM_TABLE_SCHEMA AS CHAR(10) FOR BIT DATA)) AS LIBRARY,
@@ -150,10 +147,7 @@ export namespace ApiUtils {
         }
     }
 
-    export async function readMember(library: string, file: string, member: string): Promise<string> {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-
+    export async function readMember(connection: IBMi, library: string, file: string, member: string): Promise<string> {
         const rFilePath = `${library}/${file}(${member})`;
         const result = await connection.sendCommand({ command: `/QOpenSys/usr/bin/Rfile -rQ "${rFilePath}"` });
         if (result.code === 0) {

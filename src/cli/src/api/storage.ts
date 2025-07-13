@@ -1,4 +1,4 @@
-import { getInstance } from "../../../extensions/ibmi";
+import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { TestStorage } from "./types";
 
 export namespace IBMiTestStorage {
@@ -6,10 +6,8 @@ export namespace IBMiTestStorage {
     const RPGUNIT_DIRECTORY: string = `RPGUNIT`;
     const CODECOV_DIRECTORY: string = `CODECOV`;
 
-    export async function setupTestStorage(): Promise<void> {
+    export async function setupTestStorage(connection: IBMi): Promise<void> {
         // Setup test output directory
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
         const config = connection.getConfig();
         const testStorage = [
             `${config.tempDir}/${TEST_OUTPUT_DIRECTORY}/${RPGUNIT_DIRECTORY}`,
@@ -21,9 +19,7 @@ export namespace IBMiTestStorage {
         }
     }
 
-    export function getTestStorage(prefix: string): TestStorage {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
+    export function getTestStorage(connection: IBMi, prefix: string): TestStorage {
         const config = connection.getConfig();
 
         const time = new Date().getTime();

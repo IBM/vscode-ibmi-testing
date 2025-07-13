@@ -9,8 +9,8 @@ export enum LogLevel {
 
 export interface Logger {
     append: (message: string) => Promise<void>;
+    appendWithNotification: (level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]) => Promise<void>;
     log: (level: LogLevel, message: string) => Promise<void>;
-    logWithNotification: (level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]) => Promise<void>;
 }
 
 export interface BasicUri {

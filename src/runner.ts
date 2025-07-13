@@ -400,7 +400,7 @@ export class IBMiTestRunner {
 
             // Warn user which test buckets are missing the RPGUnit library
             if (testBucketsMissingProductLibrary.length > 0) {
-                testOutputLogger.logWithNotification(
+                testOutputLogger.appendWithNotification(
                     LogLevel.Warning,
                     `${productLibrary}.LIB not found on the library list. This may impact resolving of include files for the following: ${testBucketsMissingProductLibrary.map(bucket => bucket.name).join(', ')}`,
                     undefined,
@@ -417,7 +417,7 @@ export class IBMiTestRunner {
 
             // Warn user which test buckets are missing the QDEVTOOLS library
             if (testBucketsMissingQDevToolsLibrary.length > 0) {
-                testOutputLogger.logWithNotification(
+                testOutputLogger.appendWithNotification(
                     LogLevel.Warning,
                     `${qdevtoolsLibrary}.LIB not found on the library list. This may impact code coverage for the following: ${testBucketsMissingQDevToolsLibrary.map(bucket => bucket.name).join(', ')}`,
                     undefined,
