@@ -1,11 +1,8 @@
 import { SSHExecCommandOptions, SSHExecCommandResponse, SSHPutFilesOptions, SSHGetPutDirectoryOptions, Config } from 'node-ssh';
 import { Client, SFTPWrapper, TransferOptions } from 'ssh2';
-import { exec as cpExec } from 'child_process';
+import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
-import util from 'util';
-
-const exec = util.promisify(cpExec);
 
 export class LocalSSH {
     connection: Client | null;
@@ -24,17 +21,42 @@ export class LocalSSH {
 
     async execCommand(givenCommand: string, options?: SSHExecCommandOptions): Promise<SSHExecCommandResponse> {
         const cwd = options?.cwd ?? process.cwd();
-        try {
-            const { stdout, stderr } = await exec(givenCommand, { cwd });
-            return { stdout, stderr, code: 0, signal: null };
-        } catch (err: any) {
-            return {
-                stdout: err.stdout ?? '',
-                stderr: err.stderr ?? err.message,
-                code: err.code ?? 1,
-                signal: err.signal ?? null,
-            };
-        }
+
+        return new Promise((resolve, reject) => {
+            const child = spawn(givenCommand, {
+                cwd,
+                shell: true,
+                stdio: ['pipe', 'pipe', 'pipe'],
+            });
+
+            let stdout = '';
+            let stderr = '';
+
+            if (options?.stdin) {
+                child.stdin.write(options.stdin);
+                child.stdin.end();
+            }
+
+            child.stdout.on('data', (chunk) => {
+                const str = chunk.toString();
+                stdout += str;
+                options?.onStdout?.(chunk);
+            });
+
+            child.stderr.on('data', (chunk) => {
+                const str = chunk.toString();
+                stderr += str;
+                options?.onStderr?.(chunk);
+            });
+
+            child.on('close', (code, signal) => {
+                resolve({ stdout, stderr, code, signal });
+            });
+
+            child.on('error', (err) => {
+                reject(err);
+            });
+        });
     }
 
     async getFile(localFile: string, remoteFile: string, givenSftp?: SFTPWrapper | null, transferOptions?: TransferOptions | null): Promise<void> {

@@ -7,7 +7,7 @@ import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTo
 import { ApiUtils } from "./apiUtils";
 import { IBMiTestStorage } from "./storage";
 import { CodeCoverageParser } from "./codeCoverageParser";
-import { IBMiFileCoverage } from "../../../fileCoverage";
+// import { IBMiFileCoverage } from "../../../fileCoverage";
 import { XMLParser } from "./xmlParser";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 
@@ -27,7 +27,7 @@ export interface TestCallbacks {
     passed: (uri: BasicUri, duration?: number) => Promise<void>;
     failed: (uri: BasicUri, messages: { line?: number, message: string }[], duration?: number) => Promise<void>;
     errored: (uri: BasicUri, messages: { line?: number, message: string }[], duration?: number) => Promise<void>;
-    addCoverage(fileCoverage: IBMiFileCoverage): void;
+    // addCoverage(fileCoverage: IBMiFileCoverage): void;
     end: () => Promise<void>;
 }
 
@@ -37,7 +37,7 @@ export class Runner {
     private testCallbacks: TestCallbacks;
     private testLogger: TestLogger;
     private testMetrics: TestMetrics;
-    private fileCoverage: IBMiFileCoverage[];
+    // private fileCoverage: IBMiFileCoverage[];
 
     constructor(connection: IBMi, testRequest: TestRequest, testCallbacks: TestCallbacks, testLogger: TestLogger) {
         this.connection = connection;
@@ -52,7 +52,7 @@ export class Runner {
             testFiles: { passed: 0, failed: 0, errored: 0 },
             testCases: { passed: 0, failed: 0, errored: 0 }
         };
-        this.fileCoverage = [];
+        // this.fileCoverage = [];
     }
 
     async run(): Promise<void> {
@@ -137,9 +137,9 @@ export class Runner {
             }
         }
 
-        for (const coverage of this.fileCoverage) {
-            this.testCallbacks.addCoverage(coverage);
-        }
+        // for (const coverage of this.fileCoverage) {
+        //     this.testCallbacks.addCoverage(coverage);
+        // }
 
         await this.testLogger.logMetrics(this.testMetrics);
         await this.testCallbacks.end();
@@ -497,13 +497,13 @@ export class Runner {
                             uri = { scheme: 'member', fsPath: memberPath, path: memberPath, fragment: '' };
                         }
 
-                        const existingFileCoverageIndex = this.fileCoverage.findIndex((coverage) => coverage.uri.toString() === uri.toString());
-                        if (existingFileCoverageIndex >= 0) {
-                            this.fileCoverage[existingFileCoverageIndex].addCoverage(codeCovResult, isStatementCoverage);
-                        } else {
-                            const newFileCoverage = new IBMiFileCoverage(uri, codeCovResult, isStatementCoverage);
-                            this.fileCoverage.push(newFileCoverage);
-                        }
+                        // const existingFileCoverageIndex = this.fileCoverage.findIndex((coverage) => coverage.uri.toString() === uri.toString());
+                        // if (existingFileCoverageIndex >= 0) {
+                        //     this.fileCoverage[existingFileCoverageIndex].addCoverage(codeCovResult, isStatementCoverage);
+                        // } else {
+                        //     const newFileCoverage = new IBMiFileCoverage(uri, codeCovResult, isStatementCoverage);
+                        //     this.fileCoverage.push(newFileCoverage);
+                        // }
                     }
                 }
             }

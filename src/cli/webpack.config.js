@@ -4,9 +4,40 @@
 
 const path = require('path');
 const webpack = require(`webpack`);
+const fs = require(`fs`);
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
+
+/// ====================
+// Move required binaries to dist folder
+/// ====================
+
+const dist = path.resolve(__dirname, `dist`);
+
+fs.mkdirSync(dist, { recursive: true });
+
+const files = [{ relative: `src/cqsh`, name: `cqsh_1` }];
+
+for (const file of files) {
+  const src = path.resolve(__dirname, file.relative);
+  const dest = path.resolve(dist, file.name);
+
+  console.log(`Copying ${src} to ${dest}`);
+  if (fs.existsSync(src)) {
+    // Overwrites by default
+    fs.copyFileSync(src, dest);
+  }
+  else {
+    throw new Error(`File ${src} not found for copy!`);
+  }
+}
+
+console.log(``);
+
+/// ====================
+// Webpack configuration
+/// ====================
 
 /** @type WebpackConfig */
 const extensionConfig = {
@@ -36,7 +67,7 @@ const extensionConfig = {
   },
   devtool: `source-map`,
   plugins: [
-    new webpack.BannerPlugin({banner: `#! /usr/bin/env node`, raw: true}),
+    new webpack.BannerPlugin({ banner: `#! /usr/bin/env node`, raw: true }),
     new webpack.IgnorePlugin({ resourceRegExp: /(cpu-features|sshcrypto\.node)/u })
   ]
 };

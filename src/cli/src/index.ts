@@ -10,6 +10,14 @@ import { TestLogger } from "./api/testLogger";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
 import * as path from "path";
+import { CodeForIStorage } from "vscode-ibmi/src/api/configuration/storage/CodeForIStorage";
+import { VirtualStorage } from "vscode-ibmi/src/api/configuration/storage/BaseStorage";
+import { VirtualConfig } from "vscode-ibmi/src/api/configuration/config/VirtualConfig";
+import { extensionComponentRegistry } from "vscode-ibmi/src/api/components/manager";
+import { CustomQSh } from "vscode-ibmi/src/api/components/cqsh";
+import { GetNewLibl } from "vscode-ibmi/src/api/components/getNewLibl";
+import { GetMemberInfo } from "vscode-ibmi/src/api/components/getMemberInfo";
+import { CopyToImport } from "vscode-ibmi/src/api/components/copyToImport";
 
 main();
 
@@ -32,10 +40,27 @@ function main() {
         .action(async (options) => {
             const { project, log } = options;
 
+            // Resolve to absolute paths
             const cwd = process.cwd();
             const projectPath = path.resolve(cwd, project);
             const logPath = path.resolve(cwd, log);
 
+            // Setup Code4i virtual storage and config
+            const virtualStorage = new VirtualStorage();
+            const virtualConfig = new VirtualConfig();
+            IBMi.GlobalStorage = new CodeForIStorage(virtualStorage);
+            IBMi.connectionManager.configMethod = virtualConfig;
+
+            // Setup components
+            const customQsh = new CustomQSh();
+            customQsh.setLocalAssetPath(path.join(__dirname, customQsh.getFileName()));
+            const testingId = `ibmi-testing`;
+            extensionComponentRegistry.registerComponent(testingId, customQsh);
+            extensionComponentRegistry.registerComponent(testingId, new GetNewLibl());
+            extensionComponentRegistry.registerComponent(testingId, new GetMemberInfo());
+            extensionComponentRegistry.registerComponent(testingId, new CopyToImport());
+
+            // Connect to IBM i
             const localSSH = new LocalSSH();
             const connection = new IBMi();
             const result = await connection.connect(
@@ -47,10 +72,13 @@ function main() {
                 },
                 {
                     message: (type: string, message: string) => {
+                        // console.log(`${c.cyanBright(type)}: ${message}`);
                     },
                     progress: ({ message }) => {
+                        // console.log(`${c.yellowBright("Progress")}: ${message}`);
                     },
                     uiErrorHandler: async (connection, code, data) => {
+                        // console.error(`${c.redBright("Error:")} (${code}): ${data}`);
                         return false;
                     },
                 },
@@ -58,6 +86,7 @@ function main() {
                 false,
                 localSSH as any
             );
+            console.log(`Connected to IBM i: ${result.success ? c.green("Success") : c.red("Failed")}`);
 
             if (result.success) {
                 // Create test logger
@@ -68,7 +97,7 @@ function main() {
                 // Build test bucket and request
                 const testBuckets = await buildTestBucket(projectPath);
                 const testRequest: TestRequest = {
-                    forceCompile: this.forceCompile,
+                    forceCompile: true,
                     testBuckets: testBuckets
                 };
 
@@ -84,13 +113,13 @@ function main() {
                         throw new Error("Function not implemented.");
                     },
                     isDiagnosticsCleared: function (): boolean {
-                        throw new Error("Function not implemented.");
+                        return true;
                     },
                     clearDiagnostics: function (): Promise<void> {
-                        throw new Error("Function not implemented.");
+                        return;
                     },
                     loadDiagnostics: function (qualifiedObject: string, workspaceFolderPath?: string): Promise<void> {
-                        throw new Error("Function not implemented.");
+                        return;
                     },
                     getEnvConfig: function (workspaceFolderPath: string): Promise<Env> {
                         throw new Error("Function not implemented.");
@@ -119,9 +148,9 @@ function main() {
                     errored: function (uri: BasicUri, messages: { line?: number; message: string; }[], duration?: number): Promise<void> {
                         throw new Error("Function not implemented.");
                     },
-                    addCoverage: function (fileCoverage: IBMiFileCoverage): void {
-                        throw new Error("Function not implemented.");
-                    },
+                    // addCoverage: function (fileCoverage: IBMiFileCoverage): void {
+                    //     throw new Error("Function not implemented.");
+                    // },
                     end: function (): Promise<void> {
                         throw new Error("Function not implemented.");
                     }

@@ -11,7 +11,9 @@
 			"cwd": "${workspaceFolder:cli}",
 			"program": "${workspaceFolder:cli}/dist/index.js",
 			"sourceMaps": true,
-			"args": [],
+			"args": [
+				"runIfs"
+			],
 			"preLaunchTask": {
 				"type": "npm",
 				"script": "webpack:dev"
