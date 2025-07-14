@@ -12,12 +12,35 @@
 			"program": "${workspaceFolder:cli}/dist/index.js",
 			"sourceMaps": true,
 			"args": [
-				"runIfs"
+				"--library-list RPGUNIT QDEVTOOLS --current-library SANJULA4 --save-command-output --save-test-output --save-test-result --library SANJULA4"
 			],
 			"preLaunchTask": {
 				"type": "npm",
 				"script": "webpack:dev"
 			},
+			"env": {
+				"IBMI_HOST": "${input:ibmiHost}",
+				"IBMI_USER": "${input:ibmiUser}",
+				"IBMI_PASSWORD": "${input:ibmiPassword}",
+			}
+		}
+	],
+	"inputs": [
+		{
+			"id": "ibmiHost",
+			"type": "promptString",
+			"description": "Enter the IBMI_HOST"
+		},
+		{
+			"id": "ibmiUser",
+			"type": "promptString",
+			"description": "Enter the IBMI_USER"
+		},
+		{
+			"id": "ibmiPassword",
+			"type": "promptString",
+			"description": "Enter the IBMI_PASSWORD",
+			"password": true
 		}
 	]
 }

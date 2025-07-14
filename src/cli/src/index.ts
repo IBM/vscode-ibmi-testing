@@ -35,6 +35,12 @@ interface Options {
     saveTestResult?: string | boolean;
 }
 
+const VERSION = `1.0.0`;
+const SOURCE_FILES = [`QTESTSRC`];
+const COMMAND_OUTPUT_PATH = `./logs/ibmi-testing/command-output.log`;
+const TEST_OUTPUT_PATH = `./logs/ibmi-testing/test-output.log`;
+const TEST_RESULT_PATH = `./logs/ibmi-testing/test-result.log`;
+
 main();
 
 function main() {
@@ -42,24 +48,30 @@ function main() {
 
     // Setup CLI information
     program
-        .version(`1.0.0`, `-v, --version`, `Display the version number`)
-        .description(`The ${c.cyanBright(`IBM i Testing (itest) CLI`)} can be used to run unit tests and generate code\ncoverage results in PASE for RPG and COBOL programs on IBM i. Under the\ncovers, this extension leverages the RPGUnit testing framework.\n\n✨ Documentation: https://codefori.github.io/docs/developing/testing/overview`)
+        .version(VERSION, `-v, --version`, `Display the version number`)
+        .name(`itest`)
+        .description(`The ${c.cyanBright(`IBM i Testing CLI (itest - v${VERSION})`)} can be used to run unit tests and generate\ncode coverage results in PASE for RPG and COBOL programs on IBM i. Under the\ncovers, this extension leverages the RPGUnit testing framework.\n\n✨ Documentation: https://codefori.github.io/docs/developing/testing/overview`)
         .helpOption(`-h, --help`, `Display help for command`)
-        .showHelpAfterError(true)
-        .showSuggestionAfterError(true)
-        .configureHelp({ sortOptions: true });
+        .showHelpAfterError()
+        .showSuggestionAfterError()
+        .addHelpText(`afterAll`, [
+            ``,
+            `Examples:`,
+            `  itest --library MYLIB --library-list RPGUNIT QDEVTOOLS --current-library MYLIB`,
+            `  itest --project /home/USER/ibmi-company_system --library-list RPGUNIT QDEVTOOLS --current-library MYLIB`
+        ].join(`\n`));
 
     // Setup CLI options
     program
         .addOption(new Option(`--project <path>`, `Path to the project containing tests`).default(`.`).conflicts([`library`, `sourceFiles`]))
         .addOption(new Option(`--library <library>`, `Library containing tests.`).conflicts(`project`))
-        .addOption(new Option(`--source-files <sourceFiles...>`, `Source files to search for tests.`).default([`QTESTSRC`]).conflicts(`project`))
+        .addOption(new Option(`--source-files <sourceFiles...>`, `Source files to search for tests.`).default(SOURCE_FILES).conflicts(`project`))
         .addOption(new Option(`--library-list <libraries...>`, `Libraries to add to the library list.`))
         .addOption(new Option(`--current-library <library>`, `The current library to use for the test run.`))
-        .addOption(new Option(`--save-command-output [path]`, `Save command output logs (defaults: "./logs/ibmi-testing/command-output.log")`))
-        .addOption(new Option(`--save-test-output [path]`, `Save test output logs (defaults: "./logs/ibmi-testing/test-output.log")`))
-        .addOption(new Option(`--save-test-result [path]`, `Save test result logs (defaults: "./logs/ibmi-testing/test-result.log")`))
-        // .addOption(new Option(`-c, --coverage`, `Run with code coverage (not supported yet!)`)
+        // .addOption(new Option(`-c, --coverage`, `Run with code coverage`)
+        .addOption(new Option(`--save-command-output [path]`, `Save command output logs (defaults: "${COMMAND_OUTPUT_PATH}")`))
+        .addOption(new Option(`--save-test-output [path]`, `Save test output logs (defaults: "${TEST_OUTPUT_PATH}")`))
+        .addOption(new Option(`--save-test-result [path]`, `Save test result logs (defaults: "${TEST_RESULT_PATH}")`))
         .action(async (options: Options) => {
             spinner.color = 'green';
             spinner.text = 'Setting up environment';
@@ -73,11 +85,11 @@ function main() {
             const libraryList = options.libraryList ? options.libraryList : undefined;
             const currentLibrary = options.currentLibrary ? options.currentLibrary : undefined;
             const saveCommandOutput = options.saveCommandOutput ?
-                (options.saveCommandOutput === true ? path.resolve(cwd, './logs/ibmi-testing/command-output.log') : path.resolve(cwd, options.saveCommandOutput)) : undefined;
+                (options.saveCommandOutput === true ? path.resolve(cwd, COMMAND_OUTPUT_PATH) : path.resolve(cwd, options.saveCommandOutput)) : undefined;
             const saveTestOutput = options.saveTestOutput ?
-                (options.saveTestOutput === true ? path.resolve(cwd, './logs/ibmi-testing/test-output.log') : path.resolve(cwd, options.saveTestOutput)) : undefined;
+                (options.saveTestOutput === true ? path.resolve(cwd, TEST_OUTPUT_PATH) : path.resolve(cwd, options.saveTestOutput)) : undefined;
             const saveTestResult = options.saveTestResult ?
-                (options.saveTestResult === true ? path.resolve(cwd, './logs/ibmi-testing/test-result.log') : path.resolve(cwd, options.saveTestResult)) : undefined;
+                (options.saveTestResult === true ? path.resolve(cwd, TEST_RESULT_PATH) : path.resolve(cwd, options.saveTestResult)) : undefined;
 
             // Create command logger
             if (saveCommandOutput) {
