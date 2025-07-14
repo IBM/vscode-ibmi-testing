@@ -46,7 +46,12 @@ export class LocalSSH {
             });
 
             child.on('close', (code, signal) => {
-                resolve({ stdout, stderr, code, signal });
+                resolve({
+                    stdout: stdout.trimEnd(),
+                    stderr: stderr.trimEnd(),
+                    code,
+                    signal
+                });
             });
 
             child.on('error', (err) => {

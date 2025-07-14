@@ -1,5 +1,3 @@
-import { program } from "commander";
-import c from "ansi-colors";
 import IBMi from "vscode-ibmi/src/api/IBMi";
 import { Runner, TestCallbacks } from "./api/runner";
 import { ConnectionData } from "@halcyontech/vscode-ibmi-types/api/types";
@@ -19,12 +17,17 @@ import { GetMemberInfo } from "vscode-ibmi/src/api/components/getMemberInfo";
 import { CopyToImport } from "vscode-ibmi/src/api/components/copyToImport";
 import { LocalSSH } from "./localSsh";
 import { ApiUtils } from "./api/apiUtils";
+import { program } from "commander";
+import c from "ansi-colors";
+import ora from "ora";
 import * as path from "path";
 import os from 'os';
 
 main();
 
 function main() {
+    const spinner = ora();
+
     // Setup CLI information
     program
         .version(`1.0.0`, `-v, --version`, `Display the version number`)
@@ -48,6 +51,10 @@ function main() {
         // .addOption(new Option(`--reclaimResources`, `Specifies when to reclaim resources. Resources, such as open files, can be reclaimed after each test case or at the end of the test suite. This option is useful if the test suite calls OPM programs, which do not set the \`*INLR\` indicator.`).default(`*NO`).choices([`*NO`, `*ALLWAYS`, `*ONCE`]))
         // .option(`-c, --coverage`, `Run with code coverage (not supported yet!)`)
         .action(async (options) => {
+            spinner.color = 'green';
+            spinner.text = 'Setting up environment';
+            spinner.start();
+
             let { project, library, testSourceFiles, log } = options;
 
             // Resolve to absolute paths and other options
@@ -121,19 +128,23 @@ function main() {
             extensionComponentRegistry.registerComponent(testingId, new CopyToImport());
 
             // Connect to IBM i
+            if (!isRunningOnIBMi) {
+                spinner.color = 'magenta';
+                spinner.text = 'Connecting to IBM i';
+            }
             const connection = new IBMi();
-            // connection.appendOutput = (data) => { };
+            connection.appendOutput = (data) => { };
             const result = await connection.connect(
                 credentials,
                 {
                     message: (type: string, message: string) => {
-                        // console.log(`${c.cyanBright(type)}: ${message}`);
                     },
                     progress: ({ message }) => {
-                        // console.log(`${c.yellowBright("Progress")}: ${message}`);
+                        if (!isRunningOnIBMi) {
+                            spinner.text = `${credentials.name}: ${message}`;
+                        }
                     },
                     uiErrorHandler: async (connection, code, data) => {
-                        // console.error(`${c.redBright("Error:")} (${code}): ${data}`);
                         return false;
                     },
                 },
@@ -143,6 +154,10 @@ function main() {
             );
 
             if (result.success) {
+                spinner.color = 'cyan';
+                spinner.text = 'Loading tests';
+                spinner.start();
+
                 // Create test logger
                 const testOutputLogger = new TestOutputLogger(log);
                 const testResultLogger = new TestResultLogger();
@@ -251,6 +266,7 @@ function main() {
                 };
 
                 // Run test buckets
+                spinner.stop();
                 const runner: Runner = new Runner(connection as any, testRequest, testCallbacks, testLogger);
                 await runner.run();
             }

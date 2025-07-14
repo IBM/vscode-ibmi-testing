@@ -4,6 +4,12 @@ export class TestResultLogger implements Logger {
     constructor() { }
 
     async append(message: string): Promise<void> {
+        if (message.endsWith('\r\n')) {
+            message = message.slice(0, -2);
+        } else if (message.endsWith('\n')) {
+            message = message.slice(0, -1);
+        }
+
         console.log(message);
     }
 
