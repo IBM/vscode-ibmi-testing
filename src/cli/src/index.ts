@@ -63,6 +63,7 @@ function main() {
             // Connect to IBM i
             const localSSH = new LocalSSH();
             const connection = new IBMi();
+            connection.appendOutput = (data) => { };
             const result = await connection.connect(
                 {
                     name: "USER@HOST",
@@ -86,7 +87,6 @@ function main() {
                 false,
                 localSSH as any
             );
-            console.log(`Connected to IBM i: ${result.success ? c.green("Success") : c.red("Failed")}`);
 
             if (result.success) {
                 // Create test logger

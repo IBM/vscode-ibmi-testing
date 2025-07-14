@@ -38,15 +38,11 @@ export class LocalSSH {
             }
 
             child.stdout.on('data', (chunk) => {
-                const str = chunk.toString();
-                stdout += str;
-                options?.onStdout?.(chunk);
+                stdout += chunk.toString();
             });
 
             child.stderr.on('data', (chunk) => {
-                const str = chunk.toString();
-                stderr += str;
-                options?.onStderr?.(chunk);
+                stderr += chunk.toString();
             });
 
             child.on('close', (code, signal) => {
@@ -84,14 +80,7 @@ export class LocalSSH {
                     await this.putDirectory(localPath, remotePath, options);
                 }
             } else {
-                if (!options?.validate || options.validate(localPath)) {
-                    try {
-                        await this.putFile(localPath, remotePath);
-                        options?.tick?.(localPath, remotePath, null);
-                    } catch (err) {
-                        options?.tick?.(localPath, remotePath, err as Error);
-                    }
-                }
+                await this.putFile(localPath, remotePath);
             }
         }
 
