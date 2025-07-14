@@ -24,6 +24,7 @@ import * as path from "path";
 import * as fs from "fs";
 import os from 'os';
 import { exit } from "process";
+import inquirer from "inquirer";
 
 interface Options {
     project?: string;
@@ -118,21 +119,47 @@ function main() {
                     port: 22
                 };
             } else {
-                // Get credentials from environment variables
-                const user = process.env.IBMI_USER;
-                const host = process.env.IBMI_HOST;
-                const sshPort = process.env.SSH_PORT || 22;
-                const password = process.env.IBMI_PASSWORD;
-                const privateKey = process.env.IBMI_PRIVATE_KEY;
+                async function promptForCredential(name: string, value: string, message: string, password: boolean = false): Promise<string> {
+                    if (value) {
+                        return value;
+                    }
 
-                // Validate credentials
-                if (!user || !host) {
-                    console.error(`IBMI_USER and IBMI_HOST environment variables are required`);
-                    return;
-                } else if (!password && !privateKey) {
-                    console.error(`IBMI_PASSWORD or IBMI_PRIVATE_KEY is required`);
-                    return;
+                    try {
+                        spinner.stop();
+
+                        const answer = password ?
+                            await inquirer.prompt([
+                                {
+                                    type: 'password',
+                                    name: name,
+                                    message: message
+                                }
+                            ]) :
+                            await inquirer.prompt([
+                                {
+                                    type: 'input',
+                                    name: name,
+                                    message: message,
+                                    required: true
+                                }
+                            ]);
+                        if (!answer || !answer[name]) {
+                            exit(1);
+                        }
+
+                        spinner.start();
+                        return answer[name];
+                    } catch (error) {
+                        exit(1);
+                    }
                 }
+
+                // Get credentials from environment variables
+                let user = await promptForCredential('user', process.env.IBMI_USER, 'What is your IBM i user profile? (Set the IBMI_USER environment variable to avoid this prompt)');
+                let host = await promptForCredential('host', process.env.IBMI_HOST, 'What is your IBM i hostname? (Set the IBMI_HOST environment variable to avoid this prompt)');
+                const sshPort = process.env.SSH_PORT || 22;
+                let password = await promptForCredential('password', process.env.IBMI_PASSWORD, 'What is your IBM i password? (Set the IBMI_PASSWORD environment variable to avoid this prompt)', true);
+                const privateKey = process.env.IBMI_PRIVATE_KEY;
 
                 // Build credentials
                 credentials = {
