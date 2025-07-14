@@ -3,16 +3,15 @@ import * as fs from "fs";
 import * as path from "path";
 
 export class TestOutputLogger implements Logger {
-    private logFile: string;
+    private logFile: string | undefined;
 
-    constructor(logFile: string) {
+    constructor(logFile: string | undefined) {
         this.logFile = logFile;
 
-        // Ensure the directory exists
-        fs.mkdirSync(path.dirname(logFile), { recursive: true });
-
-        // Clear log file if it exists (or create it if not)
-        fs.writeFileSync(logFile, "");
+        if (this.logFile) {
+            fs.mkdirSync(path.dirname(logFile), { recursive: true });
+            fs.writeFileSync(logFile, '');
+        }
     }
 
     async append(message: string): Promise<void> {
@@ -24,7 +23,7 @@ export class TestOutputLogger implements Logger {
     }
 
     async log(level: LogLevel, message: string): Promise<void> {
-        if (level === LogLevel.Off) {
+        if (level === LogLevel.Off || !this.logFile) {
             return;
         } else {
             const formattedTimestamp = (new Date()).toISOString().replace("T", " ").replace("Z", "");

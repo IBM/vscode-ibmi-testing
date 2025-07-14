@@ -1,4 +1,4 @@
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
 import * as path from "path";
 import lodash from "lodash";
 import { ConfigHandler, Logger, LogLevel, TestingConfig } from "./types";
@@ -50,7 +50,7 @@ export class LocalConfigHandler implements ConfigHandler {
             const configFilePath = path.join(parentDirectory, TESTING_CONFIG_BASENAME);
 
             try {
-                const stat = await fs.stat(configFilePath);
+                const stat = await fs.promises.stat(configFilePath);
                 if (stat.isFile()) {
                     return configFilePath;
                 }
@@ -65,7 +65,7 @@ export class LocalConfigHandler implements ConfigHandler {
     private async readConfig(testingConfigPath: string): Promise<TestingConfig | undefined> {
         try {
             // Check if file exists
-            await fs.stat(testingConfigPath);
+            await fs.promises.stat(testingConfigPath);
         } catch (error: any) {
             await this.testOutputLogger.log(LogLevel.Info, `No local testing configuration found at ${testingConfigPath}`);
             return;
@@ -73,7 +73,7 @@ export class LocalConfigHandler implements ConfigHandler {
 
         try {
             // Read and parse file
-            const testingConfig = await fs.readFile(testingConfigPath, 'utf-8');
+            const testingConfig = await fs.promises.readFile(testingConfigPath, 'utf-8');
             return JSON.parse(testingConfig) as TestingConfig;
         } catch (error: any) {
             this.testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to read local testing configuration`, `${testingConfigPath} - ${error}`);

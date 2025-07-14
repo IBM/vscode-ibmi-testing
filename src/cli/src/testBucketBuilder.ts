@@ -4,8 +4,8 @@ import { LogLevel, TestBucket } from "./api/types";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
 import Parser from "vscode-rpgle/language/parser";
 import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "./api/config";
-import { IBMiMember, IFSFile } from "@halcyontech/vscode-ibmi-types/api/types";
-import * as fs from 'fs/promises';
+import { IFSFile } from "@halcyontech/vscode-ibmi-types/api/types";
+import * as fs from 'fs';
 import * as path from 'path';
 
 export abstract class TestBucketBuilder {
@@ -72,7 +72,7 @@ export class LocalTestBucketBuilder extends TestBucketBuilder {
         // Get tests cases
         for (const testFile of testFiles) {
             const filePath = testFile;
-            const fileContent = await fs.readFile(filePath, 'utf-8');
+            const fileContent = await fs.promises.readFile(filePath, 'utf-8');
 
             // Get testing config
             const configHandler = new LocalConfigHandler(this.testOutputLogger, this.project, filePath);
@@ -109,7 +109,7 @@ export class LocalTestBucketBuilder extends TestBucketBuilder {
     }
 
     async recursivelyReadDirectory(localPath: string, allFiles: string[] = []): Promise<string[]> {
-        const entries = await fs.readdir(localPath, { withFileTypes: true });
+        const entries = await fs.promises.readdir(localPath, { withFileTypes: true });
 
         for (const entry of entries) {
             const fullPath = path.join(localPath, entry.name);
@@ -231,7 +231,7 @@ export class QsysTestBucketBuilder extends TestBucketBuilder {
         testBuckets.push({
             name: path.basename(`/${this.library}`),
             uri: {
-                scheme: 'member',
+                scheme: 'object',
                 path: `/${this.library}`,
                 fsPath: '',
                 fragment: ''
@@ -263,7 +263,7 @@ export class QsysTestBucketBuilder extends TestBucketBuilder {
                 name: path.basename(memberPath),
                 systemName: ApiUtils.getSystemNameFromPath(path.parse(memberPath).name),
                 uri: {
-                    scheme: 'member',
+                    scheme: 'object',
                     path: memberPath,
                     fsPath: '',
                     fragment: ''

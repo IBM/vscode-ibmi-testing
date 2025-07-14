@@ -1,6 +1,6 @@
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { IBMiMember } from "@halcyontech/vscode-ibmi-types/api/types";
-import * as fs from "fs/promises";
+import * as fs from "fs";
 import path from "path";
 
 export type Env = Record<string, string>;
@@ -108,7 +108,7 @@ export namespace ApiUtils {
 
         const envPath = path.join(workspaceFolderPath, `.env`);
         if (await envExists(envPath)) {
-            const envContent = await fs.readFile(envPath, { encoding: 'utf8' });
+            const envContent = await fs.promises.readFile(envPath, { encoding: 'utf8' });
             const envLines = envContent.replace(new RegExp(`\\\r`, `g`), ``).split(`\n`);
 
             // Parse out the env lines
@@ -132,7 +132,7 @@ export namespace ApiUtils {
      */
     async function envExists(envPath: string): Promise<boolean> {
         try {
-            const stats = await fs.stat(envPath);
+            const stats = await fs.promises.stat(envPath);
             return stats.isFile();
         } catch (err) {
             return false;

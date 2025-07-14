@@ -4,7 +4,6 @@ import { ApiUtils } from "./cli/src/api/apiUtils";
 import Parser from "vscode-rpgle/language/parser";
 import { getInstance } from "./extensions/ibmi";
 import * as fs from "fs";
-import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 
 export type TestType = 'directory' | 'object' | 'file' | 'case';
 

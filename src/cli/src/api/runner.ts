@@ -97,7 +97,7 @@ export class Runner {
                 // Log IFS directory
                 const ifsDirectoryName = testBucket.name;
                 await this.testLogger.logIfsDirectory(ifsDirectoryName, testBucket.testSuites.length);
-            } else if (testBucket.uri.scheme === 'member') {
+            } else if (testBucket.uri.scheme === 'object') {
                 // Log library
                 const libraryName = testBucket.name;
                 await this.testLogger.logLibrary(libraryName, testBucket.testSuites.length);
@@ -181,13 +181,14 @@ export class Runner {
             testSuitePath = testSuite.uri.path;
 
             // Use current library as the test library
-            // TODO: How to support library list?
             const libraryList = await this.testCallbacks.getLibraryList();
             const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
+            deployDirectory = testBucketPath;
             srcStmf = testSuitePath;
+
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
-        } else if (testSuite.uri.scheme === 'member') {
+        } else if (testSuite.uri.scheme === 'object') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 
@@ -355,12 +356,11 @@ export class Runner {
             testSuitePath = testSuite.uri.path;
 
             // Use current library as the test library
-            // TODO: How to support library list?
-            const libraryList = await this.testCallbacks.getLibraryList(testBucketPath);
+            const libraryList = await this.testCallbacks.getLibraryList();
             const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
-        } else if (testSuite.uri.scheme === 'member') {
+        } else if (testSuite.uri.scheme === 'object') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 

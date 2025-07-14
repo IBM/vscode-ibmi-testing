@@ -17,11 +17,23 @@ import { GetMemberInfo } from "vscode-ibmi/src/api/components/getMemberInfo";
 import { CopyToImport } from "vscode-ibmi/src/api/components/copyToImport";
 import { LocalSSH } from "./localSsh";
 import { ApiUtils } from "./api/apiUtils";
-import { program } from "commander";
+import { Option, program } from "commander";
 import c from "ansi-colors";
 import ora from "ora";
 import * as path from "path";
+import * as fs from "fs";
 import os from 'os';
+
+interface Options {
+    project?: string;
+    library?: string;
+    sourceFiles?: string[];
+    libraryList?: string[];
+    currentLibrary?: string;
+    saveCommandOutput?: string | boolean;
+    saveTestOutput?: string | boolean;
+    saveTestResult?: string | boolean;
+}
 
 main();
 
@@ -39,30 +51,39 @@ function main() {
 
     // Setup CLI options
     program
-        .option(`-p, --project <project>`, `Path to the root of the project containing tests`, `.`)
-        .option(`-l, --library <library> [testSourceFiles]`, `Library and optional comma separated list of source files to search for tests.`)
-        .option(`-o, --log <logFile>`, `Path to where verbose logs should be stored`, `./logs/ibmi-testing.log`)
-        // .option(`--productLibrary`, `Specifies the name of the RPGUnit product library on the host.`, `RPGUNIT`)
-        // .addOption(new Option(`--runOrder`, `Specifies the order for running the test procedures. Useful to check that there is no dependencies between test procedures.`).default(`*API`).choices([`*API`, `*REVERSE`]))
-        // .addOption(new Option(`--libraryList`, `Specifies the library list for executing the specified unit test.`).default(`*CURRENT`).choices([`*CURRENT`, `*JOBD`]))
-        // .addOption(new Option(`--jobDescription`, `Specifies the name of the job description that is used to set the library list, when the \`--libraryList\` option is set to \`*JOBD\`. \`*DFT\` can be used here to indicate the library of the unit test suite (service program) is searched for job description \`RPGUNIT\`.`).default(`*DFT`))
-        // .addOption(new Option(`--reportDetail`, `Specifies how detailed the test run report should be.`).default(`*BASIC`).choices([`*BASIC`, `*ALL`]))
-        // .addOption(new Option(`--createReport`, `Specifies whether a report is created.`).default(`*ALLWAYS`).choices([`*ALLWAYS`, `*ERROR`, `*NONE`]))
-        // .addOption(new Option(`--reclaimResources`, `Specifies when to reclaim resources. Resources, such as open files, can be reclaimed after each test case or at the end of the test suite. This option is useful if the test suite calls OPM programs, which do not set the \`*INLR\` indicator.`).default(`*NO`).choices([`*NO`, `*ALLWAYS`, `*ONCE`]))
-        // .option(`-c, --coverage`, `Run with code coverage (not supported yet!)`)
-        .action(async (options) => {
+        .addOption(new Option(`--project <path>`, `Path to the project containing tests`).default(`.`).conflicts([`library`, `sourceFiles`]))
+        .addOption(new Option(`--library <library>`, `Library containing tests.`).conflicts(`project`))
+        .addOption(new Option(`--source-files <sourceFiles...>`, `Source files to search for tests.`).default([`QTESTSRC`]).conflicts(`project`))
+        .addOption(new Option(`--library-list <libraries...>`, `Libraries to add to the library list.`))
+        .addOption(new Option(`--current-library <library>`, `The current library to use for the test run.`))
+        .addOption(new Option(`--save-command-output [path]`, `Save command output logs (defaults: "./logs/ibmi-testing/command-output.log")`))
+        .addOption(new Option(`--save-test-output [path]`, `Save test output logs (defaults: "./logs/ibmi-testing/test-output.log")`))
+        .addOption(new Option(`--save-test-result [path]`, `Save test result logs (defaults: "./logs/ibmi-testing/test-result.log")`))
+        // .addOption(new Option(`-c, --coverage`, `Run with code coverage (not supported yet!)`)
+        .action(async (options: Options) => {
             spinner.color = 'green';
             spinner.text = 'Setting up environment';
             spinner.start();
 
-            let { project, library, testSourceFiles, log } = options;
-
             // Resolve to absolute paths and other options
             const cwd = process.cwd();
-            project = path.resolve(cwd, project);
-            library = library?.trim();
-            testSourceFiles = testSourceFiles?.split(',').map((sourceFile: string) => sourceFile.trim()) || [`QTESTSRC`];
-            log = path.resolve(cwd, log);
+            const project = options.project ? path.resolve(cwd, options.project) : undefined;
+            const library = options.library ? options.library : undefined;
+            const sourceFiles = options.sourceFiles ? options.sourceFiles : undefined;
+            const libraryList = options.libraryList ? options.libraryList : undefined;
+            const currentLibrary = options.currentLibrary ? options.currentLibrary : undefined;
+            const saveCommandOutput = options.saveCommandOutput ?
+                (options.saveCommandOutput === true ? path.resolve(cwd, './logs/ibmi-testing/command-output.log') : path.resolve(cwd, options.saveCommandOutput)) : undefined;
+            const saveTestOutput = options.saveTestOutput ?
+                (options.saveTestOutput === true ? path.resolve(cwd, './logs/ibmi-testing/test-output.log') : path.resolve(cwd, options.saveTestOutput)) : undefined;
+            const saveTestResult = options.saveTestResult ?
+                (options.saveTestResult === true ? path.resolve(cwd, './logs/ibmi-testing/test-result.log') : path.resolve(cwd, options.saveTestResult)) : undefined;
+
+            // Create command logger
+            if (saveCommandOutput) {
+                fs.mkdirSync(path.dirname(saveCommandOutput), { recursive: true });
+                fs.writeFileSync(saveCommandOutput, '');
+            }
 
             // Setup credentials based on if running on IBM i
             let localSSH: LocalSSH | undefined;
@@ -93,9 +114,11 @@ function main() {
 
                 // Validate credentials
                 if (!user || !host) {
-                    throw new Error(`IBMI_USER and IBMI_HOST environment variables are required`);
+                    console.error(`IBMI_USER and IBMI_HOST environment variables are required`);
+                    return;
                 } else if (!password && !privateKey) {
-                    throw new Error(`IBMI_PASSWORD or IBMI_PRIVATE_KEY is required`);
+                    console.error(`IBMI_PASSWORD or IBMI_PRIVATE_KEY is required`);
+                    return;
                 }
 
                 // Build credentials
@@ -133,7 +156,11 @@ function main() {
                 spinner.text = 'Connecting to IBM i';
             }
             const connection = new IBMi();
-            connection.appendOutput = (data) => { };
+            connection.appendOutput = async (data) => {
+                if (saveCommandOutput) {
+                    await fs.promises.appendFile(saveCommandOutput, data);
+                }
+            };
             const result = await connection.connect(
                 credentials,
                 {
@@ -153,20 +180,30 @@ function main() {
                 localSSH as any
             );
 
+            // Setup library list and current library
+            const config = connection.getConfig();
+            if (libraryList) {
+                config.libraryList = [...libraryList, ...config.libraryList];
+            }
+            if (currentLibrary) {
+                config.currentLibrary = currentLibrary;
+            }
+            await IBMi.connectionManager.update(config);
+
             if (result.success) {
                 spinner.color = 'cyan';
                 spinner.text = 'Loading tests';
                 spinner.start();
 
-                // Create test logger
-                const testOutputLogger = new TestOutputLogger(log);
-                const testResultLogger = new TestResultLogger();
+                // Create test loggers
+                const testOutputLogger = new TestOutputLogger(saveTestOutput);
+                const testResultLogger = new TestResultLogger(saveTestResult);
                 const testLogger = new TestLogger(testOutputLogger, testResultLogger);
 
                 // Build test bucket and request
                 let testBucketBuilder: TestBucketBuilder;
                 if (library) {
-                    testBucketBuilder = new QsysTestBucketBuilder(connection as any, testOutputLogger, library, testSourceFiles);
+                    testBucketBuilder = new QsysTestBucketBuilder(connection as any, testOutputLogger, library, sourceFiles);
                 } else {
                     if (isRunningOnIBMi) {
                         testBucketBuilder = new IfsTestBucketBuilder(connection as any, testOutputLogger, project);
@@ -189,7 +226,7 @@ function main() {
                         throw new Error("Function not implemented.");
                     },
                     getLibraryList: async function (workspaceFolderPath?: string): Promise<ILELibrarySettings> {
-                        const env = await ApiUtils.getEnvConfig(workspaceFolderPath) || {};
+                        const env = workspaceFolderPath ? await ApiUtils.getEnvConfig(workspaceFolderPath) : {};
 
                         const config = connection.getConfig();
                         const librarySetup: ILELibrarySettings = {
@@ -212,7 +249,7 @@ function main() {
                         return;
                     },
                     getEnvConfig: async function (workspaceFolderPath: string): Promise<Env> {
-                        return await ApiUtils.getEnvConfig(workspaceFolderPath) || {};
+                        return workspaceFolderPath ? await ApiUtils.getEnvConfig(workspaceFolderPath) : {};
                     },
                     getProductLibrary: function (): string {
                         return "RPGUNIT";
@@ -269,6 +306,7 @@ function main() {
                 spinner.stop();
                 const runner: Runner = new Runner(connection as any, testRequest, testCallbacks, testLogger);
                 await runner.run();
+                await testResultLogger.append(`\n`);
             }
         });
 

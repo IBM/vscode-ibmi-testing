@@ -1,16 +1,25 @@
 import { Logger, LogLevel } from "../api/types";
+import * as fs from "fs";
+import * as path from "path";
 
 export class TestResultLogger implements Logger {
-    constructor() { }
+    private logFile: string | undefined;
+
+    constructor(logFile: string | undefined) {
+        this.logFile = logFile;
+
+        if (this.logFile) {
+            fs.mkdirSync(path.dirname(logFile), { recursive: true });
+            fs.writeFileSync(logFile, '');
+        }
+    }
 
     async append(message: string): Promise<void> {
-        if (message.endsWith('\r\n')) {
-            message = message.slice(0, -2);
-        } else if (message.endsWith('\n')) {
-            message = message.slice(0, -1);
-        }
+        process.stdout.write(message);
 
-        console.log(message);
+        if (this.logFile) {
+            await fs.promises.appendFile(this.logFile, message);
+        }
     }
 
     async log(level: LogLevel, message: string): Promise<void> {
