@@ -93,12 +93,14 @@ export class Runner {
                     }
                     continue;
                 }
+            } else if (testBucket.uri.scheme === 'streamfile') {
+                // Log IFS directory
+                const ifsDirectoryName = testBucket.name;
+                await this.testLogger.logIfsDirectory(ifsDirectoryName, testBucket.testSuites.length);
             } else if (testBucket.uri.scheme === 'member') {
                 // Log library
                 const libraryName = testBucket.name;
                 await this.testLogger.logLibrary(libraryName, testBucket.testSuites.length);
-            } else {
-                // TODO: Support stream files
             }
 
             for (const testSuite of testBucket.testSuites) {
@@ -174,7 +176,18 @@ export class Runner {
             srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
-        } else {
+        } else if (testSuite.uri.scheme === 'streamfile') {
+            testBucketPath = testBucket.uri.path;
+            testSuitePath = testSuite.uri.path;
+
+            // Use current library as the test library
+            // TODO: How to support library list?
+            const libraryList = await this.testCallbacks.getLibraryList();
+            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+
+            srcStmf = testSuitePath;
+            tstPgm = { name: testSuite.systemName, library: tstLibrary };
+        } else if (testSuite.uri.scheme === 'member') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 
@@ -337,7 +350,17 @@ export class Runner {
             const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
-        } else {
+        } else if (testSuite.uri.scheme === 'streamfile') {
+            testBucketPath = testBucket.uri.path;
+            testSuitePath = testSuite.uri.path;
+
+            // Use current library as the test library
+            // TODO: How to support library list?
+            const libraryList = await this.testCallbacks.getLibraryList(testBucketPath);
+            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+
+            tstPgm = { name: testSuite.systemName, library: tstLibrary };
+        } else if (testSuite.uri.scheme === 'member') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 
@@ -513,7 +536,7 @@ export class Runner {
             try {
                 const xmlStmfContent = (await content.downloadStreamfileRaw(testParams.xmlStmf));
                 const xml = await parseStringPromise(xmlStmfContent);
-                testCaseResults = XMLParser.parseTestResults(xml, testSuite.uri.scheme === 'file');
+                testCaseResults = XMLParser.parseTestResults(xml, testSuite.uri.scheme === 'file' || testSuite.uri.scheme === 'streamfile');
             } catch (error: any) {
                 for (const testCase of testSuite.testCases) {
                     const messages = [{ message: error.message ? error.message : error }];

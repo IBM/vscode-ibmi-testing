@@ -43,7 +43,8 @@
     "commander": "^13.1.0",
     "node-ssh": "^13.1.0",
     "xml2js": "^0.6.2",
-    "vscode-ibmi": "file:C:/Users/SanjulaGanepola/Git/vscode-ibmi"
+    "vscode-ibmi": "file:C:/Users/SanjulaGanepola/Git/vscode-ibmi",
+    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle"
   },
   "devDependencies": {
     "@types/ssh2": "^1.15.5",

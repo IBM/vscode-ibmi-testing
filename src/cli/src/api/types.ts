@@ -20,6 +20,10 @@ export interface BasicUri {
     fragment: string;
 }
 
+export interface ConfigHandler {
+    getConfig(): Promise<TestingConfig | undefined>;
+}
+
 export interface TestRequest {
     forceCompile: boolean;
     testBuckets: TestBucket[];

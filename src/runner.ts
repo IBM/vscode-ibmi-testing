@@ -5,16 +5,15 @@ import { Configuration, LibraryListValidation, Section } from "./configuration";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { RPGUnit } from "./components/rpgUnit";
 import { Runner, TestCallbacks } from "./cli/src/api/runner";
-import { BasicUri, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest } from "./cli/src/api/types";
+import { BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest } from "./cli/src/api/types";
 import { TestLogger } from "./cli/src/api/testLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
-import { Utils } from "./utils";
 import { testOutputLogger } from "./extension";
 import { TestCaseData, TestFileData } from "./testData";
 import { ApiUtils } from "./cli/src/api/apiUtils";
 import * as path from "path";
-import { ConfigHandler } from "./config";
+import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "./cli/src/api/config";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
@@ -120,7 +119,20 @@ export class IBMiTestRunner {
                 ccLvl = undefined;
             }
 
-            const configHandler = new ConfigHandler();
+            const ibmi = getInstance();
+            const connection = ibmi!.getConnection();
+
+            // Get testing config
+            let configHandler: ConfigHandler;
+            if (testFileItem.uri!.scheme === 'file') {
+                configHandler = new LocalConfigHandler(testBucketItem.uri!.fsPath, testFileItem.uri!.fsPath, testOutputLogger);
+            } else if (testFileItem.uri!.scheme === 'member') {
+                configHandler = new QsysConfigHandler(connection, testFileItem.uri!.path, testOutputLogger);
+            } else {
+                configHandler = new IfsConfigHandler(connection, testBucketItem.uri!.path, testFileItem.uri!.fsPath, testOutputLogger);
+            }
+            const testingConfig = await configHandler.getConfig();
+
             testBuckets[existingTestBucketIndex].testSuites.push({
                 name: testFileItem.label,
                 systemName: ApiUtils.getSystemNameFromPath(path.parse(testFileItem.uri!.fsPath).name),
@@ -134,7 +146,7 @@ export class IBMiTestRunner {
                 isCompiled: testFileData.isCompiled,
                 isEntireSuite: true,
                 ccLvl: ccLvl,
-                testingConfig: testFileItem.uri!.scheme === 'file' ? (await configHandler.getLocalConfig(testFileItem.uri!)) : await configHandler.getRemoteConfig(testFileItem.uri!)
+                testingConfig: testingConfig
             });
             existingTestSuiteIndex = testBuckets[existingTestBucketIndex].testSuites.length - 1;
         }
@@ -246,9 +258,7 @@ export class IBMiTestRunner {
                 });
             },
             getEnvConfig: async (workspaceFolderPath: string): Promise<Env> => {
-                const workspaceFolder = workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath));
-                const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
-                return env;
+                return await ApiUtils.getEnvConfig(workspaceFolderPath) || {};
             },
             getProductLibrary: (): string => {
                 const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
@@ -350,16 +360,16 @@ export class IBMiTestRunner {
                     testRun.errored(testItem, testMessages, duration);
                 }
             },
-            addCoverage: (fileCoverage: IBMiFileCoverage): void => {
-                testRun.addCoverage(fileCoverage);
-            },
+            // addCoverage: (fileCoverage: IBMiFileCoverage): void => {
+            //     testRun.addCoverage(fileCoverage);
+            // },
             end: async (): Promise<void> => {
                 testRun.end();
             }
         };
 
         // Run test buckets
-        const runner: Runner = new Runner(testRequest, testCallbacks, testLogger);
+        const runner: Runner = new Runner(connection, testRequest, testCallbacks, testLogger);
         await runner.run();
     }
 

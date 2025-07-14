@@ -4,6 +4,7 @@ import { ApiUtils } from "./cli/src/api/apiUtils";
 import Parser from "vscode-rpgle/language/parser";
 import { getInstance } from "./extensions/ibmi";
 import * as fs from "fs";
+import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 
 export type TestType = 'directory' | 'object' | 'file' | 'case';
 
@@ -47,7 +48,7 @@ export class TestFileData extends TestData {
                         memberContent = fs.readFileSync(this.item.uri!.fsPath, 'utf8');
                     } else {
                         const parsedPath = connection.parserMemberPath(this.item.uri!.path);
-                        memberContent = await ApiUtils.readMember(parsedPath.library, parsedPath.file, parsedPath.name);
+                        memberContent = await ApiUtils.readMember(connection, parsedPath.library, parsedPath.file, parsedPath.name);
                     }
 
                     // Parse file

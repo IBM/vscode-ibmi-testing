@@ -38,6 +38,11 @@ export class TestLogger {
         await this.testOutputLogger.log(LogLevel.Info, `Running tests in ${libraryName}`);
     }
 
+    async logIfsDirectory(directoryName: string, numTestSuites: number) {
+        await this.testResultLogger.append(`${c.bgBlue(` IFS `)} ${directoryName} ${c.grey(`(${numTestSuites})`)}\r\n`);
+        await this.testOutputLogger.log(LogLevel.Info, `Running tests in ${directoryName}`);
+    }
+
     async logTestSuite(testSuiteName: string, testSuiteSystemName: string, numTestCases: number) {
         await this.testResultLogger.append(`${c.blue(`❯`)} ${testSuiteName} → ${testSuiteSystemName}.SRVPGM ${c.grey(`(${numTestCases})`)}`);
         await this.testOutputLogger.log(LogLevel.Info, `Running tests in ${testSuiteName} (${testSuiteSystemName}.SRVPGM)`);

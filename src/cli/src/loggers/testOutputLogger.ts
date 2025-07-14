@@ -3,11 +3,16 @@ import * as fs from "fs";
 import * as path from "path";
 
 export class TestOutputLogger implements Logger {
-    private logPath: string;
+    private logFile: string;
 
-    constructor(logPath: string) {
-        this.logPath = logPath;
-        fs.mkdirSync(path.dirname(logPath), { recursive: true });
+    constructor(logFile: string) {
+        this.logFile = logFile;
+
+        // Ensure the directory exists
+        fs.mkdirSync(path.dirname(logFile), { recursive: true });
+
+        // Clear log file if it exists (or create it if not)
+        fs.writeFileSync(logFile, "");
     }
 
     async append(message: string): Promise<void> {
@@ -25,7 +30,7 @@ export class TestOutputLogger implements Logger {
             const formattedTimestamp = (new Date()).toISOString().replace("T", " ").replace("Z", "");
             const formattedLevel = LogLevel[level].toLowerCase();
             const formattedMessage = `${formattedTimestamp} [${formattedLevel}] ${message}\n`;
-            await fs.promises.appendFile(this.logPath, formattedMessage);
+            await fs.promises.appendFile(this.logFile, formattedMessage);
         }
     }
 
