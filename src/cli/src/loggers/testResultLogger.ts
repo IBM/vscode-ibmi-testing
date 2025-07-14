@@ -1,6 +1,7 @@
 import { Logger, LogLevel } from "../api/types";
 import * as fs from "fs";
 import * as path from "path";
+import c from "ansi-colors";
 
 export class TestResultLogger implements Logger {
     private logFile: string | undefined;
@@ -18,7 +19,8 @@ export class TestResultLogger implements Logger {
         process.stdout.write(message);
 
         if (this.logFile) {
-            await fs.promises.appendFile(this.logFile, message);
+            const strippedMessage = c.stripColor(message);
+            await fs.promises.appendFile(this.logFile, strippedMessage);
         }
     }
 
