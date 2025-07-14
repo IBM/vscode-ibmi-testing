@@ -2,12 +2,13 @@ import { program } from "commander";
 import c from "ansi-colors";
 import IBMi from "vscode-ibmi/src/api/IBMi";
 import { Runner, TestCallbacks } from "./api/runner";
+import { ConnectionData } from "@halcyontech/vscode-ibmi-types/api/types";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
 import { DeploymentStatus, Env, RUCALLTST, BasicUri, TestRequest } from "./api/types";
 import { TestLogger } from "./api/testLogger";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
-import * as path from "path";
+import { IfsTestBucketBuilder, LocalTestBucketBuilder, QsysTestBucketBuilder, TestBucketBuilder } from "./testBucketBuilder";
 import { CodeForIStorage } from "vscode-ibmi/src/api/configuration/storage/CodeForIStorage";
 import { VirtualStorage } from "vscode-ibmi/src/api/configuration/storage/BaseStorage";
 import { VirtualConfig } from "vscode-ibmi/src/api/configuration/config/VirtualConfig";
@@ -16,9 +17,10 @@ import { CustomQSh } from "vscode-ibmi/src/api/components/cqsh";
 import { GetNewLibl } from "vscode-ibmi/src/api/components/getNewLibl";
 import { GetMemberInfo } from "vscode-ibmi/src/api/components/getMemberInfo";
 import { CopyToImport } from "vscode-ibmi/src/api/components/copyToImport";
-import { RequestBuilder } from "./requestBuilder";
 import { LocalSSH } from "./localSsh";
 import { ApiUtils } from "./api/apiUtils";
+import * as path from "path";
+import os from 'os';
 
 main();
 
@@ -34,9 +36,9 @@ function main() {
 
     // Setup CLI options
     program
-        .command(`runIfs`)
-        .option(`-p, --project [projectPath]`, `Path to the root of the project`, `.`)
-        .option(`-l, --log [logFile]`, `Path to where verbose logs should be stored`, `./logs/ibmi-testing.log`)
+        .option(`-p, --project <project>`, `Path to the root of the project containing tests`, `.`)
+        .option(`-l, --library <library> [testSourceFiles]`, `Library and optional comma separated list of source files to search for tests.`)
+        .option(`-o, --log <logFile>`, `Path to where verbose logs should be stored`, `./logs/ibmi-testing.log`)
         // .option(`--productLibrary`, `Specifies the name of the RPGUnit product library on the host.`, `RPGUNIT`)
         // .addOption(new Option(`--runOrder`, `Specifies the order for running the test procedures. Useful to check that there is no dependencies between test procedures.`).default(`*API`).choices([`*API`, `*REVERSE`]))
         // .addOption(new Option(`--libraryList`, `Specifies the library list for executing the specified unit test.`).default(`*CURRENT`).choices([`*CURRENT`, `*JOBD`]))
@@ -46,12 +48,62 @@ function main() {
         // .addOption(new Option(`--reclaimResources`, `Specifies when to reclaim resources. Resources, such as open files, can be reclaimed after each test case or at the end of the test suite. This option is useful if the test suite calls OPM programs, which do not set the \`*INLR\` indicator.`).default(`*NO`).choices([`*NO`, `*ALLWAYS`, `*ONCE`]))
         // .option(`-c, --coverage`, `Run with code coverage (not supported yet!)`)
         .action(async (options) => {
-            const { project, log } = options;
+            let { project, library, testSourceFiles, log } = options;
 
-            // Resolve to absolute paths
+            // Resolve to absolute paths and other options
             const cwd = process.cwd();
-            const projectPath = path.resolve(cwd, project);
-            const logFile = path.resolve(cwd, log);
+            project = path.resolve(cwd, project);
+            library = library?.trim();
+            testSourceFiles = testSourceFiles?.split(',').map((sourceFile: string) => sourceFile.trim()) || [`QTESTSRC`];
+            log = path.resolve(cwd, log);
+
+            // Setup credentials based on if running on IBM i
+            let localSSH: LocalSSH | undefined;
+            let credentials: ConnectionData;
+            const isRunningOnIBMi = os.type().includes('400');
+            if (isRunningOnIBMi) {
+                // Create local SSH instance
+                localSSH = new LocalSSH();
+
+                // Get credentials from the local SSH instance
+                const user = (await localSSH.execCommand(`whoami`)).stdout;
+                const host = (await localSSH.execCommand(`hostname`)).stdout;
+
+                // Build credentials
+                credentials = {
+                    name: `${user}@${host}`,
+                    username: user,
+                    host: host,
+                    port: 22
+                };
+            } else {
+                // Get credentials from environment variables
+                const user = process.env.IBMI_USER;
+                const host = process.env.IBMI_HOST;
+                const sshPort = process.env.SSH_PORT || 22;
+                const password = process.env.IBMI_PASSWORD;
+                const privateKey = process.env.IBMI_PRIVATE_KEY;
+
+                // Validate credentials
+                if (!user || !host) {
+                    throw new Error(`IBMI_USER and IBMI_HOST environment variables are required`);
+                } else if (!password && !privateKey) {
+                    throw new Error(`IBMI_PASSWORD or IBMI_PRIVATE_KEY is required`);
+                }
+
+                // Build credentials
+                credentials = {
+                    name: `${user}@${host}`,
+                    username: user,
+                    host: host,
+                    port: Number(sshPort)
+                };
+                if (password) {
+                    credentials.password = password;
+                } else if (privateKey) {
+                    credentials['privateKey'] = privateKey;
+                }
+            }
 
             // Setup Code4i virtual storage and config
             const virtualStorage = new VirtualStorage();
@@ -69,18 +121,10 @@ function main() {
             extensionComponentRegistry.registerComponent(testingId, new CopyToImport());
 
             // Connect to IBM i
-            const localSSH = new LocalSSH();
-            const user = (await localSSH.execCommand(`whoami`)).stdout;
-            const host = (await localSSH.execCommand(`hostname`)).stdout;
             const connection = new IBMi();
-            connection.appendOutput = (data) => { };
+            // connection.appendOutput = (data) => { };
             const result = await connection.connect(
-                {
-                    name: `${user}@${host}`,
-                    host: host,
-                    port: 22,
-                    username: user
-                },
+                credentials,
                 {
                     message: (type: string, message: string) => {
                         // console.log(`${c.cyanBright(type)}: ${message}`);
@@ -100,13 +144,22 @@ function main() {
 
             if (result.success) {
                 // Create test logger
-                const testOutputLogger = new TestOutputLogger(logFile);
+                const testOutputLogger = new TestOutputLogger(log);
                 const testResultLogger = new TestResultLogger();
                 const testLogger = new TestLogger(testOutputLogger, testResultLogger);
 
                 // Build test bucket and request
-                const requestBuilder = new RequestBuilder(connection as any, testOutputLogger, projectPath);
-                const testBuckets = await requestBuilder.buildTestBucket();
+                let testBucketBuilder: TestBucketBuilder;
+                if (library) {
+                    testBucketBuilder = new QsysTestBucketBuilder(connection as any, testOutputLogger, library, testSourceFiles);
+                } else {
+                    if (isRunningOnIBMi) {
+                        testBucketBuilder = new IfsTestBucketBuilder(connection as any, testOutputLogger, project);
+                    } else {
+                        testBucketBuilder = new LocalTestBucketBuilder(testOutputLogger, project);
+                    }
+                }
+                const testBuckets = await testBucketBuilder.getTestBuckets();
                 const testRequest: TestRequest = {
                     forceCompile: true,
                     testBuckets: testBuckets

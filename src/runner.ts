@@ -125,11 +125,11 @@ export class IBMiTestRunner {
             // Get testing config
             let configHandler: ConfigHandler;
             if (testFileItem.uri!.scheme === 'file') {
-                configHandler = new LocalConfigHandler(testBucketItem.uri!.fsPath, testFileItem.uri!.fsPath, testOutputLogger);
+                configHandler = new LocalConfigHandler(testOutputLogger, testBucketItem.uri!.fsPath, testFileItem.uri!.fsPath);
             } else if (testFileItem.uri!.scheme === 'member') {
-                configHandler = new QsysConfigHandler(connection, testFileItem.uri!.path, testOutputLogger);
+                configHandler = new QsysConfigHandler(connection, testOutputLogger, testFileItem.uri!.path);
             } else {
-                configHandler = new IfsConfigHandler(connection, testBucketItem.uri!.path, testFileItem.uri!.fsPath, testOutputLogger);
+                configHandler = new IfsConfigHandler(connection, testOutputLogger, testBucketItem.uri!.path, testFileItem.uri!.fsPath);
             }
             const testingConfig = await configHandler.getConfig();
 

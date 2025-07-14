@@ -11,14 +11,14 @@ const GLOBAL_CONFIG_DIRECTORY = '.vscode';
 const GLOBAL_CONFIG_SOURCE_FILE = 'VSCODE';
 
 export class LocalConfigHandler implements ConfigHandler {
+    private testOutputLogger: Logger;
     private workspaceFolderPath: string;
     private localPath: string;
-    private testOutputLogger: Logger;
 
-    constructor(workspaceFolderPath: string, localPath: string, testOutputLogger: Logger) {
+    constructor(testOutputLogger: Logger, workspaceFolderPath: string, localPath: string) {
+        this.testOutputLogger = testOutputLogger;
         this.workspaceFolderPath = workspaceFolderPath;
         this.localPath = localPath;
-        this.testOutputLogger = testOutputLogger;
     }
 
     async getConfig(): Promise<TestingConfig | undefined> {
@@ -84,15 +84,15 @@ export class LocalConfigHandler implements ConfigHandler {
 
 export class IfsConfigHandler implements ConfigHandler {
     private connection: IBMi;
+    private testOutputLogger: Logger;
     private rootIfsPath: string;
     private ifsPath: string;
-    private testOutputLogger: Logger;
 
-    constructor(connection: IBMi, rootIfsPath: string, ifsPath: string, testOutputLogger: Logger) {
+    constructor(connection: IBMi, testOutputLogger: Logger, rootIfsPath: string, ifsPath: string) {
         this.connection = connection;
+        this.testOutputLogger = testOutputLogger;
         this.rootIfsPath = rootIfsPath;
         this.ifsPath = ifsPath;
-        this.testOutputLogger = testOutputLogger;
     }
 
     async getConfig(): Promise<TestingConfig | undefined> {
@@ -159,13 +159,13 @@ export class IfsConfigHandler implements ConfigHandler {
 
 export class QsysConfigHandler implements ConfigHandler {
     private connection: IBMi;
-    private memberPath: string;
     private testOutputLogger: Logger;
+    private memberPath: string;
 
-    constructor(connection: IBMi, memberPath: string, testOutputLogger: Logger) {
+    constructor(connection: IBMi, testOutputLogger: Logger, memberPath: string) {
         this.connection = connection;
-        this.memberPath = memberPath;
         this.testOutputLogger = testOutputLogger;
+        this.memberPath = memberPath;
     }
 
     async getConfig(): Promise<TestingConfig | undefined> {
@@ -209,7 +209,7 @@ export class QsysConfigHandler implements ConfigHandler {
         const configExists = await content.checkObject({
             library: parsedMemberPath.library,
             name: parsedMemberPath.file,
-            member: parsedMemberPath.name,
+            member: parsedMemberPath.name.toLocaleUpperCase(),
             type: '*FILE',
         });
         if (!configExists) {
