@@ -55,6 +55,10 @@ export class Runner {
         // this.fileCoverage = [];
     }
 
+    getTestMetrics(): TestMetrics {
+        return this.testMetrics;
+    }
+
     async run(): Promise<void> {
         // Setup RPGUNIT and CODECOV storage directories
         IBMiTestStorage.setupTestStorage(this.connection);

@@ -23,6 +23,7 @@ import ora from "ora";
 import * as path from "path";
 import * as fs from "fs";
 import os from 'os';
+import { exit } from "process";
 
 interface Options {
     project?: string;
@@ -319,6 +320,13 @@ function main() {
                 const runner: Runner = new Runner(connection as any, testRequest, testCallbacks, testLogger);
                 await runner.run();
                 await testResultLogger.append(`\n`);
+
+                // Get exit code from test metrics
+                const testMetrics = runner.getTestMetrics();
+                const hasFailuresOrErrors = (testMetrics.testFiles.failed > 0 || testMetrics.testCases.failed > 0) ||
+                    (testMetrics.testFiles.errored || testMetrics.testCases.errored) > 0;
+                const exitCode = hasFailuresOrErrors ? 1 : 0;
+                exit(exitCode);
             }
         });
 
