@@ -1,0 +1,7 @@
+.vscode
+.logs
+node_modules
+src
+!dist/src
+tsconfig.json
+webpack.config.js
