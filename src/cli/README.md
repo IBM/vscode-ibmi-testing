@@ -20,9 +20,9 @@ Options:
   * `--ll, --library-list <libraries...>`    Libraries to add to the library list.
   * `--cl, --current-library <library>`      The current library to use for the test run.
   * `--cc, --code-coverage`                  Run with code coverage (choices: "*LINE", "*PROC")
-  * `--sco, --save-command-output [path]`    Save command output logs (defaults: "./.logs/ibmi-testing/command-output.log")
-  * `--sto, --save-test-output [path]`       Save test output logs (defaults: "./.logs/ibmi-testing/test-output.log")
-  * `--str, --save-test-result [path]`       Save test result logs (defaults: "./.logs/ibmi-testing/test-result.log")
+  * `--sco, --save-command-output [path]`    Save command output logs (defaults: "./.itest/command-output.log")
+  * `--sto, --save-test-output [path]`       Save test output logs (defaults: "./.itest/test-output.log")
+  * `--str, --save-test-result [path]`       Save test result logs (defaults: "./.itest/test-result.log")
   * `--h, --help`                            Display help for command
 
 Examples:

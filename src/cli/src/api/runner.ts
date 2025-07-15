@@ -192,7 +192,7 @@ export class Runner {
             srcStmf = testSuitePath;
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
-        } else if (testSuite.uri.scheme === 'object') {
+        } else if (testSuite.uri.scheme === 'member') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 
@@ -364,7 +364,7 @@ export class Runner {
             const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
-        } else if (testSuite.uri.scheme === 'object') {
+        } else if (testSuite.uri.scheme === 'member') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 

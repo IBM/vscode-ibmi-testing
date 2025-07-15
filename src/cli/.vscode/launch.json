@@ -19,9 +19,9 @@
 				"--library-list",
 				"RPGUNIT",
 				"QDEVTOOLS",
-				"--save-command-output",
 				"--save-test-output",
-				"--save-test-result"
+				"--save-test-result",
+				"--save-command-output"
 			],
 			"preLaunchTask": {
 				"type": "npm",

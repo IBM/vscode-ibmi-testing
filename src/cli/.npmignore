@@ -1,5 +1,5 @@
 .vscode
-.logs
+.itest
 node_modules
 src
 !dist/src

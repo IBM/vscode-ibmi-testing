@@ -28,16 +28,17 @@ import inquirer from "inquirer";
 import pkg from '../package.json';
 
 interface Options {
-    localDirectory?: string | boolean;
-    ifsDirectory?: string | boolean;
+    localDirectory?: string;
+    ifsDirectory?: string;
     library?: string;
     sourceFiles?: string[];
     libraryList?: string[];
     currentLibrary?: string;
-    codeCoverage?: string | boolean;
-    saveCommandOutput?: string | boolean;
-    saveTestOutput?: string | boolean;
-    saveTestResult?: string | boolean;
+    codeCoverage?: string;
+    coverageThresholds?: string[];
+    saveTestOutput?: string;
+    saveTestResult?: string;
+    saveCommandOutput?: string;
 }
 
 const VERSION = pkg.version;
@@ -46,9 +47,13 @@ const IFS_DIRECTORY = `.`;
 const SOURCE_FILES = [`QTESTSRC`];
 const CODE_COVERAGE_LINE = `*LINE`;
 const CODE_COVERAGE_PROC = `*PROC`;
-const COMMAND_OUTPUT_PATH = `./.logs/ibmi-testing/command-output.log`;
-const TEST_OUTPUT_PATH = `./.logs/ibmi-testing/test-output.log`;
-const TEST_RESULT_PATH = `./.logs/ibmi-testing/test-result.log`;
+const LOG_DIRECTORY = `.itest`;
+const TEST_OUTPUT_PATH = `./${LOG_DIRECTORY}/test-output.log`;
+const TEST_RESULT_PATH = `./${LOG_DIRECTORY}/test-result.log`;
+const COMMAND_OUTPUT_PATH = `./${LOG_DIRECTORY}/command-output.log`;
+const RED = 0;
+const YELLOW = 60;
+const GREEN = 90;
 
 main();
 
@@ -73,16 +78,17 @@ function main() {
 
     // Setup CLI options
     program
-        .addOption(new Option(`--ld, --localDirectory <path>`, `Local directory containing tests (defaults: "${LOCAL_DIRECTORY}")`).conflicts([`library`, `source-files`]))
-        .addOption(new Option(`--id, --ifsDirectory <path>`, `IFS directory containing containing tests (defaults: "${IFS_DIRECTORY}")`).conflicts([`library`, `source-files`]))
+        .addOption(new Option(`--ld, --localDirectory [path]`, `Local directory containing tests`).preset(LOCAL_DIRECTORY).conflicts([`library`, `source-files`]))
+        .addOption(new Option(`--id, --ifsDirectory [path]`, `IFS directory containing containing tests`).preset(IFS_DIRECTORY).conflicts([`library`, `source-files`]))
         .addOption(new Option(`--l, --library <library>`, `Library containing tests.`).conflicts(`localDirectory`))
-        .addOption(new Option(`--sf, --source-files <sourceFiles...>`, `Source files to search for tests.`).default(SOURCE_FILES).conflicts(`localDirectory`))
+        .addOption(new Option(`--sf, --source-files <sourceFiles...>`, `Source files to search for tests.`).preset(SOURCE_FILES).conflicts(`localDirectory`))
         .addOption(new Option(`--ll, --library-list <libraries...>`, `Libraries to add to the library list.`))
         .addOption(new Option(`--cl, --current-library <library>`, `The current library to use for the test run.`))
-        .addOption(new Option(`--cc, --code-coverage [ccLvl]`, `Run with code coverage (defaults: "${CODE_COVERAGE_LINE}")`).choices([CODE_COVERAGE_LINE, CODE_COVERAGE_PROC]))
-        .addOption(new Option(`--sco, --save-command-output [path]`, `Save command output logs (defaults: "${COMMAND_OUTPUT_PATH}")`))
-        .addOption(new Option(`--sto, --save-test-output [path]`, `Save test output logs (defaults: "${TEST_OUTPUT_PATH}")`))
-        .addOption(new Option(`--str, --save-test-result [path]`, `Save test result logs (defaults: "${TEST_RESULT_PATH}")`))
+        .addOption(new Option(`--cc, --code-coverage [ccLvl]`, `Run with code coverage`).preset(CODE_COVERAGE_LINE).choices([CODE_COVERAGE_LINE, CODE_COVERAGE_PROC]))
+        .addOption(new Option(`--ct, --coverage-thresholds <red> <yellow> <green>`, `Set the code coverage thresholds.`).preset([RED, YELLOW, GREEN]))
+        .addOption(new Option(`--sto, --save-test-output [path]`, `Save test output logs`).preset(TEST_OUTPUT_PATH))
+        .addOption(new Option(`--str, --save-test-result [path]`, `Save test result logs`).preset(TEST_RESULT_PATH))
+        .addOption(new Option(`--sco, --save-command-output [path]`, `Save command output logs`).preset(COMMAND_OUTPUT_PATH))
         .action(async (options: Options) => {
             spinner.color = 'green';
             spinner.text = 'Setting up environment';
@@ -90,19 +96,11 @@ function main() {
 
             // Resolve to absolute paths and other options
             const cwd = process.cwd();
-            const localDirectory = options.localDirectory ?
-                (options.localDirectory === true ? path.resolve(cwd, LOCAL_DIRECTORY) : path.resolve(cwd, options.localDirectory)) : undefined;
+            const localDirectory = options.localDirectory ? path.resolve(cwd, options.localDirectory) : undefined;
             let ifsDirectory = options.ifsDirectory ? options.ifsDirectory : undefined;
-            if (localDirectory) {
-                if (!ifsDirectory) {
-                    spinner.fail(`The '--ifsDirectory' option is required when using '--localDirectory'.`);
-                    exit(1);
-                } else if (ifsDirectory === true) {
-                    spinner.fail(`The 'path' flag on the '--ifsDirectory' option is required when using '--localDirectory'.`);
-                    exit(1);
-                }
-            } else if (ifsDirectory === true) {
-                ifsDirectory = path.posix.resolve(cwd, IFS_DIRECTORY);
+            if (localDirectory && !ifsDirectory) {
+                spinner.fail(`The '--ifsDirectory' option is required when using '--localDirectory'.`);
+                exit(1);
             } else if (ifsDirectory) {
                 ifsDirectory = path.posix.resolve(cwd, ifsDirectory);
             }
@@ -113,20 +111,11 @@ function main() {
             const sourceFiles = options.sourceFiles ? options.sourceFiles : undefined;
             const libraryList = options.libraryList ? options.libraryList : undefined;
             const currentLibrary = options.currentLibrary ? options.currentLibrary : undefined;
-            const codeCoverage = options.codeCoverage ?
-                (options.codeCoverage === true ? CODE_COVERAGE_LINE : options.codeCoverage) : CODE_COVERAGE_LINE;
-            const saveCommandOutput = options.saveCommandOutput ?
-                (options.saveCommandOutput === true ? path.resolve(cwd, COMMAND_OUTPUT_PATH) : path.resolve(cwd, options.saveCommandOutput)) : undefined;
-            const saveTestOutput = options.saveTestOutput ?
-                (options.saveTestOutput === true ? path.resolve(cwd, TEST_OUTPUT_PATH) : path.resolve(cwd, options.saveTestOutput)) : undefined;
-            const saveTestResult = options.saveTestResult ?
-                (options.saveTestResult === true ? path.resolve(cwd, TEST_RESULT_PATH) : path.resolve(cwd, options.saveTestResult)) : undefined;
-
-            // Create command logger
-            if (saveCommandOutput) {
-                fs.mkdirSync(path.dirname(saveCommandOutput), { recursive: true });
-                fs.writeFileSync(saveCommandOutput, '');
-            }
+            const codeCoverage = options.codeCoverage ? options.codeCoverage : undefined;
+            const coverageThresholds = options.coverageThresholds ? options.coverageThresholds : undefined;
+            const saveTestOutput = options.saveTestOutput ? path.resolve(cwd, options.saveTestOutput) : undefined;
+            const saveTestResult = options.saveTestResult ? path.resolve(cwd, options.saveTestResult) : undefined;
+            const saveCommandOutput = options.saveCommandOutput ? path.resolve(cwd, options.saveCommandOutput) : undefined;
 
             // Setup credentials based on if running on IBM i
             let localSSH: LocalSSH | undefined;
@@ -209,6 +198,12 @@ function main() {
                 }
             }
 
+            // Create command output logger
+            if (saveCommandOutput) {
+                fs.mkdirSync(path.dirname(saveCommandOutput), { recursive: true });
+                fs.writeFileSync(saveCommandOutput, '');
+            }
+
             // Setup Code4i virtual storage and config
             const virtualStorage = new VirtualStorage();
             const virtualConfig = new VirtualConfig();
@@ -279,10 +274,10 @@ function main() {
                 if (library) {
                     testBucketBuilder = new QsysTestBucketBuilder(connection as any, testOutputLogger, library, sourceFiles);
                 } else {
-                    if (isRunningOnIBMi) {
-                        testBucketBuilder = new IfsTestBucketBuilder(connection as any, testOutputLogger, ifsDirectory);
-                    } else {
+                    if(localDirectory) {
                         testBucketBuilder = new LocalTestBucketBuilder(testOutputLogger, localDirectory);
+                    } else {
+                        testBucketBuilder = new IfsTestBucketBuilder(connection as any, testOutputLogger, ifsDirectory);
                     }
                 }
                 const testBuckets = await testBucketBuilder.getTestBuckets();

@@ -38,30 +38,30 @@ export abstract class TestBucketBuilder {
 }
 
 export class LocalTestBucketBuilder extends TestBucketBuilder {
-    private project: string;
+    private localDirectory: string;
 
-    constructor(testOutputLogger: TestOutputLogger, project: string) {
+    constructor(testOutputLogger: TestOutputLogger, localDirectory: string) {
         super(testOutputLogger);
-        this.project = project;
+        this.localDirectory = localDirectory;
     }
 
     async getTestBuckets(): Promise<TestBucket[]> {
         // Build test bucket
         const testBuckets: TestBucket[] = [];
         testBuckets.push({
-            name: path.basename(this.project),
+            name: path.basename(this.localDirectory),
             uri: {
                 scheme: 'file',
                 path: '',
-                fsPath: this.project,
+                fsPath: this.localDirectory,
                 fragment: ''
             },
             testSuites: []
         });
 
         // Get all files in the IFS directory
-        await this.testOutputLogger.log(LogLevel.Info, `Searching for tests in directory: ${this.project}`);
-        const allFiles = await this.recursivelyReadDirectory(this.project);
+        await this.testOutputLogger.log(LogLevel.Info, `Searching for tests in directory: ${this.localDirectory}`);
+        const allFiles = await this.recursivelyReadDirectory(this.localDirectory);
 
         // Get test files
         const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
@@ -75,7 +75,7 @@ export class LocalTestBucketBuilder extends TestBucketBuilder {
             const fileContent = await fs.promises.readFile(filePath, 'utf-8');
 
             // Get testing config
-            const configHandler = new LocalConfigHandler(this.testOutputLogger, this.project, filePath);
+            const configHandler = new LocalConfigHandler(this.testOutputLogger, this.localDirectory, filePath);
             const testingConfig = await configHandler.getConfig();
 
             // Add test suites and test cases to test bucket
@@ -126,22 +126,22 @@ export class LocalTestBucketBuilder extends TestBucketBuilder {
 
 export class IfsTestBucketBuilder extends TestBucketBuilder {
     private connection: IBMi;
-    private project: string;
+    private ifsDirectory: string;
 
-    constructor(connection: IBMi, testOutputLogger: TestOutputLogger, project: string) {
+    constructor(connection: IBMi, testOutputLogger: TestOutputLogger, ifsDirectory: string) {
         super(testOutputLogger);
         this.connection = connection;
-        this.project = project;
+        this.ifsDirectory = ifsDirectory;
     }
 
     async getTestBuckets(): Promise<TestBucket[]> {
         // Build test bucket
         const testBuckets: TestBucket[] = [];
         testBuckets.push({
-            name: path.basename(this.project),
+            name: path.basename(this.ifsDirectory),
             uri: {
                 scheme: 'streamfile',
-                path: this.project,
+                path: this.ifsDirectory,
                 fsPath: '',
                 fragment: ''
             },
@@ -149,8 +149,8 @@ export class IfsTestBucketBuilder extends TestBucketBuilder {
         });
 
         // Get all files in the IFS directory
-        await this.testOutputLogger.log(LogLevel.Info, `Searching for tests in IFS directory: ${this.project}`);
-        const allFiles = await this.recursivelyReadDirectory(this.project);
+        await this.testOutputLogger.log(LogLevel.Info, `Searching for tests in IFS directory: ${this.ifsDirectory}`);
+        const allFiles = await this.recursivelyReadDirectory(this.ifsDirectory);
 
         // Get test files
         const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
@@ -165,7 +165,7 @@ export class IfsTestBucketBuilder extends TestBucketBuilder {
             const fileContent = (await content.downloadStreamfileRaw(filePath)).toString();
 
             // Get testing config
-            const configHandler = new IfsConfigHandler(this.connection, this.testOutputLogger, this.project, filePath);
+            const configHandler = new IfsConfigHandler(this.connection, this.testOutputLogger, this.ifsDirectory, filePath);
             const testingConfig = await configHandler.getConfig();
 
             // Add test suites and test cases to test bucket
@@ -263,7 +263,7 @@ export class QsysTestBucketBuilder extends TestBucketBuilder {
                 name: path.basename(memberPath),
                 systemName: ApiUtils.getSystemNameFromPath(path.parse(memberPath).name),
                 uri: {
-                    scheme: 'object',
+                    scheme: 'member',
                     path: memberPath,
                     fsPath: '',
                     fragment: ''
