@@ -42,6 +42,8 @@ const VERSION = `1.0.0`;
 const LOCAL_DIRECTORY = `.`;
 const IFS_DIRECTORY = `.`;
 const SOURCE_FILES = [`QTESTSRC`];
+const CODE_COVERAGE_LINE = `*LINE`;
+const CODE_COVERAGE_PROC = `*PROC`;
 const COMMAND_OUTPUT_PATH = `./.logs/ibmi-testing/command-output.log`;
 const TEST_OUTPUT_PATH = `./.logs/ibmi-testing/test-output.log`;
 const TEST_RESULT_PATH = `./.logs/ibmi-testing/test-result.log`;
@@ -53,32 +55,32 @@ function main() {
 
     // Setup CLI information
     program
-        .version(VERSION, `-v, --version`, `Display the version number`)
+        .version(VERSION, `--v, --version`, `Display the version number`)
         .name(`itest`)
         .description(`The ${c.cyanBright(`IBM i Testing CLI (itest - v${VERSION})`)} can be used to run unit tests and generate\ncode coverage results in PASE for RPG and COBOL programs on IBM i. Under the\ncovers, this extension leverages the RPGUnit testing framework.\n\n✨ Documentation: https://codefori.github.io/docs/developing/testing/overview`)
-        .helpOption(`-h, --help`, `Display help for command`)
+        .helpOption(`--h, --help`, `Display help for command`)
         .showHelpAfterError()
         .showSuggestionAfterError()
         .addHelpText(`afterAll`, [
             ``,
             `Examples:`,
-            `  itest --localDirectory . --ifsDirectory /home/USER/builds/ibmi-company_system --library-list RPGUNIT QDEVTOOLS --current-library MYLIB`,
-            `  itest --ifsDirectory /home/USER/builds/ibmi-company_system --library-list RPGUNIT QDEVTOOLS --current-library MYLIB`,
-            `  itest --library MYLIB --library-list RPGUNIT QDEVTOOLS --current-library MYLIB`
+            `  itest --ld . --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`,
+            `  itest --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`,
+            `  itest --l MYLIB --ll RPGUNIT QDEVTOOLS --cl MYLIB`
         ].join(`\n`));
 
     // Setup CLI options
     program
-        .addOption(new Option(`--localDirectory <path>`, `Local directory containing tests (defaults: "${LOCAL_DIRECTORY}")`).conflicts([`library`, `sourceFiles`]))
-        .addOption(new Option(`--ifsDirectory <path>`, `IFS directory containing containing tests (defaults: "${IFS_DIRECTORY}")`).conflicts([`library`, `sourceFiles`]))
-        .addOption(new Option(`--library <library>`, `Library containing tests.`).conflicts(`project`))
-        .addOption(new Option(`--source-files <sourceFiles...>`, `Source files to search for tests.`).default(SOURCE_FILES).conflicts(`project`))
-        .addOption(new Option(`--library-list <libraries...>`, `Libraries to add to the library list.`))
-        .addOption(new Option(`--current-library <library>`, `The current library to use for the test run.`))
-        // .addOption(new Option(`-c, --coverage`, `Run with code coverage`)
-        .addOption(new Option(`--save-command-output [path]`, `Save command output logs (defaults: "${COMMAND_OUTPUT_PATH}")`))
-        .addOption(new Option(`--save-test-output [path]`, `Save test output logs (defaults: "${TEST_OUTPUT_PATH}")`))
-        .addOption(new Option(`--save-test-result [path]`, `Save test result logs (defaults: "${TEST_RESULT_PATH}")`))
+        .addOption(new Option(`--ld, --localDirectory <path>`, `Local directory containing tests (defaults: "${LOCAL_DIRECTORY}")`).conflicts([`library`, `source-files`]))
+        .addOption(new Option(`--id, --ifsDirectory <path>`, `IFS directory containing containing tests (defaults: "${IFS_DIRECTORY}")`).conflicts([`library`, `source-files`]))
+        .addOption(new Option(`--l, --library <library>`, `Library containing tests.`).conflicts(`localDirectory`))
+        .addOption(new Option(`--sf, --source-files <sourceFiles...>`, `Source files to search for tests.`).default(SOURCE_FILES).conflicts(`localDirectory`))
+        .addOption(new Option(`--ll, --library-list <libraries...>`, `Libraries to add to the library list.`))
+        .addOption(new Option(`--cl, --current-library <library>`, `The current library to use for the test run.`))
+        .addOption(new Option(`--cc, --code-coverage`, `Run with code coverage`).default(CODE_COVERAGE_LINE).choices([CODE_COVERAGE_LINE, CODE_COVERAGE_PROC]))
+        .addOption(new Option(`--sco, --save-command-output [path]`, `Save command output logs (defaults: "${COMMAND_OUTPUT_PATH}")`))
+        .addOption(new Option(`--sto, --save-test-output [path]`, `Save test output logs (defaults: "${TEST_OUTPUT_PATH}")`))
+        .addOption(new Option(`--str, --save-test-result [path]`, `Save test result logs (defaults: "${TEST_RESULT_PATH}")`))
         .action(async (options: Options) => {
             spinner.color = 'green';
             spinner.text = 'Setting up environment';
