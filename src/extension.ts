@@ -1,4 +1,4 @@
-import { ExtensionContext, LogLevel, workspace } from "vscode";
+import { ConfigurationChangeEvent, ExtensionContext, LogLevel, workspace } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { getComponentRegistry, getInstance, loadBase } from "./extensions/ibmi";
 import { Configuration, Section } from "./configuration";
@@ -6,7 +6,6 @@ import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { RPGUnit } from "./components/rpgUnit";
 import { CodeCov } from "./components/codeCov";
 import * as tmp from "tmp";
-import { Utils } from "./utils";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestStubCodeActions } from "./codeActions/testStub";
 
@@ -43,7 +42,7 @@ export async function activate(context: ExtensionContext) {
 			}
 		}
 	});
-	Utils.onCodeForIBMiConfigurationChange('connectionSettings', async () => {
+	onCodeForIBMiConfigurationChange('connectionSettings', async () => {
 		const connection = ibmi!.getConnection();
 		if (connection) {
 			const config = connection.getConfig();
@@ -104,4 +103,18 @@ export async function activate(context: ExtensionContext) {
 
 export async function deactivate() {
 	await testOutputLogger.log(LogLevel.Info, 'IBM i Testing extension deactivated!');
+}
+
+/**
+* Subscribe to Code for IBM i configuration changes.
+* 
+* Original Source: https://github.com/codefori/vscode-ibmi/blob/master/src/config/Configuration.ts#L5
+*/
+function onCodeForIBMiConfigurationChange<T>(props: string | string[], todo: (value: ConfigurationChangeEvent) => void) {
+	const keys = (Array.isArray(props) ? props : Array.of(props)).map(key => `code-for-ibmi.${key}`);
+	return workspace.onDidChangeConfiguration(async event => {
+		if (keys.some(key => event.affectsConfiguration(key))) {
+			todo(event);
+		}
+	});
 }

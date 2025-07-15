@@ -9,15 +9,19 @@ export enum LogLevel {
 
 export interface Logger {
     append: (message: string) => Promise<void>;
+    appendWithNotification: (level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]) => Promise<void>;
     log: (level: LogLevel, message: string) => Promise<void>;
-    logWithNotification: (level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]) => Promise<void>;
 }
 
 export interface BasicUri {
-    scheme: 'file' | 'member' | 'streamfile';
+    scheme: 'file' | 'member' | 'streamfile' | 'object';
     path: string;
     fsPath: string;
     fragment: string;
+}
+
+export interface ConfigHandler {
+    getConfig(): Promise<TestingConfig | undefined>;
 }
 
 export interface TestRequest {
