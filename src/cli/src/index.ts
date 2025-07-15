@@ -27,7 +27,8 @@ import { exit } from "process";
 import inquirer from "inquirer";
 
 interface Options {
-    project?: string;
+    localDirectory?: string | boolean;
+    ifsDirectory?: string | boolean;
     library?: string;
     sourceFiles?: string[];
     libraryList?: string[];
@@ -38,6 +39,8 @@ interface Options {
 }
 
 const VERSION = `1.0.0`;
+const LOCAL_DIRECTORY = `.`;
+const IFS_DIRECTORY = `.`;
 const SOURCE_FILES = [`QTESTSRC`];
 const COMMAND_OUTPUT_PATH = `./logs/ibmi-testing/command-output.log`;
 const TEST_OUTPUT_PATH = `./logs/ibmi-testing/test-output.log`;
@@ -65,7 +68,8 @@ function main() {
 
     // Setup CLI options
     program
-        .addOption(new Option(`--project <path>`, `Path to the project containing tests`).default(`.`).conflicts([`library`, `sourceFiles`]))
+        .addOption(new Option(`--localDirectory <path>`, `Local directory containing tests (defaults: "${LOCAL_DIRECTORY}")`).conflicts([`library`, `sourceFiles`]))
+        .addOption(new Option(`--ifsDirectory <path>`, `IFS directory containing containing tests (defaults: "${IFS_DIRECTORY}")`).conflicts([`library`, `sourceFiles`]))
         .addOption(new Option(`--library <library>`, `Library containing tests.`).conflicts(`project`))
         .addOption(new Option(`--source-files <sourceFiles...>`, `Source files to search for tests.`).default(SOURCE_FILES).conflicts(`project`))
         .addOption(new Option(`--library-list <libraries...>`, `Libraries to add to the library list.`))
@@ -81,7 +85,25 @@ function main() {
 
             // Resolve to absolute paths and other options
             const cwd = process.cwd();
-            const project = options.project ? path.resolve(cwd, options.project) : undefined;
+            const localDirectory = options.localDirectory ?
+                (options.localDirectory === true ? path.resolve(cwd, LOCAL_DIRECTORY) : path.resolve(cwd, options.localDirectory)) : undefined;
+            let ifsDirectory = options.ifsDirectory ? options.ifsDirectory : undefined;
+            if (localDirectory) {
+                if (!ifsDirectory) {
+                    spinner.fail(`The '--ifsDirectory' option is required when using '--localDirectory'.`);
+                    exit(1);
+                } else if (ifsDirectory === true) {
+                    spinner.fail(`The 'path' flag on the '--ifsDirectory' option is required when using '--localDirectory'.`);
+                    exit(1);
+                }
+            } else if (ifsDirectory === true) {
+                ifsDirectory = path.posix.resolve(cwd, IFS_DIRECTORY);
+            } else if (ifsDirectory) {
+                ifsDirectory = path.posix.resolve(cwd, ifsDirectory);
+            }
+            if (ifsDirectory?.startsWith('//')) {
+                ifsDirectory = ifsDirectory.substring(1);
+            }
             const library = options.library ? options.library : undefined;
             const sourceFiles = options.sourceFiles ? options.sourceFiles : undefined;
             const libraryList = options.libraryList ? options.libraryList : undefined;
@@ -104,6 +126,11 @@ function main() {
             let credentials: ConnectionData;
             const isRunningOnIBMi = os.type().includes('400');
             if (isRunningOnIBMi) {
+                if (localDirectory) {
+                    spinner.fail(`The '--localDirectory' option is not supported when running on IBM i.`);
+                    exit(1);
+                }
+
                 // Create local SSH instance
                 localSSH = new LocalSSH();
 
@@ -155,10 +182,10 @@ function main() {
                 }
 
                 // Get credentials from environment variables
-                let user = await promptForCredential('user', process.env.IBMI_USER, 'What is your IBM i user profile? (Set the IBMI_USER environment variable to avoid this prompt)');
-                let host = await promptForCredential('host', process.env.IBMI_HOST, 'What is your IBM i hostname? (Set the IBMI_HOST environment variable to avoid this prompt)');
+                let user = await promptForCredential('user', process.env.IBMI_USER, `What is your IBM i user profile? ${c.yellow(`(Set the IBMI_USER environment variable to avoid this prompt)`)}`);
+                let host = await promptForCredential('host', process.env.IBMI_HOST, `What is your IBM i hostname? ${c.yellow(`(Set the IBMI_HOST environment variable to avoid this prompt)`)}`);
                 const sshPort = process.env.SSH_PORT || 22;
-                let password = await promptForCredential('password', process.env.IBMI_PASSWORD, 'What is your IBM i password? (Set the IBMI_PASSWORD environment variable to avoid this prompt)', true);
+                let password = await promptForCredential('password', process.env.IBMI_PASSWORD, `What is your IBM i password? ${c.yellow(`(Set the IBMI_PASSWORD environment variable to avoid this prompt)`)}`, true);
                 const privateKey = process.env.IBMI_PRIVATE_KEY;
 
                 // Build credentials
@@ -246,9 +273,9 @@ function main() {
                     testBucketBuilder = new QsysTestBucketBuilder(connection as any, testOutputLogger, library, sourceFiles);
                 } else {
                     if (isRunningOnIBMi) {
-                        testBucketBuilder = new IfsTestBucketBuilder(connection as any, testOutputLogger, project);
+                        testBucketBuilder = new IfsTestBucketBuilder(connection as any, testOutputLogger, ifsDirectory);
                     } else {
-                        testBucketBuilder = new LocalTestBucketBuilder(testOutputLogger, project);
+                        testBucketBuilder = new LocalTestBucketBuilder(testOutputLogger, localDirectory);
                     }
                 }
                 const testBuckets = await testBucketBuilder.getTestBuckets();
@@ -259,11 +286,18 @@ function main() {
 
                 // Setup test callbacks
                 const testCallbacks: TestCallbacks = {
-                    deploy: function (workspaceFolderPath: string): Promise<DeploymentStatus> {
-                        throw new Error("Function not implemented.");
+                    deploy: async function (workspaceFolderPath: string): Promise<DeploymentStatus> {
+                        try {
+                            const content = connection.getContent();
+                            await connection.sendCommand({ command: `mkdir -p "${ifsDirectory}"` });
+                            await content.uploadDirectory(workspaceFolderPath, ifsDirectory, { concurrency: 10 });
+                            return 'success';
+                        } catch (error) {
+                            return 'failed';
+                        }
                     },
                     getDeployDirectory: function (workspaceFolderPath: string): string {
-                        throw new Error("Function not implemented.");
+                        return ifsDirectory;
                     },
                     getLibraryList: async function (workspaceFolderPath?: string): Promise<ILELibrarySettings> {
                         const env = workspaceFolderPath ? await ApiUtils.getEnvConfig(workspaceFolderPath) : {};

@@ -86,7 +86,7 @@ export class LocalTestBucketBuilder extends TestBucketBuilder {
                 uri: {
                     scheme: 'file',
                     path: '',
-                    fsPath: this.project,
+                    fsPath: filePath,
                     fragment: ''
                 },
                 testCases: testCases.map(testCase => ({
@@ -94,7 +94,7 @@ export class LocalTestBucketBuilder extends TestBucketBuilder {
                     uri: {
                         scheme: 'file',
                         path: '',
-                        fsPath: this.project,
+                        fsPath: filePath,
                         fragment: testCase
                     }
                 })),

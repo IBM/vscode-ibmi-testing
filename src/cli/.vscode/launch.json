@@ -12,7 +12,16 @@
 			"program": "${workspaceFolder:cli}/dist/index.js",
 			"sourceMaps": true,
 			"args": [
-				"--library-list RPGUNIT QDEVTOOLS --current-library SANJULA4 --save-command-output --save-test-output --save-test-result --library SANJULA4"
+				"--localDirectory",
+				"../../examples/ibmi-company_system/",
+				"--ifsDirectory",
+				"/home/$USER/builds/ibmi-company_system",
+				"--library-list",
+				"RPGUNIT",
+				"QDEVTOOLS",
+				"--save-command-output",
+				"--save-test-output",
+				"--save-test-result"
 			],
 			"preLaunchTask": {
 				"type": "npm",
