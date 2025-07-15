@@ -62,8 +62,9 @@ function main() {
         .addHelpText(`afterAll`, [
             ``,
             `Examples:`,
-            `  itest --library MYLIB --library-list RPGUNIT QDEVTOOLS --current-library MYLIB`,
-            `  itest --project /home/USER/ibmi-company_system --library-list RPGUNIT QDEVTOOLS --current-library MYLIB`
+            `  itest --localDirectory . --ifsDirectory /home/USER/builds/ibmi-company_system --library-list RPGUNIT QDEVTOOLS --current-library MYLIB`,
+            `  itest --ifsDirectory /home/USER/builds/ibmi-company_system --library-list RPGUNIT QDEVTOOLS --current-library MYLIB`,
+            `  itest --library MYLIB --library-list RPGUNIT QDEVTOOLS --current-library MYLIB`
         ].join(`\n`));
 
     // Setup CLI options
