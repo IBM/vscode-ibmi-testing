@@ -42,9 +42,9 @@ const VERSION = `1.0.0`;
 const LOCAL_DIRECTORY = `.`;
 const IFS_DIRECTORY = `.`;
 const SOURCE_FILES = [`QTESTSRC`];
-const COMMAND_OUTPUT_PATH = `./logs/ibmi-testing/command-output.log`;
-const TEST_OUTPUT_PATH = `./logs/ibmi-testing/test-output.log`;
-const TEST_RESULT_PATH = `./logs/ibmi-testing/test-result.log`;
+const COMMAND_OUTPUT_PATH = `./.logs/ibmi-testing/command-output.log`;
+const TEST_OUTPUT_PATH = `./.logs/ibmi-testing/test-output.log`;
+const TEST_RESULT_PATH = `./.logs/ibmi-testing/test-result.log`;
 
 main();
 
