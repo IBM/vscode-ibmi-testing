@@ -25,6 +25,7 @@ import * as fs from "fs";
 import os from 'os';
 import { exit } from "process";
 import inquirer from "inquirer";
+import pkg from '../package.json';
 
 interface Options {
     localDirectory?: string | boolean;
@@ -33,12 +34,13 @@ interface Options {
     sourceFiles?: string[];
     libraryList?: string[];
     currentLibrary?: string;
+    codeCoverage?: string | boolean;
     saveCommandOutput?: string | boolean;
     saveTestOutput?: string | boolean;
     saveTestResult?: string | boolean;
 }
 
-const VERSION = `1.0.0`;
+const VERSION = pkg.version;
 const LOCAL_DIRECTORY = `.`;
 const IFS_DIRECTORY = `.`;
 const SOURCE_FILES = [`QTESTSRC`];
@@ -77,7 +79,7 @@ function main() {
         .addOption(new Option(`--sf, --source-files <sourceFiles...>`, `Source files to search for tests.`).default(SOURCE_FILES).conflicts(`localDirectory`))
         .addOption(new Option(`--ll, --library-list <libraries...>`, `Libraries to add to the library list.`))
         .addOption(new Option(`--cl, --current-library <library>`, `The current library to use for the test run.`))
-        .addOption(new Option(`--cc, --code-coverage`, `Run with code coverage`).default(CODE_COVERAGE_LINE).choices([CODE_COVERAGE_LINE, CODE_COVERAGE_PROC]))
+        .addOption(new Option(`--cc, --code-coverage [ccLvl]`, `Run with code coverage (defaults: "${CODE_COVERAGE_LINE}")`).choices([CODE_COVERAGE_LINE, CODE_COVERAGE_PROC]))
         .addOption(new Option(`--sco, --save-command-output [path]`, `Save command output logs (defaults: "${COMMAND_OUTPUT_PATH}")`))
         .addOption(new Option(`--sto, --save-test-output [path]`, `Save test output logs (defaults: "${TEST_OUTPUT_PATH}")`))
         .addOption(new Option(`--str, --save-test-result [path]`, `Save test result logs (defaults: "${TEST_RESULT_PATH}")`))
@@ -111,6 +113,8 @@ function main() {
             const sourceFiles = options.sourceFiles ? options.sourceFiles : undefined;
             const libraryList = options.libraryList ? options.libraryList : undefined;
             const currentLibrary = options.currentLibrary ? options.currentLibrary : undefined;
+            const codeCoverage = options.codeCoverage ?
+                (options.codeCoverage === true ? CODE_COVERAGE_LINE : options.codeCoverage) : CODE_COVERAGE_LINE;
             const saveCommandOutput = options.saveCommandOutput ?
                 (options.saveCommandOutput === true ? path.resolve(cwd, COMMAND_OUTPUT_PATH) : path.resolve(cwd, options.saveCommandOutput)) : undefined;
             const saveTestOutput = options.saveTestOutput ?
