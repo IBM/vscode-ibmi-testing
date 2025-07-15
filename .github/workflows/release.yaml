@@ -1,15 +1,20 @@
-name: Release and Publish to the Marketplace and Open VSX
+name: Release Extension & CLI
 
 on:
   workflow_dispatch:
     inputs:
       publish_openvsx:
-        description: 'Publish to Open VSX'
+        description: 'Publish Extension to Open VSX'
         type: boolean
         required: true
         default: true
       publish_marketplace:
-        description: 'Publish to Marketplace'
+        description: 'Publish Extension to Marketplace'
+        type: boolean
+        required: true
+        default: true
+      publish_npm:
+        description: 'Publish CLI to NPM'
         type: boolean
         required: true
         default: true
@@ -55,3 +60,12 @@ jobs:
         run: vsce publish -p $PUBLISHER_TOKEN
         env:
           PUBLISHER_TOKEN: ${{ secrets.PUBLISHER_TOKEN }}
+
+      - name: Publish CLI to NPM
+        if: github.event_name == 'release' || inputs.publish_npm == true
+        working-directory: src/cli
+        run: |
+          npm run webpack
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
