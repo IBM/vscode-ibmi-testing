@@ -29,8 +29,8 @@ export class SummaryLogger {
         const testColor = hasFailuresOrErrors ? 'red' : 'brightgreen';
 
         // Get code coverage results
-        const green = coverageThresholds.length > 0 ? Number(coverageThresholds[0]) : Number(GREEN_THRESHOLD);
-        const yellow = coverageThresholds.length > 1 ? Number(coverageThresholds[1]) : Number(YELLOW_THRESHOLD);
+        const yellow = coverageThresholds.length > 1 ? Number(coverageThresholds[0]) : Number(YELLOW_THRESHOLD);
+        const green = coverageThresholds.length > 0 ? Number(coverageThresholds[1]) : Number(GREEN_THRESHOLD);
         let totalCoveredLines = 0;
         let totalExecutableLines = 0;
         const codeCoverageLines: string[] = finalCoverageDatasets.map(coverageData => {
