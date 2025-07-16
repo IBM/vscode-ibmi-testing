@@ -55,7 +55,7 @@ export class SummaryLogger {
             const coverageColor = Number(coverageStatus) >= green ? 'brightgreen' :
                 Number(coverageStatus) >= yellow ? 'yellow' : 'red';
 
-            return `|${file}|![Coverage](https://img.shields.io/badge/${coverageStatus}%-${coverageColor})|${uncoveredLines}|${coveredLines}|${executableLines}|`;
+            return `|${file}|![Coverage](https://img.shields.io/badge/${coverageStatus}%25-${coverageColor})|${uncoveredLines}|${coveredLines}|${executableLines}|`;
         });
         const totalCoverageStatus = totalExecutableLines > 0 ? Math.round((totalCoveredLines / totalExecutableLines) * 100).toFixed(0) : 0;
         const totalCoverageColor = Number(totalCoverageStatus) >= green ? 'brightgreen' :
@@ -64,7 +64,7 @@ export class SummaryLogger {
         const lines: string[] = [
             `## 📋 Test and Code Coverage Report`,
             ``,
-            `![test](https://img.shields.io/badge/test-${testStatus}-${testColor}) ![coverage](https://img.shields.io/badge/coverage-${totalCoverageStatus}%-${totalCoverageColor})`,
+            `![test](https://img.shields.io/badge/test-${testStatus}-${testColor}) ![coverage](https://img.shields.io/badge/coverage-${totalCoverageStatus}%25-${totalCoverageColor})`,
             ``,
             `### Test Result`,
             `|Total Tests|✅ Passed|❌ Failed|⚠️ Errored|🎯 Assertions|⏳ Duration|`,
