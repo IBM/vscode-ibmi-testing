@@ -1,6 +1,6 @@
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { ApiUtils } from "./api/apiUtils";
-import { LogLevel, TestBucket } from "./api/types";
+import { CCLVL, LogLevel, TestBucket } from "./api/types";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
 import Parser from "vscode-rpgle/language/parser";
 import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "./api/config";
@@ -10,10 +10,12 @@ import * as path from 'path';
 
 export abstract class TestBucketBuilder {
     protected testOutputLogger: TestOutputLogger;
+    protected ccLvl: CCLVL | undefined;
     protected rpgParser: Parser;
 
-    constructor(testOutputLogger: TestOutputLogger) {
+    constructor(testOutputLogger: TestOutputLogger, ccLvl: CCLVL | undefined) {
         this.testOutputLogger = testOutputLogger;
+        this.ccLvl = ccLvl;
         this.rpgParser = new Parser();
     }
 
@@ -40,8 +42,8 @@ export abstract class TestBucketBuilder {
 export class LocalTestBucketBuilder extends TestBucketBuilder {
     private localDirectory: string;
 
-    constructor(testOutputLogger: TestOutputLogger, localDirectory: string) {
-        super(testOutputLogger);
+    constructor(testOutputLogger: TestOutputLogger, ccLvl: CCLVL | undefined, localDirectory: string) {
+        super(testOutputLogger, ccLvl);
         this.localDirectory = localDirectory;
     }
 
@@ -100,7 +102,8 @@ export class LocalTestBucketBuilder extends TestBucketBuilder {
                 })),
                 isCompiled: false,
                 isEntireSuite: true,
-                testingConfig: testingConfig
+                testingConfig: testingConfig,
+                ccLvl: this.ccLvl
             });
         }
 
@@ -128,8 +131,8 @@ export class IfsTestBucketBuilder extends TestBucketBuilder {
     private connection: IBMi;
     private ifsDirectory: string;
 
-    constructor(connection: IBMi, testOutputLogger: TestOutputLogger, ifsDirectory: string) {
-        super(testOutputLogger);
+    constructor(testOutputLogger: TestOutputLogger, ccLvl: CCLVL | undefined, connection: IBMi, ifsDirectory: string) {
+        super(testOutputLogger, ccLvl);
         this.connection = connection;
         this.ifsDirectory = ifsDirectory;
     }
@@ -190,7 +193,8 @@ export class IfsTestBucketBuilder extends TestBucketBuilder {
                 })),
                 isCompiled: false,
                 isEntireSuite: true,
-                testingConfig: testingConfig
+                testingConfig: testingConfig,
+                ccLvl: this.ccLvl
             });
         }
 
@@ -218,8 +222,8 @@ export class QsysTestBucketBuilder extends TestBucketBuilder {
     private library: string;
     private testSourceFiles: string[];
 
-    constructor(connection: IBMi, testOutputLogger: TestOutputLogger, library: string, testSourceFiles: string[]) {
-        super(testOutputLogger);
+    constructor(testOutputLogger: TestOutputLogger, ccLvl: CCLVL | undefined, connection: IBMi, library: string, testSourceFiles: string[]) {
+        super(testOutputLogger, ccLvl);
         this.connection = connection;
         this.library = library;
         this.testSourceFiles = testSourceFiles;
@@ -279,7 +283,8 @@ export class QsysTestBucketBuilder extends TestBucketBuilder {
                 })),
                 isCompiled: false,
                 isEntireSuite: true,
-                testingConfig: testingConfig
+                testingConfig: testingConfig,
+                ccLvl: this.ccLvl
             });
         }
 

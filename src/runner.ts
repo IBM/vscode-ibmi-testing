@@ -5,7 +5,7 @@ import { Configuration, LibraryListValidation, Section } from "./configuration";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { RPGUnit } from "./components/rpgUnit";
 import { Runner, TestCallbacks } from "./cli/src/api/runner";
-import { BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest } from "./cli/src/api/types";
+import { MergedCoverageData, BasicUri, ConfigHandler,  DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL } from "./cli/src/api/types";
 import { TestLogger } from "./cli/src/api/testLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
@@ -112,7 +112,7 @@ export class IBMiTestRunner {
         // Add test suite
         let existingTestSuiteIndex = testBuckets[existingTestBucketIndex].testSuites.findIndex((testSuite) => testSuite.uri.fsPath === testFileItem.uri!.fsPath);
         if (existingTestSuiteIndex < 0) {
-            let ccLvl: '*LINE' | '*PROC' | undefined;
+            let ccLvl: CCLVL | undefined;
             if (this.request.profile?.kind === TestRunProfileKind.Coverage) {
                 ccLvl = this.request.profile.label.includes('Line Coverage') ? '*LINE' : '*PROC';
             } else {
@@ -360,9 +360,12 @@ export class IBMiTestRunner {
                     testRun.errored(testItem, testMessages, duration);
                 }
             },
-            // addCoverage: (fileCoverage: IBMiFileCoverage): void => {
-            //     testRun.addCoverage(fileCoverage);
-            // },
+            addCoverageDatasets: (mergedCoverageDatasets: MergedCoverageData[]): void => {
+                for (const mergedCoverageData of mergedCoverageDatasets) {
+                    const fileCoverage = new IBMiFileCoverage(mergedCoverageData);
+                    testRun.addCoverage(fileCoverage);
+                }
+            },
             end: async (): Promise<void> => {
                 testRun.end();
             }

@@ -1,15 +1,14 @@
 
-import * as path from "path";
 import { parseStringPromise } from "xml2js";
-import { BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestStatus, TestSuite, WrapperCmd } from "./types";
+import { MergedCoverageData, BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, MappedCoverageData, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestStatus, TestSuite, WrapperCmd } from "./types";
 import { TestLogger } from "./testLogger";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
+import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { ApiUtils } from "./apiUtils";
 import { IBMiTestStorage } from "./storage";
 import { CodeCoverageParser } from "./codeCoverageParser";
-// import { IBMiFileCoverage } from "../../../fileCoverage";
 import { XMLParser } from "./xmlParser";
-import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
+import * as path from "path";
 
 export interface TestCallbacks {
     deploy: (workspaceFolderPath: string) => Promise<DeploymentStatus>;
@@ -27,7 +26,7 @@ export interface TestCallbacks {
     passed: (uri: BasicUri, duration?: number) => Promise<void>;
     failed: (uri: BasicUri, messages: { line?: number, message: string }[], duration?: number) => Promise<void>;
     errored: (uri: BasicUri, messages: { line?: number, message: string }[], duration?: number) => Promise<void>;
-    // addCoverage(fileCoverage: IBMiFileCoverage): void;
+    addCoverageDatasets(mergedCoverageDatasets: MergedCoverageData[]): void;
     end: () => Promise<void>;
 }
 
@@ -37,7 +36,7 @@ export class Runner {
     private testCallbacks: TestCallbacks;
     private testLogger: TestLogger;
     private testMetrics: TestMetrics;
-    // private fileCoverage: IBMiFileCoverage[];
+    private mappedCoverageDatasets: MappedCoverageData[];
 
     constructor(connection: IBMi, testRequest: TestRequest, testCallbacks: TestCallbacks, testLogger: TestLogger) {
         this.connection = connection;
@@ -52,7 +51,7 @@ export class Runner {
             testFiles: { passed: 0, failed: 0, errored: 0 },
             testCases: { passed: 0, failed: 0, errored: 0 }
         };
-        // this.fileCoverage = [];
+        this.mappedCoverageDatasets = [];
     }
 
     getTestMetrics(): TestMetrics {
@@ -143,9 +142,8 @@ export class Runner {
             }
         }
 
-        // for (const coverage of this.fileCoverage) {
-        //     this.testCallbacks.addCoverage(coverage);
-        // }
+        const mergedCoverageDatasets = this.mergeCoverageDatasets(this.mappedCoverageDatasets);
+        this.testCallbacks.addCoverageDatasets(mergedCoverageDatasets);
 
         await this.testLogger.logMetrics(this.testMetrics);
         await this.testCallbacks.end();
@@ -479,28 +477,26 @@ export class Runner {
                 const codeCoverageParser = new CodeCoverageParser(this.connection, this.testLogger);
                 const codeCoverage = await codeCoverageParser.getCoverage(coverageParams!.outStmf);
                 if (codeCoverage) {
-                    const isStatementCoverage = testSuite.ccLvl === '*LINE';
-
-                    for (const codeCovResult of codeCoverage) {
+                    for (const coverageData of codeCoverage) {
                         let uri: BasicUri;
                         if (testSuite.uri.scheme === 'file') {
                             // Map code coverage results from deploy directory to local workspace
                             const deployDirectory = this.testCallbacks.getDeployDirectory(testBucketPath);
 
-                            if (`/${codeCovResult.path}`.startsWith(deployDirectory)) {
+                            if (`/${coverageData.path}`.startsWith(deployDirectory)) {
                                 // Get relative remote path to test
-                                const relativePathToTest = path.posix.relative(deployDirectory, `/${codeCovResult.path}`);
+                                const relativePathToTest = path.posix.relative(deployDirectory, `/${coverageData.path}`);
 
                                 // Construct local path to test
                                 const localPath = path.join(testBucketPath, relativePathToTest);
                                 uri = { scheme: 'file', fsPath: localPath, path: localPath, fragment: '' };
                             } else {
-                                uri = { scheme: 'file', fsPath: codeCovResult.localPath, path: codeCovResult.localPath, fragment: '' };
+                                uri = { scheme: 'file', fsPath: coverageData.localPath, path: coverageData.localPath, fragment: '' };
                             }
                         } else {
                             // Map code coverage results to source members
                             let memberPath: string = '';
-                            const parts = codeCovResult.path.split('/');
+                            const parts = coverageData.path.split('/');
 
                             if (parts.length === 3 && parts[1].toLocaleUpperCase().endsWith('.FILE')) {
                                 // This is a temporary hack due to https://github.com/IBM/vscode-ibmi-testing/issues/70
@@ -524,13 +520,11 @@ export class Runner {
                             uri = { scheme: 'member', fsPath: memberPath, path: memberPath, fragment: '' };
                         }
 
-                        // const existingFileCoverageIndex = this.fileCoverage.findIndex((coverage) => coverage.uri.toString() === uri.toString());
-                        // if (existingFileCoverageIndex >= 0) {
-                        //     this.fileCoverage[existingFileCoverageIndex].addCoverage(codeCovResult, isStatementCoverage);
-                        // } else {
-                        //     const newFileCoverage = new IBMiFileCoverage(uri, codeCovResult, isStatementCoverage);
-                        //     this.fileCoverage.push(newFileCoverage);
-                        // }
+                        this.mappedCoverageDatasets.push({
+                            uri: uri,
+                            ccLvl: testSuite.ccLvl,
+                            coverageData: coverageData
+                        });
                     }
                 }
             }
@@ -604,5 +598,41 @@ export class Runner {
                 this.testMetrics.testFiles.errored++;
             }
         }
+    }
+
+    mergeCoverageDatasets(mappedCoverageDatasets: MappedCoverageData[]): MergedCoverageData[] {
+        const mergedCoverageDatasets: MergedCoverageData[] = [];
+
+        for (const mappedCoverageData of mappedCoverageDatasets) {
+            const existingIndex = mergedCoverageDatasets.findIndex(mergedData =>
+                mergedData.uri.fsPath === mappedCoverageData.uri.fsPath &&
+                mergedData.ccLvl === mappedCoverageData.ccLvl
+            );
+
+            if (existingIndex === -1) {
+                // Add new coverage data
+                mergedCoverageDatasets.push({
+                    uri: mappedCoverageData.uri,
+                    ccLvl: mappedCoverageData.ccLvl,
+                    activeLines: mappedCoverageData.coverageData.coverage.activeLines
+                });
+            } else {
+                // Merge coverage data
+                const existingData = mergedCoverageDatasets[existingIndex];
+                const existingLines = existingData.activeLines;
+                const newLines = mappedCoverageData.coverageData.coverage.activeLines;
+
+                for (const [lineStr, covered] of Object.entries(newLines)) {
+                    const line = Number(lineStr);
+                    if (line in existingLines) {
+                        existingLines[line] = existingLines[line] || covered;
+                    } else {
+                        existingLines[line] = covered;
+                    }
+                }
+            }
+        }
+
+        return mergedCoverageDatasets;
     }
 }

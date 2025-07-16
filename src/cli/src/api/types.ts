@@ -44,9 +44,11 @@ export interface TestSuite {
     testCases: TestCase[];
     isCompiled: boolean;
     isEntireSuite: boolean;
-    ccLvl?: '*LINE' | '*PROC'
+    ccLvl?: CCLVL
     testingConfig?: TestingConfig;
 }
+
+export type CCLVL = '*LINE' | '*PROC';
 
 // Test case is a test procedure
 export interface TestCase {
@@ -199,4 +201,16 @@ export interface CoverageData {
         activeLines: { [key: number]: boolean },
         percentRan: string
     }
+}
+
+export interface MappedCoverageData {
+    uri: BasicUri,
+    ccLvl: CCLVL,
+    coverageData: CoverageData
+}
+
+export interface MergedCoverageData {
+    uri: BasicUri;
+    ccLvl: CCLVL;
+    activeLines: { [key: number]: boolean }
 }

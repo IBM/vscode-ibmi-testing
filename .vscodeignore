@@ -5,6 +5,7 @@ out/**
 node_modules/**
 src/**
 examples/**
+.itest
 .gitignore
 .gitmodules
 .yarnrc

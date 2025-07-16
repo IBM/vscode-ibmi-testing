@@ -2,7 +2,7 @@ import IBMi from "vscode-ibmi/src/api/IBMi";
 import { Runner, TestCallbacks } from "./api/runner";
 import { ConnectionData } from "@halcyontech/vscode-ibmi-types/api/types";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
-import { DeploymentStatus, Env, RUCALLTST, BasicUri, TestRequest } from "./api/types";
+import { DeploymentStatus, Env, RUCALLTST, BasicUri, TestRequest, MergedCoverageData, CCLVL } from "./api/types";
 import { TestLogger } from "./api/testLogger";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
@@ -26,6 +26,7 @@ import os from 'os';
 import { exit } from "process";
 import inquirer from "inquirer";
 import pkg from '../package.json';
+import { SummaryLogger } from "./loggers/summaryLogger";
 
 interface Options {
     localDirectory?: string;
@@ -34,11 +35,12 @@ interface Options {
     sourceFiles?: string[];
     libraryList?: string[];
     currentLibrary?: string;
-    codeCoverage?: string;
+    codeCoverage?: CCLVL;
     coverageThresholds?: string[];
-    saveTestOutput?: string;
-    saveTestResult?: string;
-    saveCommandOutput?: string;
+    summaryReport?: string;
+    testResult?: string;
+    testOutput?: string;
+    commandOutput?: string;
 }
 
 const VERSION = pkg.version;
@@ -48,12 +50,12 @@ const SOURCE_FILES = [`QTESTSRC`];
 const CODE_COVERAGE_LINE = `*LINE`;
 const CODE_COVERAGE_PROC = `*PROC`;
 const LOG_DIRECTORY = `.itest`;
-const TEST_OUTPUT_PATH = `./${LOG_DIRECTORY}/test-output.log`;
+const SUMMARY_REPORT_PATH = `./${LOG_DIRECTORY}/summary-report.md`;
 const TEST_RESULT_PATH = `./${LOG_DIRECTORY}/test-result.log`;
+const TEST_OUTPUT_PATH = `./${LOG_DIRECTORY}/test-output.log`;
 const COMMAND_OUTPUT_PATH = `./${LOG_DIRECTORY}/command-output.log`;
-const RED = 0;
-const YELLOW = 60;
-const GREEN = 90;
+export const YELLOW_THRESHOLD = `60`;
+export const GREEN_THRESHOLD = `90`;
 
 main();
 
@@ -85,10 +87,11 @@ function main() {
         .addOption(new Option(`--ll, --library-list <libraries...>`, `Libraries to add to the library list.`))
         .addOption(new Option(`--cl, --current-library <library>`, `The current library to use for the test run.`))
         .addOption(new Option(`--cc, --code-coverage [ccLvl]`, `Run with code coverage`).preset(CODE_COVERAGE_LINE).choices([CODE_COVERAGE_LINE, CODE_COVERAGE_PROC]))
-        .addOption(new Option(`--ct, --coverage-thresholds <red> <yellow> <green>`, `Set the code coverage thresholds.`).preset([RED, YELLOW, GREEN]))
-        .addOption(new Option(`--sto, --save-test-output [path]`, `Save test output logs`).preset(TEST_OUTPUT_PATH))
-        .addOption(new Option(`--str, --save-test-result [path]`, `Save test result logs`).preset(TEST_RESULT_PATH))
-        .addOption(new Option(`--sco, --save-command-output [path]`, `Save command output logs`).preset(COMMAND_OUTPUT_PATH))
+        .addOption(new Option(`--ct, --coverage-thresholds <threshholds...>`, `Set the code coverage thresholds (yellow and green).`).default([YELLOW_THRESHOLD, GREEN_THRESHOLD]))
+        .addOption(new Option(`--sr, --summary-report [path]`, `Save summary report`).preset(SUMMARY_REPORT_PATH))
+        .addOption(new Option(`--tr, --test-result [path]`, `Save test result logs`).preset(TEST_RESULT_PATH))
+        .addOption(new Option(`--to, --test-output [path]`, `Save test output logs`).preset(TEST_OUTPUT_PATH))
+        .addOption(new Option(`--co, --command-output [path]`, `Save command output logs`).preset(COMMAND_OUTPUT_PATH))
         .action(async (options: Options) => {
             spinner.color = 'green';
             spinner.text = 'Setting up environment';
@@ -99,7 +102,7 @@ function main() {
             const localDirectory = options.localDirectory ? path.resolve(cwd, options.localDirectory) : undefined;
             let ifsDirectory = options.ifsDirectory ? options.ifsDirectory : undefined;
             if (localDirectory && !ifsDirectory) {
-                spinner.fail(`The '--ifsDirectory' option is required when using '--localDirectory'.`);
+                spinner.fail(`The '--localDirectory' option requires an IFS directory to deploy to using the '--ifsDirectory' option.`);
                 exit(1);
             } else if (ifsDirectory) {
                 ifsDirectory = path.posix.resolve(cwd, ifsDirectory);
@@ -113,9 +116,34 @@ function main() {
             const currentLibrary = options.currentLibrary ? options.currentLibrary : undefined;
             const codeCoverage = options.codeCoverage ? options.codeCoverage : undefined;
             const coverageThresholds = options.coverageThresholds ? options.coverageThresholds : undefined;
-            const saveTestOutput = options.saveTestOutput ? path.resolve(cwd, options.saveTestOutput) : undefined;
-            const saveTestResult = options.saveTestResult ? path.resolve(cwd, options.saveTestResult) : undefined;
-            const saveCommandOutput = options.saveCommandOutput ? path.resolve(cwd, options.saveCommandOutput) : undefined;
+            if (coverageThresholds) {
+                if (coverageThresholds.length > 2) {
+                    spinner.fail(`The '--coverage-thresholds' option requires two thresholds (yellow and green).`);
+                    exit(1);
+                } else {
+                    const yellow = Number(coverageThresholds[0]);
+                    const green = Number(coverageThresholds[1]);
+
+                    if (isNaN(yellow) || isNaN(green)) {
+                        spinner.fail(`The '--coverage-thresholds' option requires two numeric thresholds (yellow and green).`);
+                        exit(1);
+                    } else if (yellow <= 0 || yellow >= green) {
+                        spinner.fail(`The <yellow> threshold must be greater than 0 and less than the <green> threshold.`);
+                        exit(1);
+                    } else if (green <= yellow || green > 100) {
+                        spinner.fail(`The <green> threshold must be greater than <yellow> and less than or equal to 100.`);
+                        exit(1);
+                    }
+                }
+            }
+            const summaryReport = options.summaryReport ? path.resolve(cwd, options.summaryReport) : undefined;
+            if (summaryReport && !codeCoverage) {
+                spinner.fail(`The '--summaryReport' option requires code coverage to be enabled with the '--code-coverage' option.`);
+                exit(1);
+            }
+            const testResult = options.testResult ? path.resolve(cwd, options.testResult) : undefined;
+            const testOutput = options.testOutput ? path.resolve(cwd, options.testOutput) : undefined;
+            const commandOutput = options.commandOutput ? path.resolve(cwd, options.commandOutput) : undefined;
 
             // Setup credentials based on if running on IBM i
             let localSSH: LocalSSH | undefined;
@@ -198,10 +226,14 @@ function main() {
                 }
             }
 
-            // Create command output logger
-            if (saveCommandOutput) {
-                fs.mkdirSync(path.dirname(saveCommandOutput), { recursive: true });
-                fs.writeFileSync(saveCommandOutput, '');
+            // Create loggers
+            const summaryLogger = new SummaryLogger(summaryReport);
+            const testOutputLogger = new TestOutputLogger(testOutput);
+            const testResultLogger = new TestResultLogger(testResult);
+            const testLogger = new TestLogger(testOutputLogger, testResultLogger);
+            if (commandOutput) {
+                fs.mkdirSync(path.dirname(commandOutput), { recursive: true });
+                fs.writeFileSync(commandOutput, '');
             }
 
             // Setup Code4i virtual storage and config
@@ -226,8 +258,8 @@ function main() {
             }
             const connection = new IBMi();
             connection.appendOutput = async (data) => {
-                if (saveCommandOutput) {
-                    await fs.promises.appendFile(saveCommandOutput, data);
+                if (commandOutput) {
+                    await fs.promises.appendFile(commandOutput, data);
                 }
             };
             const result = await connection.connect(
@@ -264,20 +296,15 @@ function main() {
                 spinner.text = 'Loading tests';
                 spinner.start();
 
-                // Create test loggers
-                const testOutputLogger = new TestOutputLogger(saveTestOutput);
-                const testResultLogger = new TestResultLogger(saveTestResult);
-                const testLogger = new TestLogger(testOutputLogger, testResultLogger);
-
                 // Build test bucket and request
                 let testBucketBuilder: TestBucketBuilder;
                 if (library) {
-                    testBucketBuilder = new QsysTestBucketBuilder(connection as any, testOutputLogger, library, sourceFiles);
+                    testBucketBuilder = new QsysTestBucketBuilder(testOutputLogger, codeCoverage, connection as any, library, sourceFiles);
                 } else {
-                    if(localDirectory) {
-                        testBucketBuilder = new LocalTestBucketBuilder(testOutputLogger, localDirectory);
+                    if (localDirectory) {
+                        testBucketBuilder = new LocalTestBucketBuilder(testOutputLogger, codeCoverage, localDirectory);
                     } else {
-                        testBucketBuilder = new IfsTestBucketBuilder(connection as any, testOutputLogger, ifsDirectory);
+                        testBucketBuilder = new IfsTestBucketBuilder(testOutputLogger, codeCoverage, connection as any, ifsDirectory);
                     }
                 }
                 const testBuckets = await testBucketBuilder.getTestBuckets();
@@ -287,6 +314,7 @@ function main() {
                 };
 
                 // Setup test callbacks
+                let finalCoverageDatasets: MergedCoverageData[] = [];
                 const testCallbacks: TestCallbacks = {
                     deploy: async function (workspaceFolderPath: string): Promise<DeploymentStatus> {
                         try {
@@ -369,9 +397,10 @@ function main() {
                         // Not used
                         return;
                     },
-                    // addCoverage: function (fileCoverage: IBMiFileCoverage): void {
-                    //     throw new Error("Function not implemented.");
-                    // },
+                    addCoverageDatasets: function (mergedCoverageDatasets: MergedCoverageData[]): void {
+                        finalCoverageDatasets = mergedCoverageDatasets;
+                        return;
+                    },
                     end: function (): Promise<void> {
                         // Not used
                         return;
@@ -383,9 +412,12 @@ function main() {
                 const runner: Runner = new Runner(connection as any, testRequest, testCallbacks, testLogger);
                 await runner.run();
                 await testResultLogger.append(`\n`);
+                const testMetrics = runner.getTestMetrics();
+
+                // Generate summary report
+                await summaryLogger.generateReport(testMetrics, finalCoverageDatasets, coverageThresholds);
 
                 // Get exit code from test metrics
-                const testMetrics = runner.getTestMetrics();
                 const hasFailuresOrErrors = (testMetrics.testFiles.failed > 0 || testMetrics.testCases.failed > 0) ||
                     (testMetrics.testFiles.errored || testMetrics.testCases.errored) > 0;
                 const exitCode = hasFailuresOrErrors ? 1 : 0;
