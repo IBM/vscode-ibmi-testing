@@ -83,7 +83,7 @@ function main() {
         .addOption(new Option(`--ld, --localDirectory [path]`, `Local directory containing tests`).preset(LOCAL_DIRECTORY).conflicts([`library`, `source-files`]))
         .addOption(new Option(`--id, --ifsDirectory [path]`, `IFS directory containing containing tests`).preset(IFS_DIRECTORY).conflicts([`library`, `source-files`]))
         .addOption(new Option(`--l, --library <library>`, `Library containing tests.`).conflicts(`localDirectory`))
-        .addOption(new Option(`--sf, --source-files <sourceFiles...>`, `Source files to search for tests.`).preset(SOURCE_FILES).conflicts(`localDirectory`))
+        .addOption(new Option(`--sf, --source-files <sourceFiles...>`, `Source files to search for tests.`).default(SOURCE_FILES).conflicts(`localDirectory`))
         .addOption(new Option(`--ll, --library-list <libraries...>`, `Libraries to add to the library list.`))
         .addOption(new Option(`--cl, --current-library <library>`, `The current library to use for the test run.`))
         .addOption(new Option(`--cc, --code-coverage [ccLvl]`, `Run with code coverage`).preset(CODE_COVERAGE_LINE).choices([CODE_COVERAGE_LINE, CODE_COVERAGE_PROC]))
