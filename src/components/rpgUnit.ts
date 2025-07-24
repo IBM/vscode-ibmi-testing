@@ -72,7 +72,7 @@ export class RPGUnit implements IBMiComponent {
         // Get releases from GitHub
         const releases = await GitHub.getReleases();
         if (releases.error) {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to retrieve GitHub releases`, releases.error);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to retrieve GitHub releases`, releases.error);
             return state;
         }
 
@@ -94,7 +94,7 @@ export class RPGUnit implements IBMiComponent {
         }
 
         if (supportedReleases.length === 0) {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `No GitHub releases found which are above the minimum version (${RPGUnit.MINIMUM_VERSION})`);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `No GitHub releases found which are above the minimum version (${RPGUnit.MINIMUM_VERSION})`);
             return state;
         } else {
             await testOutputLogger.log(LogLevel.Info, `Found ${supportedReleases.length} compatible and ${unsupportedReleases.length} incompatible GitHub release(s) in ${GitHub.OWNER}/${GitHub.REPO}`);
@@ -128,7 +128,7 @@ export class RPGUnit implements IBMiComponent {
             placeHolder: 'GitHub Release'
         });
         if (!selectedItem) {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `Installation aborted as GitHub release was not selected`);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Installation aborted as GitHub release was not selected`);
             return state;
         }
         const selectedRelease = selectedItem as (QuickPickItem & { release: Release });
@@ -154,11 +154,11 @@ export class RPGUnit implements IBMiComponent {
                 await testOutputLogger.log(LogLevel.Info, `Deleting product library ${productLibrary}.LIB: ${deleteLibCommand}`);
                 const deleteLibResult = await connection.runCommand({ command: deleteLibCommand, environment: `ile`, noLibList: true });
                 if (deleteLibResult.code !== 0) {
-                    await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to delete library`, deleteLibResult.stderr);
+                    await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to delete library`, deleteLibResult.stderr);
                     return state;
                 }
             } else {
-                await testOutputLogger.logWithNotification(LogLevel.Error, `Installation aborted as product library was not deleted`);
+                await testOutputLogger.appendWithNotification(LogLevel.Error, `Installation aborted as product library was not deleted`);
                 return state;
             }
         }
@@ -169,7 +169,7 @@ export class RPGUnit implements IBMiComponent {
         const asset = selectedRelease.release.assets.find(asset => asset.name === GitHub.ASSET_NAME)!;
         const isDownloaded = await GitHub.downloadReleaseAsset(asset, localTempDir.name);
         if (!isDownloaded.data) {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to download GitHub release asset`, isDownloaded.error);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to download GitHub release asset`, isDownloaded.error);
             return state;
         }
 
@@ -181,7 +181,7 @@ export class RPGUnit implements IBMiComponent {
             await testOutputLogger.log(LogLevel.Info, `Uploading RPGUNIT save file to ${remotePath}`);
             await content.uploadFiles([{ local: localPath, remote: remotePath }]);
         } catch (error: any) {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to upload save file`, error);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to upload save file`, error);
             return state;
         }
 
@@ -192,7 +192,7 @@ export class RPGUnit implements IBMiComponent {
         await testOutputLogger.log(LogLevel.Info, `Creating RPGUNIT save file in ${config.tempLibrary}.LIB: ${createSavfCommand}`);
         const createSavfResult = await connection.runCommand({ command: createSavfCommand, environment: `ile`, noLibList: true });
         if (createSavfResult.code !== 0 && !createSavfResult.stderr.includes('CPF5813')) {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to create save file`, createSavfResult.stderr);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to create save file`, createSavfResult.stderr);
             return state;
         }
 
@@ -206,7 +206,7 @@ export class RPGUnit implements IBMiComponent {
         await testOutputLogger.log(LogLevel.Info, `Transferring RPGUNIT save file to ${config.tempLibrary}.LIB: ${transferCommand}`);
         const transferResult = await connection.runCommand({ command: transferCommand, environment: `ile`, noLibList: true });
         if (transferResult.code !== 0) {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to transfer save file`, transferResult.stderr);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to transfer save file`, transferResult.stderr);
             return state;
         }
 
@@ -220,7 +220,7 @@ export class RPGUnit implements IBMiComponent {
         await testOutputLogger.log(LogLevel.Info, `Restoring RPGUNIT save file contents into ${productLibrary}.LIB: ${restoreCommand}`);
         const restoreResult = await connection.runCommand({ command: restoreCommand, environment: `ile`, noLibList: true });
         if (restoreResult.code !== 0) {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `Failed to restore save file contents`, restoreResult.stderr);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to restore save file contents`, restoreResult.stderr);
             return state;
         }
 
@@ -231,9 +231,9 @@ export class RPGUnit implements IBMiComponent {
 
         const newState = await this.getRemoteState(connection, installDirectory);
         if (newState === 'Installed') {
-            await testOutputLogger.logWithNotification(LogLevel.Info, `RPGUnit ${selectedRelease.release.name} installed successfully into ${productLibrary}.LIB`);
+            await testOutputLogger.appendWithNotification(LogLevel.Info, `RPGUnit ${selectedRelease.release.name} installed successfully into ${productLibrary}.LIB`);
         } else {
-            await testOutputLogger.logWithNotification(LogLevel.Error, `RPGUnit ${selectedRelease.release.name} failed to install into ${productLibrary}.LIB`);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `RPGUnit ${selectedRelease.release.name} failed to install into ${productLibrary}.LIB`);
         }
         return newState;
     }
