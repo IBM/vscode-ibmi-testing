@@ -44,6 +44,8 @@ export namespace TestStubCodeActions {
                 const testStubPreferences = Configuration.getOrFallback<TestStubPreferences>(Section.testStubPreferences);
                 const showTestStubPreview = testStubPreferences["Show Test Stub Preview"];
                 const promptForTestName = testStubPreferences["Prompt For Test Name"];
+                const testSourceFile = testStubPreferences["Test Source File"];
+                const testSourceDirectory = testStubPreferences["Test Source Directory"];
                 const addControlOptionsAndDirectives = testStubPreferences["Add Control Options and Directives"];
                 const addIncludes = testStubPreferences["Add Includes"];
                 const addPrototypes = testStubPreferences["Add Prototypes"];
@@ -58,7 +60,7 @@ export namespace TestStubCodeActions {
                     if (workspaceFolder) {
                         const parsedPath = path.parse(document.uri.fsPath);
                         testFileName = `${parsedPath.name}.test${parsedPath.ext}`;
-                        testFileParentName = 'qtestsrc';
+                        testFileParentName = testSourceDirectory;
 
                         if (promptForTestName) {
                             const userInput = await promptUserForTestName(testFileParentName, testFileName, true);
@@ -79,7 +81,7 @@ export namespace TestStubCodeActions {
                 } else if (document.uri.scheme === 'member') {
                     const parsedPath = connection.parserMemberPath(document.uri.path);
                     testFileName = `${ApiUtils.getSystemNameFromPath(`${parsedPath.name}.test`)}.${parsedPath.extension}`;
-                    testFileParentName = 'QTESTSRC';
+                    testFileParentName = testSourceFile;
 
                     if (promptForTestName) {
                         const userInput = await promptUserForTestName(testFileParentName, testFileName, false);

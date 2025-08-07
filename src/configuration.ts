@@ -3,6 +3,8 @@ import { testOutputLogger } from "./extension";
 
 export interface TestStubPreferences {
     "Show Test Stub Preview": boolean;
+    "Test Source File": string;
+    "Test Source Directory": string;
     "Prompt For Test Name": boolean;
     "Add Control Options and Directives": boolean;
     "Add Includes": boolean;
@@ -35,6 +37,8 @@ export const defaultConfigurations: { [T in Section]: ValueType } = {
     [Section.testSourceFiles]: ['QTESTSRC'],
     [Section.testStubPreferences]: {
         "Show Test Stub Preview": true,
+        "Test Source File": "QTESTSRC",
+        "Test Source Directory": "qtestsrc",
         "Prompt For Test Name": false,
         "Add Control Options and Directives": true,
         "Add Includes": true,
