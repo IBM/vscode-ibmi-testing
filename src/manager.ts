@@ -384,6 +384,18 @@ export class IBMiTestManager {
             return;
         }
 
+        // If the test is a member, check if its source file is in the set of test source files to search in
+        if (uri.scheme === 'member') {
+            const ibmi = getInstance();
+            const connection = ibmi!.getConnection();
+
+            const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles).map(file => file.toLocaleUpperCase());
+            const parsedPath = connection.parserMemberPath(uri.path);
+            if(!testSourceFiles.includes(parsedPath.file.toLocaleUpperCase())) {
+                return;
+            }
+        }
+
         const result = await this.getOrCreateFile(uri);
         if (result && result.data instanceof TestFileData) {
             if (isChanged) {
