@@ -9,7 +9,7 @@ The [IBM i Testing](https://marketplace.visualstudio.com/items?itemName=IBM.vsco
 
 * 👨‍💻 **Run Tests**: Visualize and run tests suites out of local files or source members.
 * ✍️ **Generate Stubs**: Generate test stubs for individual test cases or an entire test suite.
-* ⚙️ **Configure Tests**: Configure parameters to compile (`RUCRTRPG`/`RUCRTCLB`) and run (`RUCALLTST`) tests.
+* ⚙️ **Configure Tests**: Configure parameters to compile (`RUCRTRPG`/`RUCRTCBL`) and run (`RUCALLTST`) tests.
 * 📋 **View Test Results**: View detailed test results along with inline failure/error messages.
 * 🎯 **Generate Code Coverage**: View line and procedure level code coverage results as an overlay in the editor.
 
