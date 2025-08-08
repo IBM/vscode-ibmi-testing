@@ -104,7 +104,9 @@ export class Runner {
                 await this.testLogger.logTestSuite(testSuite.name, testSuite.systemName, testSuite.testCases.length);
 
                 // Compile test suite if needed
-                let isCompiled = testSuite.isCompiled && !this.testRequest.forceCompile;
+                let isCompiled = this.testRequest.compileMode === 'skip' ? true :
+                    this.testRequest.compileMode === 'force' ? false :
+                    testSuite.isCompiled;
                 if (isCompiled) {
                     await this.testLogger.logCompilation(testSuite.name, 'skipped', []);
                     this.testMetrics.compilations.skipped++;

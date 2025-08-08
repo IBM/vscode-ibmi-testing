@@ -5,7 +5,7 @@ import { Configuration, LibraryListValidation, Section } from "./configuration";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { RPGUnit } from "./components/rpgUnit";
 import { Runner, TestCallbacks } from "./api/runner";
-import { BasicUri, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest } from "./api/types";
+import { BasicUri, CompileMode, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest } from "./api/types";
 import { TestLogger } from "./api/testLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
@@ -19,12 +19,12 @@ import { ConfigHandler } from "./config";
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
     private request: TestRunRequest;
-    private forceCompile: boolean;
+    private compileMode: CompileMode;
 
-    constructor(manager: IBMiTestManager, request: TestRunRequest, forceCompile: boolean) {
+    constructor(manager: IBMiTestManager, request: TestRunRequest, compileMode: CompileMode) {
         this.manager = manager;
         this.request = request;
-        this.forceCompile = forceCompile;
+        this.compileMode = compileMode;
     }
 
     private async buildTestBucket(testRun: TestRun): Promise<TestBucket[]> {
@@ -201,7 +201,7 @@ export class IBMiTestRunner {
         // Build test bucket and request
         const testBuckets = await this.buildTestBucket(testRun);
         const testRequest: TestRequest = {
-            forceCompile: this.forceCompile,
+            compileMode: this.compileMode,
             testBuckets: testBuckets
         };
 
