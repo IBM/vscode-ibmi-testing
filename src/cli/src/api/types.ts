@@ -25,9 +25,11 @@ export interface ConfigHandler {
 }
 
 export interface TestRequest {
-    forceCompile: boolean;
+    compileMode: CompileMode;
     testBuckets: TestBucket[];
 }
+
+export type CompileMode = 'check' | 'force' | 'skip';
 
 // Test bucket is a workspace folder, library, or IFS directory
 export interface TestBucket {

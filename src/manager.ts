@@ -30,29 +30,29 @@ export class IBMiTestManager {
         };
 
         // Profiles for running tests
-        ['Run Tests', 'Run Tests (Compile)'].forEach((profile, index) => {
-            const forceCompile = index === 1;
+        ['Run Tests', 'Run Tests (Force Compile)', 'Run Tests (Skip Compile)'].forEach((profile, index) => {
+            const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
             this.controller.createRunProfile(profile, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, forceCompile);
+                const runner = new IBMiTestRunner(this, request, compileMode);
                 await runner.runHandler();
-            }, !forceCompile, undefined, false);
+            }, index === 0, undefined, false);
         });
 
         // Profiles for running tests with line coverage
-        ['Run Tests with Line Coverage', 'Run Tests with Line Coverage (Compile)'].forEach((profile, index) => {
-            const forceCompile = index === 1;
+        ['Run Tests with Line Coverage', 'Run Tests with Line Coverage (Force Compile)', 'Run Tests with Line Coverage (Skip Compile)'].forEach((profile, index) => {
+            const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
             const lineCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, forceCompile);
+                const runner = new IBMiTestRunner(this, request, compileMode);
                 await runner.runHandler();
-            }, !forceCompile, undefined, false);
+            }, index === 0, undefined, false);
             lineCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
         });
 
         // Profiles for running tests with procedure coverage
-        ['Run Tests with Procedure Coverage', 'Run Tests with Procedure Coverage (Compile)'].forEach((profile, index) => {
-            const forceCompile = index === 1;
+        ['Run Tests with Procedure Coverage', 'Run Tests with Procedure Coverage (Force Compile)', 'Run Tests with Procedure Coverage (Skip Compile)'].forEach((profile, index) => {
+            const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
             const procedureCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, forceCompile);
+                const runner = new IBMiTestRunner(this, request, compileMode);
                 await runner.runHandler();
             }, false, undefined, false);
             procedureCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
@@ -382,6 +382,18 @@ export class IBMiTestManager {
         // Check if the URI ends with any of the uri specific suffixes
         if (!uriSpecificSuffixes.some(suffix => uri.path.toLocaleUpperCase().endsWith(suffix))) {
             return;
+        }
+
+        // If the test is a member, check if its source file is in the set of test source files to search in
+        if (uri.scheme === 'member') {
+            const ibmi = getInstance();
+            const connection = ibmi!.getConnection();
+
+            const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles).map(file => file.toLocaleUpperCase());
+            const parsedPath = connection.parserMemberPath(uri.path);
+            if(!testSourceFiles.includes(parsedPath.file.toLocaleUpperCase())) {
+                return;
+            }
         }
 
         const result = await this.getOrCreateFile(uri);

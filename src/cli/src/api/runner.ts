@@ -111,7 +111,9 @@ export class Runner {
                 await this.testLogger.logTestSuite(testSuite.name, testSuite.systemName, testSuite.testCases.length);
 
                 // Compile test suite if needed
-                let isCompiled = testSuite.isCompiled && !this.testRequest.forceCompile;
+                let isCompiled = this.testRequest.compileMode === 'skip' ? true :
+                    this.testRequest.compileMode === 'force' ? false :
+                    testSuite.isCompiled;
                 if (isCompiled) {
                     await this.testLogger.logCompilation(testSuite.name, 'skipped', []);
                     this.testMetrics.compilations.skipped++;
@@ -195,7 +197,7 @@ export class Runner {
             testSuitePath = testSuite.uri.path;
 
             const parsedPath = this.connection.parserMemberPath(testSuitePath);
-            const tstPgmName = parsedPath.name.toLocaleUpperCase();
+            const tstPgmName = parsedPath.name;
             const tstLibrary = parsedPath.library;
             const srcFileName = parsedPath.file;
 
@@ -206,9 +208,9 @@ export class Runner {
 
         let wrapperCmd: WrapperCmd | undefined;
         let compileParams: RUCRTRPG | RUCRTCBL = {
-            tstPgm: `${tstPgm.library}/${tstPgm.name}`,
-            srcFile: srcFile ? `${srcFile.library}/${srcFile.name}` : undefined,
-            srcMbr: srcMbr,
+            tstPgm: `${tstPgm.library}/${tstPgm.name}`.toLocaleUpperCase(),
+            srcFile: srcFile ? `${srcFile.library}/${srcFile.name}`.toLocaleUpperCase() : undefined,
+            srcMbr: srcMbr?.toLocaleUpperCase(),
             srcStmf: srcStmf
         };
 
@@ -287,8 +289,8 @@ export class Runner {
 
         // Build compile command
         const productLibrary = this.testCallbacks.getProductLibrary();
-        const languageSpecificCommand = isRPGLE ? 'rucrtrpg' : 'rucrtcbl';
-        let compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand.toLocaleUpperCase()}`, flattenedCompileParams as any);
+        const languageSpecificCommand = isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
+        let compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, flattenedCompileParams as any);
 
         // Wrap compile command if a wrapper command is specified
         if (wrapperCmd && wrapperCmd.cmd) {
@@ -372,7 +374,7 @@ export class Runner {
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
         }
 
-        const qualifiedTstPgm = `${tstPgm.library}/${tstPgm.name}`;
+        const qualifiedTstPgm = `${tstPgm.library}/${tstPgm.name}`.toLocaleUpperCase();
 
 
         const testCases: (TestCase | undefined)[] = [];
