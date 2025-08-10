@@ -584,7 +584,7 @@
                             "default": "*NO",
                             "enum": [
                                 "*NO",
-                                "*ALLWAYS",
+                                "*ALWAYS",
                                 "*ONCE"
                             ],
                             "enumDescriptions": [
