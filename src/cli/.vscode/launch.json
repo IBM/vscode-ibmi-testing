@@ -12,9 +12,9 @@
 			"program": "${workspaceFolder:cli}/dist/index.js",
 			"sourceMaps": true,
 			"args": [
-				"--localDirectory",
+				"--local-directory",
 				"../../examples/ibmi-company_system/",
-				"--ifsDirectory",
+				"--ifs-directory",
 				"/home/$USER/builds/ibmi-company_system",
 				"--library-list",
 				"RPGUNIT",

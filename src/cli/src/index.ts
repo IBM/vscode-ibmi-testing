@@ -66,27 +66,27 @@ function main() {
     program
         .version(VERSION, `--v, --version`, `Display the version number`)
         .name(`itest`)
-        .description(`The ${c.cyanBright(`IBM i Testing CLI (itest - v${VERSION})`)} can be used to run unit tests and generate\ncode coverage results in PASE for RPG and COBOL programs on IBM i. Under the\ncovers, this extension leverages the RPGUnit testing framework.\n\n✨ Documentation: https://codefori.github.io/docs/developing/testing/overview`)
+        .description(`The ${c.cyanBright(`IBM i Testing CLI (itest)`)} is a companion to the IBM i Testing VS Code extension, which\nallows you to run unit tests and generate code coverage results for RPG and COBOL programs\non IBM i. With this CLI, you can run tests in your terminal on your local PC or in PASE on IBM i. This enables\nyou to even script the execution of tests in a CI/CD pipeline.\n\n✨ Documentation: https://codefori.github.io/docs/developing/testing/cli`)
         .helpOption(`--h, --help`, `Display help for command`)
         .showHelpAfterError()
         .showSuggestionAfterError()
         .addHelpText(`afterAll`, [
             ``,
             `Examples:`,
-            `  Run tests in local directory:`,
-            c.magenta(`    itest --ld . --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`),
-            `  Run tests in IFS directory:`,
-            c.magenta(`    itest --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`),
-            `  Run tests in library:`,
-            c.magenta(`    itest --l RPGUTILS --ll RPGUNIT QDEVTOOLS --cl RPGUTILS`)
+            `  1. Run tests in local directory:`,
+            c.magenta(`     itest --ld . --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`),
+            `  2. Run tests in IFS directory:`,
+            c.magenta(`     itest --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`),
+            `  3. Run tests in library:`,
+            c.magenta(`     itest --l RPGUTILS --ll RPGUNIT QDEVTOOLS --cl RPGUTILS`)
         ].join(`\n`));
 
     // Setup CLI options
     program
-        .addOption(new Option(`--ld, --localDirectory [path]`, `Local directory containing tests`).preset(LOCAL_DIRECTORY).conflicts([`library`, `source-files`]))
-        .addOption(new Option(`--id, --ifsDirectory [path]`, `IFS directory containing containing tests`).preset(IFS_DIRECTORY).conflicts([`library`, `source-files`]))
-        .addOption(new Option(`--l, --library <library>`, `Library containing tests.`).conflicts(`localDirectory`))
-        .addOption(new Option(`--sf, --source-files <sourceFiles...>`, `Source files to search for tests.`).default(SOURCE_FILES).conflicts(`localDirectory`))
+        .addOption(new Option(`--ld, --local-directory [path]`, `Local directory containing tests`).preset(LOCAL_DIRECTORY).conflicts([`library`, `source-files`]))
+        .addOption(new Option(`--id, --ifs-directory [path]`, `IFS directory containing containing tests`).preset(IFS_DIRECTORY).conflicts([`library`, `source-files`]))
+        .addOption(new Option(`--l, --library <library>`, `Library containing tests.`).conflicts(`local-directory`))
+        .addOption(new Option(`--sf, --source-files <sourceFiles...>`, `Source files to search for tests.`).default(SOURCE_FILES).conflicts(`local-directory`))
         .addOption(new Option(`--ll, --library-list <libraries...>`, `Libraries to add to the library list.`))
         .addOption(new Option(`--cl, --current-library <library>`, `The current library to use for the test run.`))
         .addOption(new Option(`--cc, --code-coverage [ccLvl]`, `Run with code coverage`).preset(CODE_COVERAGE_LINE).choices([CODE_COVERAGE_LINE, CODE_COVERAGE_PROC]))
@@ -105,7 +105,7 @@ function main() {
             const localDirectory = options.localDirectory ? path.resolve(cwd, options.localDirectory) : undefined;
             let ifsDirectory = options.ifsDirectory ? options.ifsDirectory : undefined;
             if (localDirectory && !ifsDirectory) {
-                spinner.fail(`The '--localDirectory' option requires an IFS directory to deploy to using the '--ifsDirectory' option.`);
+                spinner.fail(`The '--local-directory' option requires an IFS directory to deploy to using the '--ifs-directory' option.`);
                 exit(1);
             } else if (ifsDirectory) {
                 ifsDirectory = path.posix.resolve(cwd, ifsDirectory);
@@ -154,7 +154,7 @@ function main() {
             const isRunningOnIBMi = os.type().includes('400');
             if (isRunningOnIBMi) {
                 if (localDirectory) {
-                    spinner.fail(`The '--localDirectory' option is not supported when running on IBM i.`);
+                    spinner.fail(`The '--local-directory' option is not supported when running on IBM i.`);
                     exit(1);
                 }
 
@@ -248,7 +248,7 @@ function main() {
             // Setup components
             const customQsh = new CustomQSh();
             customQsh.setLocalAssetPath(path.join(__dirname, customQsh.getFileName()));
-            const testingId = `ibmi-testing`;
+            const testingId = `itest`;
             extensionComponentRegistry.registerComponent(testingId, customQsh);
             extensionComponentRegistry.registerComponent(testingId, new GetNewLibl());
             extensionComponentRegistry.registerComponent(testingId, new GetMemberInfo());
