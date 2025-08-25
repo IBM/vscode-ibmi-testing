@@ -313,6 +313,18 @@ function main() {
                     }
                 }
                 const testBuckets = await testBucketBuilder.getTestBuckets();
+
+                // Ensure there are test suites to run
+                const hasTestSuites = testBuckets.some(bucket => bucket.testSuites.length > 0);
+                if (!hasTestSuites) {
+                    const location = library ? ` in ${library}.LIB` :
+                        localDirectory ? ` in ${localDirectory}` :
+                            ifsDirectory ? ` in ${ifsDirectory}` : ``;
+                    spinner.fail(`No test suites found${location}`);
+                    await connection.dispose();
+                    exit(1);
+                }
+
                 const testRequest: TestRequest = {
                     compileMode: 'force', // TODO: Make this configurable via CLI options
                     testBuckets: testBuckets
@@ -422,6 +434,7 @@ function main() {
                 spinner.stop();
                 const runner: Runner = new Runner(connection as any, testRequest, testCallbacks, testLogger);
                 await runner.run();
+                await connection.dispose();
                 await testResultLogger.append(`\n`);
                 const testMetrics = runner.getTestMetrics();
 
