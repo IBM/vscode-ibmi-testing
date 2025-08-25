@@ -3,6 +3,7 @@
 'use strict';
 
 const path = require('path');
+const webpack = require(`webpack`);
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
@@ -33,6 +34,9 @@ const extensionConfig = {
     ]
   },
   devtool: 'nosources-source-map',
+  plugins: [
+    new webpack.IgnorePlugin({ resourceRegExp: /(cpu-features|sshcrypto\.node)/u })
+  ],
   infrastructureLogging: {
     level: "log", // enables logging required for problem matchers
   },

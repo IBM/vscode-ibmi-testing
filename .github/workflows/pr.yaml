@@ -1,4 +1,4 @@
-name: Build VSIX
+name: Build Extension & CLI
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
           npm install
           npm install -g vsce
 
-      - name: Package
+      - name: Build Extension
         run: vsce package
 
       - name: Upload VSIX
@@ -39,3 +39,7 @@ jobs:
           name: vscode-ibmi-testing-pr-build
           path: ./*.vsix
           if-no-files-found: error
+
+      - name: Build CLI
+        working-directory: src/cli
+        run: npm run webpack
