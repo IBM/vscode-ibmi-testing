@@ -19,6 +19,7 @@ The [IBM i Testing CLI](https://www.npmjs.com/package/@ibm/itest) (`itest`) is a
   * `--cl, --current-library <library>`             The current library to use for the test run.
   * `--cc, --code-coverage [ccLvl]`                 Run with code coverage (choices: "*LINE", "*PROC", preset: "*LINE")
   * `--ct, --coverage-thresholds <threshholds...>`  Set the code coverage thresholds (yellow and green). (default: ["60","90"])
+  * `--sc, --skip-compilation`                      Skip compilation
   * `--sr, --summary-report [path]`                 Save summary report (preset: "./.itest/summary-report.md")
   * `--tr, --test-result [path]`                    Save test result logs (preset: "./.itest/test-result.log")
   * `--to, --test-output [path]`                    Save test output logs (preset: "./.itest/test-output.log")

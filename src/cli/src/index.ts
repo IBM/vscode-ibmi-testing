@@ -37,6 +37,7 @@ interface Options {
     currentLibrary?: string;
     codeCoverage?: CCLVL;
     coverageThresholds?: string[];
+    skipCompilation?: boolean;
     summaryReport?: string;
     testResult?: string;
     testOutput?: string;
@@ -50,6 +51,7 @@ const SOURCE_FILES = [`QTESTSRC`];
 const CODE_COVERAGE_LINE = `*LINE`;
 const CODE_COVERAGE_PROC = `*PROC`;
 const LOG_DIRECTORY = `.itest`;
+const SKIP_COMPILATION = false;
 const SUMMARY_REPORT_PATH = `./${LOG_DIRECTORY}/summary-report.md`;
 const TEST_RESULT_PATH = `./${LOG_DIRECTORY}/test-result.log`;
 const TEST_OUTPUT_PATH = `./${LOG_DIRECTORY}/test-output.log`;
@@ -91,6 +93,7 @@ function main() {
         .addOption(new Option(`--cl, --current-library <library>`, `The current library to use for the test run.`))
         .addOption(new Option(`--cc, --code-coverage [ccLvl]`, `Run with code coverage`).preset(CODE_COVERAGE_LINE).choices([CODE_COVERAGE_LINE, CODE_COVERAGE_PROC]))
         .addOption(new Option(`--ct, --coverage-thresholds <threshholds...>`, `Set the code coverage thresholds (yellow and green).`).default([YELLOW_THRESHOLD, GREEN_THRESHOLD]))
+        .addOption(new Option(`--sc, --skip-compilation`, `Skip compilation`))
         .addOption(new Option(`--sr, --summary-report [path]`, `Save summary report`).preset(SUMMARY_REPORT_PATH))
         .addOption(new Option(`--tr, --test-result [path]`, `Save test result logs`).preset(TEST_RESULT_PATH))
         .addOption(new Option(`--to, --test-output [path]`, `Save test output logs`).preset(TEST_OUTPUT_PATH))
@@ -139,6 +142,7 @@ function main() {
                     }
                 }
             }
+            const skipCompilation = options.skipCompilation ? options.skipCompilation : SKIP_COMPILATION;
             const summaryReport = options.summaryReport ? path.resolve(cwd, options.summaryReport) : undefined;
             if (summaryReport && !codeCoverage) {
                 spinner.fail(`The '--summary-report' option requires code coverage to be enabled with the '--code-coverage' option.`);
@@ -326,7 +330,7 @@ function main() {
                 }
 
                 const testRequest: TestRequest = {
-                    compileMode: 'force', // TODO: Make this configurable via CLI options
+                    compileMode: skipCompilation ? `skip` : `force`,
                     testBuckets: testBuckets
                 };
 
