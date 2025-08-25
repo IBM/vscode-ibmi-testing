@@ -28,3 +28,4 @@ Thanks so much to everyone [who has contributed](https://github.com/IBM/vscode-i
 * [@edmundreinhardt](https://github.com/edmundreinhardt)
 * [@tools400](https://github.com/tools400)
 * [@NicolasSchindler](https://github.com/NicolasSchindler)
+* [@e1mais](https://github.com/e1mais)
