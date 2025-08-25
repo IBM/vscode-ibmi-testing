@@ -4,6 +4,7 @@ import { ConnectionData } from "@halcyontech/vscode-ibmi-types/api/types";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
 import { DeploymentStatus, Env, RUCALLTST, BasicUri, TestRequest, MergedCoverageData, CCLVL } from "./api/types";
 import { TestLogger } from "./api/testLogger";
+import { SummaryLogger } from "./loggers/summaryLogger";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
 import { IfsTestBucketBuilder, LocalTestBucketBuilder, QsysTestBucketBuilder, TestBucketBuilder } from "./testBucketBuilder";
@@ -26,7 +27,6 @@ import os from 'os';
 import { exit } from "process";
 import inquirer from "inquirer";
 import pkg from '../package.json';
-import { SummaryLogger } from "./loggers/summaryLogger";
 
 interface Options {
     localDirectory?: string;
@@ -73,9 +73,12 @@ function main() {
         .addHelpText(`afterAll`, [
             ``,
             `Examples:`,
-            `  itest --ld . --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`,
-            `  itest --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`,
-            `  itest --l MYLIB --ll RPGUNIT QDEVTOOLS --cl MYLIB`
+            `  Run tests in local directory:`,
+            c.magenta(`    itest --ld . --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`),
+            `  Run tests in IFS directory:`,
+            c.magenta(`    itest --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`),
+            `  Run tests in library:`,
+            c.magenta(`    itest --l RPGUTILS --ll RPGUNIT QDEVTOOLS --cl RPGUTILS`)
         ].join(`\n`));
 
     // Setup CLI options
@@ -138,7 +141,7 @@ function main() {
             }
             const summaryReport = options.summaryReport ? path.resolve(cwd, options.summaryReport) : undefined;
             if (summaryReport && !codeCoverage) {
-                spinner.fail(`The '--summaryReport' option requires code coverage to be enabled with the '--code-coverage' option.`);
+                spinner.fail(`The '--summary-report' option requires code coverage to be enabled with the '--code-coverage' option.`);
                 exit(1);
             }
             const testResult = options.testResult ? path.resolve(cwd, options.testResult) : undefined;
@@ -170,7 +173,7 @@ function main() {
                     port: 22
                 };
             } else {
-                async function promptForCredential(name: string, value: string, message: string, password: boolean = false): Promise<string> {
+                async function promptForCredential(name: string, value: string | undefined, message: string, password: boolean = false): Promise<string> {
                     if (value) {
                         return value;
                     }
@@ -265,20 +268,22 @@ function main() {
             const result = await connection.connect(
                 credentials,
                 {
-                    message: (type: string, message: string) => {
+                    callbacks: {
+                        message: (type: string, message: string) => {
+                        },
+                        progress: ({ message }) => {
+                            if (!isRunningOnIBMi) {
+                                spinner.text = `${credentials.name}: ${message}`;
+                            }
+                        },
+                        uiErrorHandler: async (connection, code, data) => {
+                            return false;
+                        },
                     },
-                    progress: ({ message }) => {
-                        if (!isRunningOnIBMi) {
-                            spinner.text = `${credentials.name}: ${message}`;
-                        }
-                    },
-                    uiErrorHandler: async (connection, code, data) => {
-                        return false;
-                    },
-                },
-                false,
-                false,
-                localSSH as any
+                    reloadServerSettings: false,
+                    reconnecting: false,
+                    customClient: localSSH as any
+                }
             );
 
             // Setup library list and current library
@@ -309,7 +314,7 @@ function main() {
                 }
                 const testBuckets = await testBucketBuilder.getTestBuckets();
                 const testRequest: TestRequest = {
-                    forceCompile: true,
+                    compileMode: 'force', // TODO: Make this configurable via CLI options
                     testBuckets: testBuckets
                 };
 
@@ -400,6 +405,12 @@ function main() {
                     addCoverageDatasets: function (mergedCoverageDatasets: MergedCoverageData[]): void {
                         finalCoverageDatasets = mergedCoverageDatasets;
                         return;
+                    },
+                    shouldLogCoverage: function (): boolean {
+                        return codeCoverage !== undefined;
+                    },
+                    getCoverageThresholds: function (): string[] {
+                        return coverageThresholds;
                     },
                     end: function (): Promise<void> {
                         // Not used

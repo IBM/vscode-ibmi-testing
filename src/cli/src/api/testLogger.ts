@@ -1,5 +1,8 @@
-import { CompilationStatus, DeploymentStatus, Logger, LogLevel, TestMetrics } from "./types";
+import { CompilationStatus, DeploymentStatus, Logger, LogLevel, MergedCoverageData, TestMetrics } from "./types";
 import c from "ansi-colors";
+import * as path from "path";
+import { GREEN_THRESHOLD, YELLOW_THRESHOLD } from "..";
+import { table, TableUserConfig } from "table";
 
 export class TestLogger {
     public testOutputLogger: Logger;
@@ -144,6 +147,102 @@ export class TestLogger {
             `${addPadding('')}`,
             `${addPadding(finalResult)}`,
             borderBottom
+        ].join(`\r\n`);
+        await this.testResultLogger.append(message);
+    }
+
+    async logCoverage(finalCoverageDatasets: MergedCoverageData[], coverageThresholds: string[]) {
+        const yellow = coverageThresholds.length > 1 ? Number(coverageThresholds[0]) : Number(YELLOW_THRESHOLD);
+        const green = coverageThresholds.length > 0 ? Number(coverageThresholds[1]) : Number(GREEN_THRESHOLD);
+        let totalUncoveredLines = 0;
+        let totalCoveredLines = 0;
+        let totalExecutableLines = 0;
+
+        const data: (string | number)[][] = [
+            ['File', 'Coverage', 'Uncovered Lines', 'Covered Lines', 'Executable Lines']
+        ];
+
+        for (const coverageData of finalCoverageDatasets) {
+            const file = path.basename(coverageData.uri.fsPath);
+
+            // Calculate line counts
+            let coveredLines = 0;
+            let uncoveredLines = 0;
+            for (const lineStatus of Object.values(coverageData.activeLines)) {
+                if (lineStatus) {
+                    coveredLines++;
+                } else {
+                    uncoveredLines++;
+                }
+            }
+            const executableLines = Object.keys(coverageData.activeLines).length;
+            totalCoveredLines += coveredLines;
+            totalUncoveredLines += uncoveredLines;
+            totalExecutableLines += executableLines;
+
+            // Calculate coverage percentage
+            const coverageStatus = executableLines > 0 ? Math.round((coveredLines / executableLines) * 100).toFixed(0) : 0;
+            const coverageColor = Number(coverageStatus) >= green ? c.green :
+                Number(coverageStatus) >= yellow ? c.yellow :
+                    c.red;
+
+            data.push([
+                file,
+                coverageColor(`${coverageStatus}%`),
+                uncoveredLines,
+                coveredLines,
+                executableLines
+            ]);
+        }
+
+        const totalCoverageStatus = totalExecutableLines > 0 ? Math.round((totalCoveredLines / totalExecutableLines) * 100).toFixed(0) : 0;
+        const totalCoverageColor = Number(totalCoverageStatus) >= green ? c.green :
+            Number(totalCoverageStatus) >= yellow ? c.yellow :
+                c.red;
+
+        data.push([
+            c.bold('TOTAL'),
+            totalCoverageColor(`${totalCoverageStatus}%`),
+            totalUncoveredLines,
+            totalCoveredLines,
+            totalExecutableLines
+        ]);
+
+        const config: TableUserConfig = {
+            border: {
+                topBody: c.blue(`─`),
+                topJoin: c.blue(`┬`),
+                topLeft: c.blue(`┌`),
+                topRight: c.blue(`┐`),
+                bottomBody: c.blue(`─`),
+                bottomJoin: c.blue(`┴`),
+                bottomLeft: c.blue(`└`),
+                bottomRight: c.blue(`┘`),
+                bodyLeft: c.blue(`│`),
+                bodyRight: c.blue(`│`),
+                bodyJoin: c.blue(`│`),
+                joinBody: c.blue(`─`),
+                joinLeft: c.blue(`├`),
+                joinRight: c.blue(`┤`),
+                joinJoin: c.blue(`┼`)
+            },
+            columns: [
+                { alignment: 'left' },   // File
+                { alignment: 'right' },  // Coverage
+                { alignment: 'right' },  // Uncovered Lines
+                { alignment: 'right' },  // Covered Lines
+                { alignment: 'right' }   // Executable Lines
+            ],
+            drawHorizontalLine: (index: number, size: number) => {
+                // Draw top, header separator, and bottom
+                return index === 0 || index === 1 || index === size - 1 || index === size;
+            }
+        };
+
+        const output = table(data, config);
+        const message = [
+            ``,
+            ...output.split('\n')
         ].join(`\r\n`);
         await this.testResultLogger.append(message);
     }

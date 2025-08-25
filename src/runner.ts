@@ -5,7 +5,7 @@ import { Configuration, LibraryListValidation, Section } from "./configuration";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { RPGUnit } from "./components/rpgUnit";
 import { Runner, TestCallbacks } from "./cli/src/api/runner";
-import { MergedCoverageData, BasicUri, ConfigHandler,  DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode } from "./cli/src/api/types";
+import { MergedCoverageData, BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode } from "./cli/src/api/types";
 import { TestLogger } from "./cli/src/api/testLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
@@ -365,6 +365,14 @@ export class IBMiTestRunner {
                     const fileCoverage = new IBMiFileCoverage(mergedCoverageData);
                     testRun.addCoverage(fileCoverage);
                 }
+            },
+            shouldLogCoverage: (): boolean => {
+                // Not used
+                return false;
+            },
+            getCoverageThresholds: (): string[] => {
+                // Not used
+                return [];
             },
             end: async (): Promise<void> => {
                 testRun.end();

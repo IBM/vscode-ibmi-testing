@@ -19,6 +19,7 @@
 				"--library-list",
 				"RPGUNIT",
 				"QDEVTOOLS",
+				"--summary-report",
 				"--save-test-output",
 				"--save-test-result",
 				"--save-command-output"

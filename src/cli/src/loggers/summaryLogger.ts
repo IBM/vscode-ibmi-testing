@@ -4,12 +4,12 @@ import * as path from "path";
 import { GREEN_THRESHOLD, YELLOW_THRESHOLD } from "..";
 
 export class SummaryLogger {
-    private logFile: string;
+    private logFile: string | undefined;
 
     constructor(logFile: string | undefined) {
         this.logFile = logFile;
 
-        if (logFile) {
+        if (this.logFile) {
             fs.mkdirSync(path.dirname(this.logFile), { recursive: true });
             fs.writeFileSync(this.logFile, '');
         }

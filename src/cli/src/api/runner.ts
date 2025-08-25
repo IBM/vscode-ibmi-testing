@@ -27,6 +27,8 @@ export interface TestCallbacks {
     failed: (uri: BasicUri, messages: { line?: number, message: string }[], duration?: number) => Promise<void>;
     errored: (uri: BasicUri, messages: { line?: number, message: string }[], duration?: number) => Promise<void>;
     addCoverageDatasets(mergedCoverageDatasets: MergedCoverageData[]): void;
+    shouldLogCoverage: () => boolean;
+    getCoverageThresholds: () => string[];
     end: () => Promise<void>;
 }
 
@@ -147,6 +149,11 @@ export class Runner {
         const mergedCoverageDatasets = this.mergeCoverageDatasets(this.mappedCoverageDatasets);
         this.testCallbacks.addCoverageDatasets(mergedCoverageDatasets);
 
+        const shouldLogCoverage = this.testCallbacks.shouldLogCoverage();
+        if(shouldLogCoverage) {
+            const coverageThresholds = this.testCallbacks.getCoverageThresholds();
+            await this.testLogger.logCoverage(mergedCoverageDatasets, coverageThresholds);
+        }
         await this.testLogger.logMetrics(this.testMetrics);
         await this.testCallbacks.end();
     }

@@ -11,7 +11,7 @@
 		"outDir": "./dist",
 		"esModuleInterop": true,
 		"strict": false,
-		"declaration": true
+		"declaration": false
 	},
 	"exclude": [
 		"node_modules"
