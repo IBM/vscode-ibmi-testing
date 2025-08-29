@@ -3,6 +3,8 @@
 .vscode-test/**
 out/**
 node_modules/**
+api/**
+cli/**
 src/**
 examples/**
 .itest
