@@ -1,13 +1,15 @@
-import { MergedCoverageData, TestMetrics } from "../api/types";
+import { MergedCoverageData, TestMetrics } from "../../../api/types";
 import * as fs from "fs";
 import * as path from "path";
 import { GREEN_THRESHOLD, YELLOW_THRESHOLD } from "..";
 
 export class SummaryLogger {
     private logFile: string | undefined;
+    private includeCodeCoverage: boolean;
 
-    constructor(logFile: string | undefined) {
+    constructor(logFile: string | undefined, includeCodeCoverage: boolean) {
         this.logFile = logFile;
+        this.includeCodeCoverage = includeCodeCoverage;
 
         if (this.logFile) {
             fs.mkdirSync(path.dirname(this.logFile), { recursive: true });
@@ -70,13 +72,19 @@ export class SummaryLogger {
                 `### Test Result`,
                 `|Total Tests|✅ Passed|❌ Failed|⚠️ Errored|🎯 Assertions|⏳ Duration|`,
                 `|-|-|-|-|-|-|`,
-                `|${totalTests}|${passed}|${failed}|${errored}|${assertions}|${duration}s|`,
-                ``,
-                `### Code Coverage`,
-                `|File|Coverage|Uncovered Lines|Covered Lines|Executable Lines|`,
-                `|-|-|-|-|-|`,
-                ...codeCoverageLines
+                `|${totalTests}|${passed}|${failed}|${errored}|${assertions}|${duration}s|`
             ];
+
+            if (this.includeCodeCoverage) {
+                lines.push(...[
+                    ``,
+                    `### Code Coverage`,
+                    `|File|Coverage|Uncovered Lines|Covered Lines|Executable Lines|`,
+                    `|-|-|-|-|-|`,
+                    ...codeCoverageLines
+                ]);
+            }
+
             await fs.promises.appendFile(this.logFile, lines.join(`\n`));
         }
     }

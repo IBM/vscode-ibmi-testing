@@ -1,4 +1,4 @@
-import { Logger, LogLevel } from "../api/types";
+import { Logger, LogLevel } from "../../../api/types";
 import * as fs from "fs";
 import * as path from "path";
 import c from "ansi-colors";

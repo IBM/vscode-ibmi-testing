@@ -4,7 +4,7 @@ import Cache from "vscode-rpgle/language/models/cache";
 import { getInstance } from "../extensions/ibmi";
 import { LspUtils, RpgleTypeDetail, RpgleVariableType } from "./lspUtils";
 import * as path from "path";
-import { ApiUtils } from "../cli/src/api/apiUtils";
+import { ApiUtils } from "../../api/apiUtils";
 import { Configuration, Section, TestStubPreferences } from "../configuration";
 
 export namespace TestStubCodeActions {

@@ -1,9 +1,9 @@
 import IBMi from "vscode-ibmi/src/api/IBMi";
-import { Runner, TestCallbacks } from "./api/runner";
-import { ConnectionData } from "@halcyontech/vscode-ibmi-types/api/types";
-import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
-import { DeploymentStatus, Env, RUCALLTST, BasicUri, TestRequest, MergedCoverageData, CCLVL } from "./api/types";
-import { TestLogger } from "./api/testLogger";
+import { Runner, TestCallbacks } from "../../api/runner";
+import { ConnectionData } from "vscode-ibmi/src/api/types";
+import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
+import { DeploymentStatus, Env, RUCALLTST, BasicUri, TestRequest, MergedCoverageData, CCLVL } from "../../api/types";
+import { TestLogger } from "../../api/testLogger";
 import { SummaryLogger } from "./loggers/summaryLogger";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
@@ -17,7 +17,7 @@ import { GetNewLibl } from "vscode-ibmi/src/api/components/getNewLibl";
 import { GetMemberInfo } from "vscode-ibmi/src/api/components/getMemberInfo";
 import { CopyToImport } from "vscode-ibmi/src/api/components/copyToImport";
 import { LocalSSH } from "./localSsh";
-import { ApiUtils } from "./api/apiUtils";
+import { ApiUtils } from "../../api/apiUtils";
 import { Option, program } from "commander";
 import c from "ansi-colors";
 import ora from "ora";
@@ -144,10 +144,6 @@ function main() {
             }
             const skipCompilation = options.skipCompilation ? options.skipCompilation : SKIP_COMPILATION;
             const summaryReport = options.summaryReport ? path.resolve(cwd, options.summaryReport) : undefined;
-            if (summaryReport && !codeCoverage) {
-                spinner.fail(`The '--summary-report' option requires code coverage to be enabled with the '--code-coverage' option.`);
-                exit(1);
-            }
             const testResult = options.testResult ? path.resolve(cwd, options.testResult) : undefined;
             const testOutput = options.testOutput ? path.resolve(cwd, options.testOutput) : undefined;
             const commandOutput = options.commandOutput ? path.resolve(cwd, options.commandOutput) : undefined;
@@ -234,7 +230,8 @@ function main() {
             }
 
             // Create loggers
-            const summaryLogger = new SummaryLogger(summaryReport);
+            const includeCodeCoverage = codeCoverage ? true : false;
+            const summaryLogger = new SummaryLogger(summaryReport, includeCodeCoverage);
             const testOutputLogger = new TestOutputLogger(testOutput);
             const testResultLogger = new TestResultLogger(testResult);
             const testLogger = new TestLogger(testOutputLogger, testResultLogger);
@@ -453,5 +450,10 @@ function main() {
             }
         });
 
+    try {
     program.parse(process.argv);
+        
+    } catch (error) {
+        console.log(error);
+    }
 }

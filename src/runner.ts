@@ -4,16 +4,16 @@ import { getDeployTools, getInstance } from "./extensions/ibmi";
 import { Configuration, LibraryListValidation, Section } from "./configuration";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { RPGUnit } from "./components/rpgUnit";
-import { Runner, TestCallbacks } from "./cli/src/api/runner";
-import { MergedCoverageData, BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode } from "./cli/src/api/types";
-import { TestLogger } from "./cli/src/api/testLogger";
+import { Runner, TestCallbacks } from "../api/runner";
+import { MergedCoverageData, BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode } from "../api/types";
+import { TestLogger } from "../api/testLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
-import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
+import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
 import { testOutputLogger } from "./extension";
 import { TestCaseData, TestFileData } from "./testData";
-import { ApiUtils } from "./cli/src/api/apiUtils";
+import { ApiUtils } from "../api/apiUtils";
 import * as path from "path";
-import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "./cli/src/api/config";
+import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../api/config";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;

@@ -27,7 +27,7 @@ const extensionConfig = {
   },
   module: {
     rules: [
-      { test: /\.([cm]?ts|tsx)$/, loader: "ts-loader", options: { allowTsInNodeModules: true } }
+      { test: /\.([cm]?ts|tsx)$/, loader: "ts-loader", options: { allowTsInNodeModules: true, transpileOnly: true } }
     ]
   },
   entry: {

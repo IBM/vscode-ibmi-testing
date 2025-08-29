@@ -1,5 +1,5 @@
 import { TestRun } from "vscode";
-import { Logger, LogLevel } from "../cli/src/api/types";
+import { Logger, LogLevel } from "../../api/types";
 
 export class TestResultLogger implements Logger {
     private testRun: TestRun;

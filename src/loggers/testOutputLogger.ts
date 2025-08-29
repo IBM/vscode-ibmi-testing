@@ -1,5 +1,5 @@
 import { LogOutputChannel, window } from "vscode";
-import { Logger, LogLevel } from "../cli/src/api/types";
+import { Logger, LogLevel } from "../../api/types";
 
 export class TestOutputLogger implements Logger {
     private logOutputChannel: LogOutputChannel;
