@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from "path";
 import lodash from "lodash";
 import { ConfigHandler, Logger, LogLevel, TestingConfig } from "./types";
-import IBMi, { MemberParts } from '@halcyontech/vscode-ibmi-types/api/IBMi';
+import IBMi, { MemberParts } from 'vscode-ibmi/src/api/IBMi';
 
 const TESTING_CONFIG_NAME = 'testing';
 const TESTING_CONFIG_EXT = 'json';

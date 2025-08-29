@@ -5,7 +5,7 @@ import * as unzipper from "unzipper";
 import * as xml2js from "xml2js";
 import { CoverageData, LogLevel } from "./types";
 import { TestLogger } from "./testLogger";
-import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
+import IBMi from "vscode-ibmi/src/api/IBMi";
 
 export class CodeCoverageParser {
     private connection: IBMi;

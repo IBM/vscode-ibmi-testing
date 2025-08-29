@@ -2,8 +2,8 @@
 import { parseStringPromise } from "xml2js";
 import { MergedCoverageData, BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, MappedCoverageData, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestStatus, TestSuite, WrapperCmd } from "./types";
 import { TestLogger } from "./testLogger";
-import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
-import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
+import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
+import IBMi from "vscode-ibmi/src/api/IBMi";
 import { ApiUtils } from "./apiUtils";
 import { IBMiTestStorage } from "./storage";
 import { CodeCoverageParser } from "./codeCoverageParser";

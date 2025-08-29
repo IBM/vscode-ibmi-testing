@@ -1,4 +1,4 @@
-import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
+import IBMi from "vscode-ibmi/src/api/IBMi";
 import { TestStorage } from "./types";
 
 export namespace IBMiTestStorage {

@@ -1,7 +1,6 @@
 import { CompilationStatus, DeploymentStatus, Logger, LogLevel, MergedCoverageData, TestMetrics } from "./types";
 import c from "ansi-colors";
 import * as path from "path";
-import { GREEN_THRESHOLD, YELLOW_THRESHOLD } from "..";
 import { table, TableUserConfig } from "table";
 
 export class TestLogger {
@@ -152,8 +151,8 @@ export class TestLogger {
     }
 
     async logCoverage(finalCoverageDatasets: MergedCoverageData[], coverageThresholds: string[]) {
-        const yellow = coverageThresholds.length > 1 ? Number(coverageThresholds[0]) : Number(YELLOW_THRESHOLD);
-        const green = coverageThresholds.length > 0 ? Number(coverageThresholds[1]) : Number(GREEN_THRESHOLD);
+        const yellow = coverageThresholds.length > 1 ? Number(coverageThresholds[0]) : Number(60);
+        const green = coverageThresholds.length > 0 ? Number(coverageThresholds[1]) : Number(90);
         let totalUncoveredLines = 0;
         let totalCoveredLines = 0;
         let totalExecutableLines = 0;

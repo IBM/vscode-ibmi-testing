@@ -1,5 +1,5 @@
-import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
-import { IBMiMember } from "@halcyontech/vscode-ibmi-types/api/types";
+import IBMi from "vscode-ibmi/src/api/IBMi";
+import { IBMiMember }  from "vscode-ibmi/src/api/types";
 import * as fs from "fs";
 import path from "path";
 
