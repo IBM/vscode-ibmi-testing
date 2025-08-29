@@ -19,9 +19,6 @@ on:
         required: true
         default: true
 
-  release:
-    types: [created]
-
 jobs:
   release:
     name: Release and Publish
@@ -44,10 +41,24 @@ jobs:
           node-version: ${{ matrix.node-version }}
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install NPM Dependencies
+      - name: Install Extension Dependencies
         run: |
           npm install
           npm install -g vsce ovsx
+
+      - name: Install CLI Dependencies
+        working-directory: cli
+        run: |
+          npm install
+
+      - name: Build Extension
+        run: vsce package
+
+      - name: Build CLI
+        working-directory: cli
+        run: |
+          npm run webpack
+          npm publish --dry-run
 
       - name: Publish to Open VSX
         if: github.event_name == 'release' || inputs.publish_openvsx == true

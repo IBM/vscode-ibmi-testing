@@ -30,6 +30,11 @@ jobs:
           npm install
           npm install -g vsce
 
+      - name: Install CLI Dependencies
+        working-directory: cli
+        run: |
+          npm install
+
       - name: Build Extension
         run: vsce package
 
@@ -40,11 +45,8 @@ jobs:
           path: ./*.vsix
           if-no-files-found: error
 
-      - name: Install CLI Dependencies
-        working-directory: cli
-        run: |
-          npm install
-
       - name: Build CLI
         working-directory: cli
-        run: npm run webpack
+        run: |
+          npm run webpack
+          npm publish --dry-run
