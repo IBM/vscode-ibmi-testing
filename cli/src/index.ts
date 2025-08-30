@@ -76,11 +76,11 @@ function main() {
             ``,
             `Examples:`,
             `  1. Run tests in local directory:`,
-            c.magenta(`     itest --ld . --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`),
+            c.magenta(`     itest --ld . --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB --cc`),
             `  2. Run tests in IFS directory:`,
-            c.magenta(`     itest --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`),
+            c.magenta(`     itest --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB --cc`),
             `  3. Run tests in library:`,
-            c.magenta(`     itest --l RPGUTILS --ll RPGUNIT QDEVTOOLS --cl RPGUTILS`)
+            c.magenta(`     itest --l RPGUTILS --ll RPGUNIT QDEVTOOLS --cl RPGUTILS --cc`)
         ].join(`\n`));
 
     // Setup CLI options
