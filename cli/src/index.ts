@@ -102,6 +102,7 @@ function main() {
             spinner.color = 'green';
             spinner.text = 'Setting up environment';
             spinner.start();
+            const isRunningOnIBMi = os.type().includes('400');
 
             // Resolve to absolute paths and other options
             const cwd = process.cwd();
@@ -110,7 +111,7 @@ function main() {
             if (localDirectory && !ifsDirectory) {
                 spinner.fail(`The '--local-directory' option requires an IFS directory to deploy to using the '--ifs-directory' option.`);
                 exit(1);
-            } else if (ifsDirectory) {
+            } else if (ifsDirectory && isRunningOnIBMi) {
                 ifsDirectory = path.posix.resolve(cwd, ifsDirectory);
             }
             if (ifsDirectory?.startsWith('//')) {
@@ -151,7 +152,6 @@ function main() {
             // Setup credentials based on if running on IBM i
             let localSSH: LocalSSH | undefined;
             let credentials: ConnectionData;
-            const isRunningOnIBMi = os.type().includes('400');
             if (isRunningOnIBMi) {
                 if (localDirectory) {
                     spinner.fail(`The '--local-directory' option is not supported when running on IBM i.`);
