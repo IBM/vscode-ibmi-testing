@@ -31,6 +31,8 @@ Check out the [examples](#examples) section below for more details.
 
 ## Options
 
+Listed below are all the available options for the `itest` command. For convenience, use the `itest --help` command to see all these options and their descriptions directly in your terminal.
+
 | Flag                                           | Description                                                                  |
 |------------------------------------------------|------------------------------------------------------------------------------|
 | `--v, --version`                               |  Display the version number                                                  |
@@ -49,8 +51,21 @@ Check out the [examples](#examples) section below for more details.
 | `--co, --command-output [path]`                |  Save command output logs (preset: "./.itest/command-output.log")            |
 | `--h, --help`                                  |  Display help for command                                                    |
 
-> [!TIP]
-> For convenience, use the `itest --help` command to see all these options and their descriptions directly in your terminal.
+> [!CAUTION]
+> If you are using Git Bash on Windows, POSIX-style paths are automatically converted to Windows paths. This conversion can break the path > passed to the `--ifs-directory` option. To prevent this, you have two options:
+>   1. Add an additional `/` to the start of any relative or absolute POSIX path:
+>       ```sh
+>       itest --ld . --id //home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB --cc
+>       ```
+>   2. Set the environment variable `MSYS_NO_PATHCONV` to `1`:
+>       ```sh
+>       # Option A: Set the variable for your shell session
+>       export MSYS_NO_PATHCONV=1
+>       itest --ld . --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB --cc
+> 
+>       # Option B: Set the variable only for this command
+>       MSYS_NO_PATHCONV=1 itest --ld . --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB --cc
+>       ```
 
 ## Examples
 
