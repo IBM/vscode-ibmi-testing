@@ -32,6 +32,9 @@ export class TestLogger {
         } else if (status === 'failed') {
             await this.testResultLogger.append(` ${c.red(`[ Deployment Failed ]`)}\r\n`);
             await this.testOutputLogger.log(LogLevel.Error, `Failed to deploy ${workspaceName}`);
+        } else if (status === 'skipped') {
+            await this.testResultLogger.append(` ${c.grey(`[ Deployment Skipped ]`)}\r\n`);
+            await this.testOutputLogger.log(LogLevel.Error, `Skipped deploy of ${workspaceName}`);
         }
     }
 
@@ -89,14 +92,14 @@ export class TestLogger {
     }
 
     async logMetrics(metrics: TestMetrics) {
-        const totalDeployments = metrics.deployments.success + metrics.deployments.failed;
+        const totalDeployments = metrics.deployments.success + metrics.deployments.failed + metrics.deployments.skipped;
         const totalCompilations = metrics.compilations.success + metrics.compilations.failed + metrics.compilations.skipped;
         const totalTestFiles = metrics.testFiles.passed + metrics.testFiles.failed + metrics.testFiles.errored;
         const totalTestCases = metrics.testCases.passed + metrics.testCases.failed + metrics.testCases.errored;
 
         // Format text with ansi colors
         const testExecutionHeading = `${c.bgBlue(` EXECUTION `)}`;
-        const deploymentResult = `Deployments:  ${c.green(`${metrics.deployments.success} successful`)} | ${c.red(`${metrics.deployments.failed} failed`)} ${c.grey(`(${totalDeployments})`)}`;
+        const deploymentResult = `Deployments:  ${c.green(`${metrics.deployments.success} successful`)} | ${c.red(`${metrics.deployments.failed} failed`)} | ${metrics.deployments.skipped} skipped ${c.grey(`(${totalDeployments})`)}`;
         const compilationResult = `Compilations: ${c.green(`${metrics.compilations.success} successful`)} | ${c.red(`${metrics.compilations.failed} failed`)} | ${metrics.compilations.skipped} skipped ${c.grey(`(${totalCompilations})`)}`;
         const testResultsHeading = `${c.bgBlue(` RESULTS `)}`;
         const testFileResult = `Test Files:   ${c.green(`${metrics.testFiles.passed} passed`)} | ${c.red(`${metrics.testFiles.failed} failed`)} | ${c.yellow(`${metrics.testFiles.errored} errored`)} ${c.grey(`(${totalTestFiles})`)}`;

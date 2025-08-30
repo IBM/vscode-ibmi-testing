@@ -48,7 +48,7 @@ export class Runner {
         this.testMetrics = {
             duration: 0,
             assertions: 0,
-            deployments: { success: 0, failed: 0 },
+            deployments: { success: 0, failed: 0, skipped: 0 },
             compilations: { success: 0, failed: 0, skipped: 0 },
             testFiles: { passed: 0, failed: 0, errored: 0 },
             testCases: { passed: 0, failed: 0, errored: 0 }
@@ -74,14 +74,14 @@ export class Runner {
                 await this.testLogger.logWorkspace(workspaceFolderName, testBucket.testSuites.length);
 
                 // Deploy workspace
-                const deploymentStatus = await this.testCallbacks.deploy(workspaceFolderPath);
+                const deploymentStatus = this.testRequest.compileMode === 'skip' ? 'skipped' :
+                    await this.testCallbacks.deploy(workspaceFolderPath);
                 await this.testLogger.logDeployment(workspaceFolderName, deploymentStatus);
 
                 // Check deployment status
-                const isDeployed = deploymentStatus === 'success';
-                if (isDeployed) {
+                if (deploymentStatus === 'success') {
                     this.testMetrics.deployments.success++;
-                } else {
+                } else if (deploymentStatus === 'failed') {
                     this.testMetrics.deployments.failed++;
 
                     // Error out all test suites since deployment failed
@@ -97,6 +97,8 @@ export class Runner {
                         }
                     }
                     continue;
+                } else {
+                    this.testMetrics.deployments.skipped++;
                 }
             } else if (testBucket.uri.scheme === 'streamfile') {
                 // Log IFS directory
@@ -115,7 +117,7 @@ export class Runner {
                 // Compile test suite if needed
                 let isCompiled = this.testRequest.compileMode === 'skip' ? true :
                     this.testRequest.compileMode === 'force' ? false :
-                    testSuite.isCompiled;
+                        testSuite.isCompiled;
                 if (isCompiled) {
                     await this.testLogger.logCompilation(testSuite.name, 'skipped', []);
                     this.testMetrics.compilations.skipped++;
@@ -150,7 +152,7 @@ export class Runner {
         this.testCallbacks.addCoverageDatasets(mergedCoverageDatasets);
 
         const shouldLogCoverage = this.testCallbacks.shouldLogCoverage();
-        if(shouldLogCoverage) {
+        if (shouldLogCoverage) {
             const coverageThresholds = this.testCallbacks.getCoverageThresholds();
             await this.testLogger.logCoverage(mergedCoverageDatasets, coverageThresholds);
         }
