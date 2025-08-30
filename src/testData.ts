@@ -1,6 +1,6 @@
 import { commands, DocumentSymbol, LogLevel, Position, Range, SymbolKind, TestItem, workspace } from "vscode";
 import { testOutputLogger, manager } from "./extension";
-import { ApiUtils } from "./api/apiUtils";
+import { ApiUtils } from "../api/apiUtils";
 import Parser from "vscode-rpgle/language/parser";
 import { getInstance } from "./extensions/ibmi";
 import * as fs from "fs";
@@ -47,7 +47,7 @@ export class TestFileData extends TestData {
                         memberContent = fs.readFileSync(this.item.uri!.fsPath, 'utf8');
                     } else {
                         const parsedPath = connection.parserMemberPath(this.item.uri!.path);
-                        memberContent = await ApiUtils.readMember(parsedPath.library, parsedPath.file, parsedPath.name);
+                        memberContent = await ApiUtils.readMember(connection, parsedPath.library, parsedPath.file, parsedPath.name);
                     }
 
                     // Parse file

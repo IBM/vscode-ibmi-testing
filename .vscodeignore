@@ -3,13 +3,17 @@
 .vscode-test/**
 out/**
 node_modules/**
+api/**
+cli/**
 src/**
 examples/**
+.itest
 .gitignore
 .gitmodules
 .yarnrc
 webpack.config.js
 vsc-extension-quickstart.md
+ibmi-testing.code-workspace
 **/tsconfig.json
 **/.eslintrc.json
 **/*.map

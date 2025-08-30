@@ -1,5 +1,5 @@
 import { TestRun } from "vscode";
-import { Logger, LogLevel } from "../api/types";
+import { Logger, LogLevel } from "../../api/types";
 
 export class TestResultLogger implements Logger {
     private testRun: TestRun;
@@ -16,7 +16,7 @@ export class TestResultLogger implements Logger {
         //  Not used
     }
 
-    async logWithNotification(level: LogLevel, message: string, details?: string, buttons?: { label: string; func: () => Promise<void>; }[]): Promise<void> {
+    async appendWithNotification(level: LogLevel, message: string, details?: string, buttons?: { label: string; func: () => Promise<void>; }[]): Promise<void> {
         // Not used
     }
 }

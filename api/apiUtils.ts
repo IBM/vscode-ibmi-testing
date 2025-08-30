@@ -1,5 +1,9 @@
-import { IBMiMember } from "@halcyontech/vscode-ibmi-types/api/types";
-import { getInstance } from "../extensions/ibmi";
+import IBMi from "vscode-ibmi/src/api/IBMi";
+import { IBMiMember }  from "vscode-ibmi/src/api/types";
+import * as fs from "fs";
+import path from "path";
+
+export type Env = Record<string, string>;
 
 export namespace ApiUtils {
     /**
@@ -92,6 +96,49 @@ export namespace ApiUtils {
         return systemName.substring(0, 10).toUpperCase();
     }
 
+    /**
+     * Retrieve the environment variables defined in a workspace folder's `.env` file. This implementation
+     * is a modified version of the original source to include `&` as a prefix for each key.
+     * 
+     * Original Source: https://github.com/codefori/vscode-ibmi/blob/master/src/filesystems/local/env.ts#L20
+     */
+    export async function getEnvConfig(workspaceFolderPath: string) {
+        const env: Env = {};
+        const prefix = `&`;
+
+        const envPath = path.join(workspaceFolderPath, `.env`);
+        if (await envExists(envPath)) {
+            const envContent = await fs.promises.readFile(envPath, { encoding: 'utf8' });
+            const envLines = envContent.replace(new RegExp(`\\\r`, `g`), ``).split(`\n`);
+
+            // Parse out the env lines
+            envLines.forEach(line => {
+                if (!line.startsWith(`#`)) {
+                    const [key, value] = line.split(`=`);
+                    if (key.length > 0 && value.length > 0) {
+                        env[`${prefix}${key.trim()}`] = value.trim();
+                    }
+                }
+            });
+        }
+
+        return env;
+    }
+
+    /**
+     * Check if a `.env` file exists in a workspace folder.
+     * 
+     * Original Source: https://github.com/codefori/vscode-ibmi/blob/master/src/filesystems/local/env.ts#L8
+     */
+    async function envExists(envPath: string): Promise<boolean> {
+        try {
+            const stats = await fs.promises.stat(envPath);
+            return stats.isFile();
+        } catch (err) {
+            return false;
+        }
+    }
+
     export function isRPGLE(fsPath: string): boolean {
         const rpgleTestSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: false });
         return rpgleTestSuffixes.qsys.some(suffix => fsPath.toLocaleUpperCase().endsWith(suffix));
@@ -114,10 +161,7 @@ export namespace ApiUtils {
         return flattenedCompileParams;
     }
 
-    export async function getMemberList(libraries: string[], sourceFiles: string[], extensions: string[]): Promise<IBMiMember[]> {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-
+    export async function getMemberList(connection: IBMi, libraries: string[], sourceFiles: string[], extensions: string[]): Promise<IBMiMember[]> {
         const statement =
             `WITH MEMBERS AS (
                         SELECT RTRIM(CAST(a.SYSTEM_TABLE_SCHEMA AS CHAR(10) FOR BIT DATA)) AS LIBRARY,
@@ -150,10 +194,7 @@ export namespace ApiUtils {
         }
     }
 
-    export async function readMember(library: string, file: string, member: string): Promise<string> {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-
+    export async function readMember(connection: IBMi, library: string, file: string, member: string): Promise<string> {
         const rFilePath = `${library}/${file}(${member})`;
         const result = await connection.sendCommand({ command: `/QOpenSys/usr/bin/Rfile -rQ "${rFilePath}"` });
         if (result.code === 0) {

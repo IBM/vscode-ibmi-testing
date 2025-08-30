@@ -6,6 +6,8 @@ For ideas on where to help out, check out the [open issues](https://github.com/I
 
 ## Getting Started
 
+### Extension
+
 1. Install [VS Code](https://code.visualstudio.com/download) and [Node.js](https://nodejs.org/en/download/package-manager).
 2. Create a [fork](https://github.com/IBM/vscode-ibmi-testing/fork) of this repository.
 3. Clone your fork.
@@ -13,11 +15,25 @@ For ideas on where to help out, check out the [open issues](https://github.com/I
    git clone https://github.com/your-username/vscode-ibmi-testing.git
    cd vscode-ibmi-testing
    ```
-4. Install all dependencies.
+4. Install all extension dependencies.
     ```sh
     npm install
     ```
 5. Use `Run Extension` from VS Code's `Run and Debug` view.
+
+### CLI
+
+1. Follow steps 1-3 from above.
+2. Install all CLI dependencies.
+    ```sh
+    cd cli
+    npm install
+    ```
+3. Build the CLI.
+    ```sh
+    npm run webpack
+    ```
+4. Use the `Run CLI` from VS Code's `Run and Debug` view or use the CLI from the terminal as described [here](./cli/README.md).
 
 ## Contributors
 

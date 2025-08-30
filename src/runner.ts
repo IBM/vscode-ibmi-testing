@@ -4,17 +4,16 @@ import { getDeployTools, getInstance } from "./extensions/ibmi";
 import { Configuration, LibraryListValidation, Section } from "./configuration";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { RPGUnit } from "./components/rpgUnit";
-import { Runner, TestCallbacks } from "./api/runner";
-import { BasicUri, CompileMode, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest } from "./api/types";
-import { TestLogger } from "./api/testLogger";
+import { Runner, TestCallbacks } from "../api/runner";
+import { MergedCoverageData, BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode } from "../api/types";
+import { TestLogger } from "../api/testLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
-import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
-import { Utils } from "./utils";
+import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
 import { testOutputLogger } from "./extension";
 import { TestCaseData, TestFileData } from "./testData";
-import { ApiUtils } from "./api/apiUtils";
+import { ApiUtils } from "../api/apiUtils";
 import * as path from "path";
-import { ConfigHandler } from "./config";
+import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../api/config";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
@@ -113,14 +112,27 @@ export class IBMiTestRunner {
         // Add test suite
         let existingTestSuiteIndex = testBuckets[existingTestBucketIndex].testSuites.findIndex((testSuite) => testSuite.uri.fsPath === testFileItem.uri!.fsPath);
         if (existingTestSuiteIndex < 0) {
-            let ccLvl: '*LINE' | '*PROC' | undefined;
+            let ccLvl: CCLVL | undefined;
             if (this.request.profile?.kind === TestRunProfileKind.Coverage) {
                 ccLvl = this.request.profile.label.includes('Line Coverage') ? '*LINE' : '*PROC';
             } else {
                 ccLvl = undefined;
             }
 
-            const configHandler = new ConfigHandler();
+            const ibmi = getInstance();
+            const connection = ibmi!.getConnection();
+
+            // Get testing config
+            let configHandler: ConfigHandler;
+            if (testFileItem.uri!.scheme === 'file') {
+                configHandler = new LocalConfigHandler(testOutputLogger, testBucketItem.uri!.fsPath, testFileItem.uri!.fsPath);
+            } else if (testFileItem.uri!.scheme === 'member') {
+                configHandler = new QsysConfigHandler(connection, testOutputLogger, testFileItem.uri!.path);
+            } else {
+                configHandler = new IfsConfigHandler(connection, testOutputLogger, testBucketItem.uri!.path, testFileItem.uri!.fsPath);
+            }
+            const testingConfig = await configHandler.getConfig();
+
             testBuckets[existingTestBucketIndex].testSuites.push({
                 name: testFileItem.label,
                 systemName: ApiUtils.getSystemNameFromPath(path.parse(testFileItem.uri!.fsPath).name),
@@ -134,7 +146,7 @@ export class IBMiTestRunner {
                 isCompiled: testFileData.isCompiled,
                 isEntireSuite: true,
                 ccLvl: ccLvl,
-                testingConfig: testFileItem.uri!.scheme === 'file' ? (await configHandler.getLocalConfig(testFileItem.uri!)) : await configHandler.getRemoteConfig(testFileItem.uri!)
+                testingConfig: testingConfig
             });
             existingTestSuiteIndex = testBuckets[existingTestBucketIndex].testSuites.length - 1;
         }
@@ -246,9 +258,7 @@ export class IBMiTestRunner {
                 });
             },
             getEnvConfig: async (workspaceFolderPath: string): Promise<Env> => {
-                const workspaceFolder = workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath));
-                const env = workspaceFolder ? (await Utils.getEnvConfig(workspaceFolder)) : {};
-                return env;
+                return await ApiUtils.getEnvConfig(workspaceFolderPath) || {};
             },
             getProductLibrary: (): string => {
                 const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
@@ -350,8 +360,19 @@ export class IBMiTestRunner {
                     testRun.errored(testItem, testMessages, duration);
                 }
             },
-            addCoverage: (fileCoverage: IBMiFileCoverage): void => {
-                testRun.addCoverage(fileCoverage);
+            addCoverageDatasets: (mergedCoverageDatasets: MergedCoverageData[]): void => {
+                for (const mergedCoverageData of mergedCoverageDatasets) {
+                    const fileCoverage = new IBMiFileCoverage(mergedCoverageData);
+                    testRun.addCoverage(fileCoverage);
+                }
+            },
+            shouldLogCoverage: (): boolean => {
+                // Not used
+                return false;
+            },
+            getCoverageThresholds: (): string[] => {
+                // Not used
+                return [];
             },
             end: async (): Promise<void> => {
                 testRun.end();
@@ -359,7 +380,7 @@ export class IBMiTestRunner {
         };
 
         // Run test buckets
-        const runner: Runner = new Runner(testRequest, testCallbacks, testLogger);
+        const runner: Runner = new Runner(connection, testRequest, testCallbacks, testLogger);
         await runner.run();
     }
 
@@ -400,7 +421,7 @@ export class IBMiTestRunner {
 
             // Warn user which test buckets are missing the RPGUnit library
             if (testBucketsMissingProductLibrary.length > 0) {
-                testOutputLogger.logWithNotification(
+                testOutputLogger.appendWithNotification(
                     LogLevel.Warning,
                     `${productLibrary}.LIB not found on the library list. This may impact resolving of include files for the following: ${testBucketsMissingProductLibrary.map(bucket => bucket.name).join(', ')}`,
                     undefined,
@@ -417,7 +438,7 @@ export class IBMiTestRunner {
 
             // Warn user which test buckets are missing the QDEVTOOLS library
             if (testBucketsMissingQDevToolsLibrary.length > 0) {
-                testOutputLogger.logWithNotification(
+                testOutputLogger.appendWithNotification(
                     LogLevel.Warning,
                     `${qdevtoolsLibrary}.LIB not found on the library list. This may impact code coverage for the following: ${testBucketsMissingQDevToolsLibrary.map(bucket => bucket.name).join(', ')}`,
                     undefined,

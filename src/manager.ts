@@ -3,7 +3,7 @@ import * as path from "path";
 import { IBMiTestRunner } from "./runner";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { getInstance } from "./extensions/ibmi";
-import { ApiUtils } from "./api/apiUtils";
+import { ApiUtils } from "../api/apiUtils";
 import { Configuration, Section } from "./configuration";
 import { testOutputLogger } from "./extension";
 import { TestData, TestFileData } from "./testData";
@@ -127,7 +127,7 @@ export class IBMiTestManager {
 
         // Load tests from library list
         await testOutputLogger.log(LogLevel.Info, `Searching for tests in library list: ${libraries.join('.LIB, ')}.LIB`);
-        const testMembers = await ApiUtils.getMemberList(libraries, testSourceFiles, qsysExtensions);
+        const testMembers = await ApiUtils.getMemberList(connection, libraries, testSourceFiles, qsysExtensions);
         for (const testMember of testMembers) {
             const memberPath = testMember.asp ?
                 path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :

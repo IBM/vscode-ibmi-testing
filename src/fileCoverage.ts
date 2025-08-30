@@ -1,52 +1,27 @@
 import { CancellationToken, DeclarationCoverage, FileCoverage, Position, StatementCoverage, TestCoverageCount, TestRun, Uri } from "vscode";
-import { BasicUri, CoverageData } from "./api/types";
+import { MergedCoverageData } from "../api/types";
 
 export class IBMiFileCoverage extends FileCoverage {
     public isStatementCoverage: boolean;
     public readonly lines: StatementCoverage[] = [];
     public readonly procedures: DeclarationCoverage[] = [];
 
-    constructor(uri: BasicUri, coverageData: CoverageData, isStatementCoverage: boolean) {
-        super(Uri.from({ scheme: uri.scheme, path: uri.scheme === 'file' ? uri.fsPath : uri.path, fragment: uri.fragment }), new TestCoverageCount(0, 0));
-        this.isStatementCoverage = isStatementCoverage;
-        this.addCoverage(coverageData, isStatementCoverage);
-    }
+    constructor(mergedCoverageData: MergedCoverageData) {
+        const uri = Uri.from({ scheme: mergedCoverageData.uri.scheme, path: mergedCoverageData.uri.scheme === 'file' ? mergedCoverageData.uri.fsPath : mergedCoverageData.uri.path, fragment: mergedCoverageData.uri.fragment });
+        super(uri, new TestCoverageCount(0, 0));
+        this.isStatementCoverage = mergedCoverageData.ccLvl === '*LINE';
 
-    addCoverage(coverageData: CoverageData, isStatementCoverage: boolean) {
-        for (const [line, executed] of Object.entries(coverageData.coverage.activeLines)) {
+
+        for (const [line, executed] of Object.entries(mergedCoverageData.activeLines)) {
             const linePosition = new Position(Number(line) - 1, 0);
-
-            if (isStatementCoverage) {
-                const existingLineIndex = this.lines.findIndex(line => (line.location as Position).isEqual(linePosition));
-                if (existingLineIndex >= 0) {
-                    const isPreviouslyExecuted = (this.lines[existingLineIndex].executed as boolean);
-                    this.lines[existingLineIndex].executed = isPreviouslyExecuted || executed;
-                    if (!isPreviouslyExecuted) {
-                        this.statementCoverage.covered += executed ? 1 : 0;
-                    }
-                } else {
-                    this.lines.push(new StatementCoverage(executed, linePosition));
-                    this.statementCoverage.covered += executed ? 1 : 0;
-                    this.statementCoverage.total++;
-                }
+            if (this.isStatementCoverage) {
+                this.lines.push(new StatementCoverage(executed, linePosition));
+                this.statementCoverage.covered += executed ? 1 : 0;
+                this.statementCoverage.total++;
             } else {
-                if (!this.declarationCoverage) {
-                    this.declarationCoverage = new TestCoverageCount(0, 0);
-                }
-
-                // TODO: What to set for declaration coverage name - maybe use coverageData.coverage.signitures[Number(line) - 1]
-                const existingProcedureIndex = this.procedures.findIndex(procedure => (procedure.location as Position).isEqual(linePosition));
-                if (existingProcedureIndex >= 0) {
-                    const isPreviouslyExecuted = (this.procedures[existingProcedureIndex].executed as boolean);
-                    this.procedures[existingProcedureIndex].executed = isPreviouslyExecuted || executed;
-                    if (!isPreviouslyExecuted) {
-                        this.declarationCoverage.covered += executed ? 1 : 0;
-                    }
-                } else {
-                    this.procedures.push(new DeclarationCoverage(line, executed, linePosition));
-                    this.declarationCoverage.covered += executed ? 1 : 0;
-                    this.declarationCoverage.total++;
-                }
+                this.procedures.push(new DeclarationCoverage(line, executed, linePosition));
+                this.declarationCoverage.covered += executed ? 1 : 0;
+                this.declarationCoverage.total++;
             }
         }
     }

@@ -19,6 +19,49 @@
 				"${workspaceFolder}/dist/**/*.js"
 			],
 			"preLaunchTask": "${defaultBuildTask}"
+		},
+		{
+			"name": "Run CLI",
+			"type": "node",
+			"request": "launch",
+			"cwd": "${workspaceFolder}/cli",
+			"program": "${workspaceFolder}/cli/dist/index.js",
+			"sourceMaps": true,
+			"args": [
+				"--ifs-directory",
+				"/home/$USER/builds/ibmi-company_system",
+				"--library-list",
+				"RPGUNIT",
+				"QDEVTOOLS",
+				"--summary-report",
+				"--test-output",
+				"--test-result",
+				"--command-output"
+			],
+			"preLaunchTask": "cli:webpack:dev",
+			"env": {
+				"IBMI_HOST": "${input:ibmiHost}",
+				"IBMI_USER": "${input:ibmiUser}",
+				"IBMI_PASSWORD": "${input:ibmiPassword}",
+			}
+		}
+	],
+	"inputs": [
+		{
+			"id": "ibmiHost",
+			"type": "promptString",
+			"description": "Enter the IBMI_HOST"
+		},
+		{
+			"id": "ibmiUser",
+			"type": "promptString",
+			"description": "Enter the IBMI_USER"
+		},
+		{
+			"id": "ibmiPassword",
+			"type": "promptString",
+			"description": "Enter the IBMI_PASSWORD",
+			"password": true
 		}
 	]
 }

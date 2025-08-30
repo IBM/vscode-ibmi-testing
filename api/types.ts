@@ -9,15 +9,19 @@ export enum LogLevel {
 
 export interface Logger {
     append: (message: string) => Promise<void>;
+    appendWithNotification: (level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]) => Promise<void>;
     log: (level: LogLevel, message: string) => Promise<void>;
-    logWithNotification: (level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]) => Promise<void>;
 }
 
 export interface BasicUri {
-    scheme: 'file' | 'member' | 'streamfile';
+    scheme: 'file' | 'member' | 'streamfile' | 'object';
     path: string;
     fsPath: string;
     fragment: string;
+}
+
+export interface ConfigHandler {
+    getConfig(): Promise<TestingConfig | undefined>;
 }
 
 export interface TestRequest {
@@ -42,9 +46,11 @@ export interface TestSuite {
     testCases: TestCase[];
     isCompiled: boolean;
     isEntireSuite: boolean;
-    ccLvl?: '*LINE' | '*PROC'
+    ccLvl?: CCLVL
     testingConfig?: TestingConfig;
 }
+
+export type CCLVL = '*LINE' | '*PROC';
 
 // Test case is a test procedure
 export interface TestCase {
@@ -71,7 +77,7 @@ export type Env = Record<string, string>;
 
 export type TestStatus = 'passed' | 'failed' | 'errored';
 
-export type DeploymentStatus = 'success' | 'failed';
+export type DeploymentStatus = 'success' | 'failed' | 'skipped';
 
 export type CompilationStatus = 'success' | 'failed' | 'skipped';
 
@@ -87,7 +93,8 @@ export interface TestMetrics {
     assertions: number,
     deployments: {
         success: number,
-        failed: number
+        failed: number,
+        skipped: number
     },
     compilations: {
         success: number,
@@ -197,4 +204,16 @@ export interface CoverageData {
         activeLines: { [key: number]: boolean },
         percentRan: string
     }
+}
+
+export interface MappedCoverageData {
+    uri: BasicUri,
+    ccLvl: CCLVL,
+    coverageData: CoverageData
+}
+
+export interface MergedCoverageData {
+    uri: BasicUri;
+    ccLvl: CCLVL;
+    activeLines: { [key: number]: boolean }
 }

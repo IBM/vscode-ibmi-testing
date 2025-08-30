@@ -16,6 +16,13 @@
 				"kind": "build",
 				"isDefault": true
 			}
+		},
+		{
+			"label": "cli:webpack:dev",
+			"type": "npm",
+			"script": "webpack:dev",
+			"path": "cli",
+			"problemMatcher": []
 		}
 	]
 }

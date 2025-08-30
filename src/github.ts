@@ -1,5 +1,5 @@
 import { Octokit } from "octokit";
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
 import { components } from "@octokit/openapi-types";
 import fetch from "node-fetch";
 import * as path from "path";
@@ -53,7 +53,7 @@ export namespace GitHub {
             // Download asset to specified path
             if (response.status === 200) {
                 const filePath = path.join(downloadDirectory, asset.name);
-                await fs.writeFile(filePath, Buffer.from(buffer));
+                await fs.promises.writeFile(filePath, Buffer.from(buffer));
                 isDownloaded.data = true;
             } else {
                 isDownloaded.error = response.statusText;

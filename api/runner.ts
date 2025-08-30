@@ -1,15 +1,14 @@
 
-import * as path from "path";
 import { parseStringPromise } from "xml2js";
-import { BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestStatus, TestSuite, WrapperCmd } from "./types";
+import { MergedCoverageData, BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, MappedCoverageData, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestStatus, TestSuite, WrapperCmd } from "./types";
 import { TestLogger } from "./testLogger";
-import { getInstance } from "../extensions/ibmi";
-import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
+import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
+import IBMi from "vscode-ibmi/src/api/IBMi";
 import { ApiUtils } from "./apiUtils";
 import { IBMiTestStorage } from "./storage";
 import { CodeCoverageParser } from "./codeCoverageParser";
-import { IBMiFileCoverage } from "../fileCoverage";
 import { XMLParser } from "./xmlParser";
+import * as path from "path";
 
 export interface TestCallbacks {
     deploy: (workspaceFolderPath: string) => Promise<DeploymentStatus>;
@@ -27,35 +26,43 @@ export interface TestCallbacks {
     passed: (uri: BasicUri, duration?: number) => Promise<void>;
     failed: (uri: BasicUri, messages: { line?: number, message: string }[], duration?: number) => Promise<void>;
     errored: (uri: BasicUri, messages: { line?: number, message: string }[], duration?: number) => Promise<void>;
-    addCoverage(fileCoverage: IBMiFileCoverage): void;
+    addCoverageDatasets(mergedCoverageDatasets: MergedCoverageData[]): void;
+    shouldLogCoverage: () => boolean;
+    getCoverageThresholds: () => string[];
     end: () => Promise<void>;
 }
 
 export class Runner {
+    private connection: IBMi;
     private testRequest: TestRequest;
     private testCallbacks: TestCallbacks;
     private testLogger: TestLogger;
     private testMetrics: TestMetrics;
-    private fileCoverage: IBMiFileCoverage[];
+    private mappedCoverageDatasets: MappedCoverageData[];
 
-    constructor(testRequest: TestRequest, testCallbacks: TestCallbacks, testLogger: TestLogger) {
+    constructor(connection: IBMi, testRequest: TestRequest, testCallbacks: TestCallbacks, testLogger: TestLogger) {
+        this.connection = connection;
         this.testRequest = testRequest;
         this.testCallbacks = testCallbacks;
         this.testLogger = testLogger;
         this.testMetrics = {
             duration: 0,
             assertions: 0,
-            deployments: { success: 0, failed: 0 },
+            deployments: { success: 0, failed: 0, skipped: 0 },
             compilations: { success: 0, failed: 0, skipped: 0 },
             testFiles: { passed: 0, failed: 0, errored: 0 },
             testCases: { passed: 0, failed: 0, errored: 0 }
         };
-        this.fileCoverage = [];
+        this.mappedCoverageDatasets = [];
+    }
+
+    getTestMetrics(): TestMetrics {
+        return this.testMetrics;
     }
 
     async run(): Promise<void> {
         // Setup RPGUNIT and CODECOV storage directories
-        IBMiTestStorage.setupTestStorage();
+        IBMiTestStorage.setupTestStorage(this.connection);
 
         let isDiagnosticsCleared = this.testCallbacks.isDiagnosticsCleared();
 
@@ -67,14 +74,14 @@ export class Runner {
                 await this.testLogger.logWorkspace(workspaceFolderName, testBucket.testSuites.length);
 
                 // Deploy workspace
-                const deploymentStatus = await this.testCallbacks.deploy(workspaceFolderPath);
+                const deploymentStatus = this.testRequest.compileMode === 'skip' ? 'skipped' :
+                    await this.testCallbacks.deploy(workspaceFolderPath);
                 await this.testLogger.logDeployment(workspaceFolderName, deploymentStatus);
 
                 // Check deployment status
-                const isDeployed = deploymentStatus === 'success';
-                if (isDeployed) {
+                if (deploymentStatus === 'success') {
                     this.testMetrics.deployments.success++;
-                } else {
+                } else if (deploymentStatus === 'failed') {
                     this.testMetrics.deployments.failed++;
 
                     // Error out all test suites since deployment failed
@@ -90,13 +97,17 @@ export class Runner {
                         }
                     }
                     continue;
+                } else {
+                    this.testMetrics.deployments.skipped++;
                 }
-            } else if (testBucket.uri.scheme === 'member') {
+            } else if (testBucket.uri.scheme === 'streamfile') {
+                // Log IFS directory
+                const ifsDirectoryName = testBucket.name;
+                await this.testLogger.logIfsDirectory(ifsDirectoryName, testBucket.testSuites.length);
+            } else if (testBucket.uri.scheme === 'object') {
                 // Log library
                 const libraryName = testBucket.name;
                 await this.testLogger.logLibrary(libraryName, testBucket.testSuites.length);
-            } else {
-                // TODO: Support stream files
             }
 
             for (const testSuite of testBucket.testSuites) {
@@ -106,7 +117,7 @@ export class Runner {
                 // Compile test suite if needed
                 let isCompiled = this.testRequest.compileMode === 'skip' ? true :
                     this.testRequest.compileMode === 'force' ? false :
-                    testSuite.isCompiled;
+                        testSuite.isCompiled;
                 if (isCompiled) {
                     await this.testLogger.logCompilation(testSuite.name, 'skipped', []);
                     this.testMetrics.compilations.skipped++;
@@ -137,19 +148,21 @@ export class Runner {
             }
         }
 
-        for (const coverage of this.fileCoverage) {
-            this.testCallbacks.addCoverage(coverage);
-        }
+        const mergedCoverageDatasets = this.mergeCoverageDatasets(this.mappedCoverageDatasets);
+        this.testCallbacks.addCoverageDatasets(mergedCoverageDatasets);
 
+        const shouldLogCoverage = this.testCallbacks.shouldLogCoverage();
+        if (shouldLogCoverage) {
+            const coverageThresholds = this.testCallbacks.getCoverageThresholds();
+            await this.testLogger.logCoverage(mergedCoverageDatasets, coverageThresholds);
+        }
         await this.testLogger.logMetrics(this.testMetrics);
         await this.testCallbacks.end();
     }
 
     async compileTest(testBucket: TestBucket, testSuite: TestSuite): Promise<CompilationStatus> {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-        const content = connection.getContent();
-        const config = connection.getConfig();
+        const content = this.connection.getContent();
+        const config = this.connection.getConfig();
 
         let testBucketPath: string;
         let testSuitePath: string;
@@ -176,11 +189,23 @@ export class Runner {
             srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
-        } else {
+        } else if (testSuite.uri.scheme === 'streamfile') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 
-            const parsedPath = connection.parserMemberPath(testSuitePath);
+            // Use current library as the test library
+            const libraryList = await this.testCallbacks.getLibraryList();
+            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+
+            deployDirectory = testBucketPath;
+            srcStmf = testSuitePath;
+
+            tstPgm = { name: testSuite.systemName, library: tstLibrary };
+        } else if (testSuite.uri.scheme === 'member') {
+            testBucketPath = testBucket.uri.path;
+            testSuitePath = testSuite.uri.path;
+
+            const parsedPath = this.connection.parserMemberPath(testSuitePath);
             const tstPgmName = parsedPath.name;
             const tstLibrary = parsedPath.library;
             const srcFileName = parsedPath.file;
@@ -203,7 +228,7 @@ export class Runner {
             const rucrtrpg = testSuite.testingConfig?.rpgunit?.rucrtrpg;
             wrapperCmd = testSuite.testingConfig?.rpgunit?.rucrtrpg?.wrapperCmd;
             if (wrapperCmd) {
-                delete rucrtrpg.wrapperCmd;
+                delete rucrtrpg?.wrapperCmd;
             }
 
             compileParams = {
@@ -218,7 +243,7 @@ export class Runner {
             const rucrtcbl = testSuite.testingConfig?.rpgunit?.rucrtcbl;
             wrapperCmd = testSuite.testingConfig?.rpgunit?.rucrtcbl?.wrapperCmd;
             if (wrapperCmd) {
-                delete rucrtcbl.wrapperCmd;
+                delete rucrtcbl?.wrapperCmd;
             }
 
             compileParams = {
@@ -287,7 +312,7 @@ export class Runner {
         let compileResult: any;
         try {
             const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
-            compileResult = await connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
+            compileResult = await this.connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
         } catch (error: any) {
             await this.testLogger.logCompilation(testSuite.name, 'failed', [error.message ? error.message : error]);
             this.testMetrics.compilations.failed++;
@@ -322,10 +347,8 @@ export class Runner {
     }
 
     async runTest(testBucket: TestBucket, testSuite: TestSuite): Promise<void> {
-        const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
-        const content = connection.getContent();
-        const config = connection.getConfig();
+        const content = this.connection.getContent();
+        const config = this.connection.getConfig();
 
         let testBucketPath: string;
         let testSuitePath: string;
@@ -341,11 +364,20 @@ export class Runner {
             const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
-        } else {
+        } else if (testSuite.uri.scheme === 'streamfile') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 
-            const parsedPath = connection.parserMemberPath(testSuitePath);
+            // Use current library as the test library
+            const libraryList = await this.testCallbacks.getLibraryList();
+            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+
+            tstPgm = { name: testSuite.systemName, library: tstLibrary };
+        } else if (testSuite.uri.scheme === 'member') {
+            testBucketPath = testBucket.uri.path;
+            testSuitePath = testSuite.uri.path;
+
+            const parsedPath = this.connection.parserMemberPath(testSuitePath);
             const tstLibrary = parsedPath.library;
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
@@ -370,7 +402,7 @@ export class Runner {
                 await this.testCallbacks.started(testCase.uri);
             }
 
-            const testStorage = IBMiTestStorage.getTestStorage(`${tstPgm.name}${testCase?.name ? `_${testCase?.name}` : ``}`);
+            const testStorage = IBMiTestStorage.getTestStorage(this.connection, `${tstPgm.name}${testCase?.name ? `_${testCase?.name}` : ``}`);
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Test storage for ${testSuite.name}: ${JSON.stringify(testStorage)}`);
             const xmlStmf = testStorage.RPGUNIT;
 
@@ -379,7 +411,7 @@ export class Runner {
             const rucalltst = testSuite.testingConfig?.rpgunit?.rucalltst;
             const wrapperCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.wrapperCmd;
             if (wrapperCmd) {
-                delete rucalltst.wrapperCmd;
+                delete rucalltst?.wrapperCmd;
             }
             const testParams: RUCALLTST = {
                 ...baseExecutionParams,
@@ -424,7 +456,7 @@ export class Runner {
             let testResult: any;
             try {
                 const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
-                testResult = await connection.runCommand({ command: testCommand, environment: `ile`, env: env });
+                testResult = await this.connection.runCommand({ command: testCommand, environment: `ile`, env: env });
             } catch (error: any) {
                 const messages = [{ message: error.message ? error.message : error }];
                 for (const testCase of testSuite.testCases) {
@@ -440,9 +472,9 @@ export class Runner {
             if (testResult.stdout.length > 0) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Info, `${testSuite.name} execution output:\n${testResult.stdout}`);
                 const lines = testResult.stdout.split('\n');
-                for(const line of lines) {
+                for (const line of lines) {
                     const trimmedLine = line.trim();
-                    if(trimmedLine.startsWith('Runtime error: No test case found')) {
+                    if (trimmedLine.startsWith('Runtime error: No test case found')) {
                         await this.testLogger.logRunTimeWarning(trimmedLine);
                         hitRunTimeError = true;
                     }
@@ -453,31 +485,29 @@ export class Runner {
             }
 
             if (testSuite.ccLvl) {
-                const codeCoverageParser = new CodeCoverageParser(this.testLogger);
+                const codeCoverageParser = new CodeCoverageParser(this.connection, this.testLogger);
                 const codeCoverage = await codeCoverageParser.getCoverage(coverageParams!.outStmf);
                 if (codeCoverage) {
-                    const isStatementCoverage = testSuite.ccLvl === '*LINE';
-
-                    for (const codeCovResult of codeCoverage) {
+                    for (const coverageData of codeCoverage) {
                         let uri: BasicUri;
                         if (testSuite.uri.scheme === 'file') {
                             // Map code coverage results from deploy directory to local workspace
                             const deployDirectory = this.testCallbacks.getDeployDirectory(testBucketPath);
 
-                            if (`/${codeCovResult.path}`.startsWith(deployDirectory)) {
+                            if (`/${coverageData.path}`.startsWith(deployDirectory)) {
                                 // Get relative remote path to test
-                                const relativePathToTest = path.posix.relative(deployDirectory, `/${codeCovResult.path}`);
+                                const relativePathToTest = path.posix.relative(deployDirectory, `/${coverageData.path}`);
 
                                 // Construct local path to test
                                 const localPath = path.join(testBucketPath, relativePathToTest);
                                 uri = { scheme: 'file', fsPath: localPath, path: localPath, fragment: '' };
                             } else {
-                                uri = { scheme: 'file', fsPath: codeCovResult.localPath, path: codeCovResult.localPath, fragment: '' };
+                                uri = { scheme: 'file', fsPath: coverageData.localPath, path: coverageData.localPath, fragment: '' };
                             }
                         } else {
                             // Map code coverage results to source members
                             let memberPath: string = '';
-                            const parts = codeCovResult.path.split('/');
+                            const parts = coverageData.path.split('/');
 
                             if (parts.length === 3 && parts[1].toLocaleUpperCase().endsWith('.FILE')) {
                                 // This is a temporary hack due to https://github.com/IBM/vscode-ibmi-testing/issues/70
@@ -501,13 +531,11 @@ export class Runner {
                             uri = { scheme: 'member', fsPath: memberPath, path: memberPath, fragment: '' };
                         }
 
-                        const existingFileCoverageIndex = this.fileCoverage.findIndex((coverage) => coverage.uri.toString() === uri.toString());
-                        if (existingFileCoverageIndex >= 0) {
-                            this.fileCoverage[existingFileCoverageIndex].addCoverage(codeCovResult, isStatementCoverage);
-                        } else {
-                            const newFileCoverage = new IBMiFileCoverage(uri, codeCovResult, isStatementCoverage);
-                            this.fileCoverage.push(newFileCoverage);
-                        }
+                        this.mappedCoverageDatasets.push({
+                            uri: uri,
+                            ccLvl: testSuite.ccLvl,
+                            coverageData: coverageData
+                        });
                     }
                 }
             }
@@ -517,7 +545,7 @@ export class Runner {
             try {
                 const xmlStmfContent = (await content.downloadStreamfileRaw(testParams.xmlStmf));
                 const xml = await parseStringPromise(xmlStmfContent);
-                testCaseResults = XMLParser.parseTestResults(xml, testSuite.uri.scheme === 'file');
+                testCaseResults = XMLParser.parseTestResults(xml, testSuite.uri.scheme === 'file' || testSuite.uri.scheme === 'streamfile');
             } catch (error: any) {
                 for (const testCase of testSuite.testCases) {
                     const messages = [{ message: error.message ? error.message : error }];
@@ -581,5 +609,41 @@ export class Runner {
                 this.testMetrics.testFiles.errored++;
             }
         }
+    }
+
+    mergeCoverageDatasets(mappedCoverageDatasets: MappedCoverageData[]): MergedCoverageData[] {
+        const mergedCoverageDatasets: MergedCoverageData[] = [];
+
+        for (const mappedCoverageData of mappedCoverageDatasets) {
+            const existingIndex = mergedCoverageDatasets.findIndex(mergedData =>
+                mergedData.uri.fsPath === mappedCoverageData.uri.fsPath &&
+                mergedData.ccLvl === mappedCoverageData.ccLvl
+            );
+
+            if (existingIndex === -1) {
+                // Add new coverage data
+                mergedCoverageDatasets.push({
+                    uri: mappedCoverageData.uri,
+                    ccLvl: mappedCoverageData.ccLvl,
+                    activeLines: mappedCoverageData.coverageData.coverage.activeLines
+                });
+            } else {
+                // Merge coverage data
+                const existingData = mergedCoverageDatasets[existingIndex];
+                const existingLines = existingData.activeLines;
+                const newLines = mappedCoverageData.coverageData.coverage.activeLines;
+
+                for (const [lineStr, covered] of Object.entries(newLines)) {
+                    const line = Number(lineStr);
+                    if (line in existingLines) {
+                        existingLines[line] = existingLines[line] || covered;
+                    } else {
+                        existingLines[line] = covered;
+                    }
+                }
+            }
+        }
+
+        return mergedCoverageDatasets;
     }
 }

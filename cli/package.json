@@ -1,0 +1,58 @@
+{
+  "name": "@ibm/itest",
+  "displayName": "IBM i Testing CLI",
+  "description": "IBM i Testing CLI",
+  "author": {
+    "name": "IBM",
+    "url": "https://github.com/IBM"
+  },
+  "publisher": "IBM",
+  "license": "Apache-2.0",
+  "version": "1.2.0",
+  "repository": {
+    "url": "https://github.com/IBM/vscode-ibmi-testing/blob/main/src/cli"
+  },
+  "homepage": "https://codefori.github.io/docs/developing/testing/overview",
+  "bugs": {
+    "url": "https://github.com/IBM/vscode-ibmi-testing/issues"
+  },
+  "keywords": [
+    "ibmi",
+    "iseries",
+    "as400",
+    "test",
+    "irpgunit"
+  ],
+  "categories": [
+    "Testing"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/src/index.d.ts",
+  "bin": {
+    "itest": "./dist/index.js"
+  },
+  "scripts": {
+    "preinstall": "cd ../api && npm install && cd ../cli",
+    "webpack:dev": "webpack --mode none --config ./webpack.config.js",
+    "webpack": "webpack --mode production --config ./webpack.config.js",
+    "local": "npm run webpack:dev && npm i -g",
+    "deploy": "npm run webpack && npm i && npm publish --access public"
+  },
+  "dependencies": {
+    "ansi-colors": "^4.1.3",
+    "commander": "^13.1.0",
+    "inquirer": "^12.7.0",
+    "node-ssh": "^13.1.0",
+    "ora": "^8.2.0",
+    "vscode-ibmi": "github:halcyon-tech/vscode-ibmi",
+    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle"
+  },
+  "devDependencies": {
+    "@types/ssh2": "^1.15.5",
+    "copy-webpack-plugin": "^13.0.0",
+    "ts-loader": "^9.4.4",
+    "typescript": "^5.8.2",
+    "webpack": "^5.24.3",
+    "webpack-cli": "^4.5.0"
+  }
+}
