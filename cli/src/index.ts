@@ -68,7 +68,7 @@ function main() {
     program
         .version(VERSION, `--v, --version`, `Display the version number`)
         .name(`itest`)
-        .description(`The ${c.cyanBright(`IBM i Testing CLI (itest)`)} is a companion to the IBM i Testing VS Code extension, which\nallows you to run unit tests and generate code coverage results for RPG and COBOL programs\non IBM i. With this CLI, you can run tests in your terminal on your local PC or in PASE on IBM i. This enables\nyou to even script the execution of tests in a CI/CD pipeline.\n\n✨ Documentation: https://codefori.github.io/docs/developing/testing/cli`)
+        .description(`The ${c.cyanBright(`IBM i Testing CLI (itest)`)} is a companion to the IBM i Testing VS Code extension, which\nallows you to run unit tests and generate code coverage results for RPG and COBOL programs\non IBM i. With this CLI, you can run tests in your terminal on your local PC or in PASE on\nIBM i. This enables you to even script the execution of tests in a CI/CD pipeline.\n\n✨ Documentation: https://codefori.github.io/docs/developing/testing/cli`)
         .helpOption(`--h, --help`, `Display help for command`)
         .showHelpAfterError()
         .showSuggestionAfterError()
