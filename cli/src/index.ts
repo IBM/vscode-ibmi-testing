@@ -118,6 +118,10 @@ function main() {
                 ifsDirectory = ifsDirectory.substring(1);
             }
             const library = options.library ? options.library : undefined;
+            if(!localDirectory && !ifsDirectory && !library) {
+                spinner.fail(`The '--local-directory', '--ifs-directory', or '--library' option must be specified to indicate what tests to run.`);
+                exit(1);
+            }
             const sourceFiles = options.sourceFiles ? options.sourceFiles : undefined;
             const libraryList = options.libraryList ? options.libraryList : undefined;
             const currentLibrary = options.currentLibrary ? options.currentLibrary : undefined;
