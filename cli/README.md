@@ -26,6 +26,9 @@ Once installed, you can run the `itest` command in your terminal along with vari
 
 Check out the [examples](#examples) section below for more details.
 
+> [!NOTE]
+> If you are running the command on your local PC, you will be prompted to enter your IBM i connection details. Alternatively, you can set the following environment variables: `IBMI_HOST`, `IBMI_USER`, and `IBMI_PASSWORD` (or `IBMI_PRIVATE_KEY` if using private key authentication).
+
 ## Options
 
 | Flag                                           | Description                                                                  |
@@ -46,9 +49,8 @@ Check out the [examples](#examples) section below for more details.
 | `--co, --command-output [path]`                |  Save command output logs (preset: "./.itest/command-output.log")            |
 | `--h, --help`                                  |  Display help for command                                                    |
 
-<Aside type="tip">
-   For convenience, use the `itest --help` command to see all these options and their descriptions directly in your terminal.
-</Aside>
+> [!TIP]
+> For convenience, use the `itest --help` command to see all these options and their descriptions directly in your terminal.
 
 ## Examples
 
