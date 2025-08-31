@@ -32,7 +32,7 @@
     "itest": "./dist/index.js"
   },
   "scripts": {
-    "preinstall": "cd ../api && npm install && cd ../cli",
+    "install:api": "cd ../api && npm install && cd ../cli",
     "webpack:dev": "webpack --mode none --config ./webpack.config.js",
     "webpack": "webpack --mode production --config ./webpack.config.js",
     "local": "npm run webpack:dev && npm i -g",

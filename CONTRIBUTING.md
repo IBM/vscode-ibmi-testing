@@ -27,6 +27,7 @@ For ideas on where to help out, check out the [open issues](https://github.com/I
 2. Install all CLI dependencies.
     ```sh
     cd cli
+    npm install:api
     npm install
     ```
 3. Build the CLI.
