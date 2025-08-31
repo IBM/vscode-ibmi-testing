@@ -74,7 +74,7 @@ jobs:
 
       - name: Publish CLI to NPM
         if: github.event_name == 'release' || inputs.publish_npm == true
-        working-directory: src/cli
+        working-directory: cli
         run: |
           npm run webpack
           npm publish --access public
