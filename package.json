@@ -237,9 +237,7 @@
     "compare-versions": "^6.1.1",
     "node-fetch": "^3.3.2",
     "octokit": "^4.1.2",
-    "tmp": "^0.2.3",
-    "vscode-ibmi": "github:halcyon-tech/vscode-ibmi",
-    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle"
+    "tmp": "^0.2.3"
   },
   "devDependencies": {
     "@types/node": "20.x",
@@ -251,6 +249,8 @@
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.5",
     "webpack": "^5.92.1",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^5.1.4",
+    "vscode-ibmi": "github:halcyon-tech/vscode-ibmi",
+    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle"
   }
 }
