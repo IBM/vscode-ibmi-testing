@@ -14,7 +14,7 @@ The [IBM i Testing CLI](https://www.npmjs.com/package/@ibm/itest) (`itest`) is a
 This CLI can be used on your local PC or directly on IBM i. In either case, it can be installed globally via NPM:
 
 ```sh
-npm install -g itest
+npm i -g itest
 ```
 
 ## Usage
