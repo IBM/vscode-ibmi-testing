@@ -39,8 +39,7 @@
     "table": "^6.9.0",
     "tmp": "^0.2.3",
     "unzipper": "^0.11.6",
-    "xml2js": "^0.6.2",
-    "vscode-ibmi": "github:halcyon-tech/vscode-ibmi"
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.16",
@@ -50,6 +49,7 @@
     "ts-loader": "^9.4.4",
     "typescript": "^5.8.2",
     "webpack": "^5.24.3",
-    "webpack-cli": "^4.5.0"
+    "webpack-cli": "^4.5.0",
+    "vscode-ibmi": "github:halcyon-tech/vscode-ibmi"
   }
 }
