@@ -29,10 +29,11 @@
 			"sourceMaps": true,
 			"args": [
 				"--ifs-directory",
-				"/home/$USER/builds/ibmi-company_system",
+				"/home/${input:ibmiUser}/builds/ibmi-company_system",
 				"--library-list",
 				"RPGUNIT",
 				"QDEVTOOLS",
+				"--code-coverage",
 				"--summary-report",
 				"--test-output",
 				"--test-result",

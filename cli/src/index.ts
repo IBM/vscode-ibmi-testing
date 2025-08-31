@@ -68,7 +68,7 @@ function main() {
     program
         .version(VERSION, `--v, --version`, `Display the version number`)
         .name(`itest`)
-        .description(`The ${c.cyanBright(`IBM i Testing CLI (itest)`)} is a companion to the IBM i Testing VS Code extension, which\nallows you to run unit tests and generate code coverage results for RPG and COBOL programs\non IBM i. With this CLI, you can run tests in your terminal on your local PC or in PASE on IBM i. This enables\nyou to even script the execution of tests in a CI/CD pipeline.\n\n✨ Documentation: https://codefori.github.io/docs/developing/testing/cli`)
+        .description(`The ${c.cyanBright(`IBM i Testing CLI (itest)`)} is a companion to the IBM i Testing VS Code extension, which\nallows you to run unit tests and generate code coverage results for RPG and COBOL programs\non IBM i. With this CLI, you can run tests in your terminal on your local PC or in PASE on\nIBM i. This enables you to even script the execution of tests in a CI/CD pipeline.\n\n✨ Documentation: https://codefori.github.io/docs/developing/testing/cli`)
         .helpOption(`--h, --help`, `Display help for command`)
         .showHelpAfterError()
         .showSuggestionAfterError()
@@ -76,11 +76,11 @@ function main() {
             ``,
             `Examples:`,
             `  1. Run tests in local directory:`,
-            c.magenta(`     itest --ld . --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`),
+            c.magenta(`     itest --ld . --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB --cc`),
             `  2. Run tests in IFS directory:`,
-            c.magenta(`     itest --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB`),
+            c.magenta(`     itest --id /home/USER/builds/ibmi-company_system --ll RPGUNIT QDEVTOOLS --cl MYLIB --cc`),
             `  3. Run tests in library:`,
-            c.magenta(`     itest --l RPGUTILS --ll RPGUNIT QDEVTOOLS --cl RPGUTILS`)
+            c.magenta(`     itest --l RPGUTILS --ll RPGUNIT QDEVTOOLS --cl RPGUTILS --cc`)
         ].join(`\n`));
 
     // Setup CLI options
@@ -102,21 +102,32 @@ function main() {
             spinner.color = 'green';
             spinner.text = 'Setting up environment';
             spinner.start();
+            const isRunningOnIBMi = os.type().includes('400');
 
             // Resolve to absolute paths and other options
             const cwd = process.cwd();
             const localDirectory = options.localDirectory ? path.resolve(cwd, options.localDirectory) : undefined;
             let ifsDirectory = options.ifsDirectory ? options.ifsDirectory : undefined;
-            if (localDirectory && !ifsDirectory) {
-                spinner.fail(`The '--local-directory' option requires an IFS directory to deploy to using the '--ifs-directory' option.`);
-                exit(1);
-            } else if (ifsDirectory) {
-                ifsDirectory = path.posix.resolve(cwd, ifsDirectory);
-            }
             if (ifsDirectory?.startsWith('//')) {
                 ifsDirectory = ifsDirectory.substring(1);
             }
+            if (!localDirectory && !isRunningOnIBMi) {
+                spinner.fail(`The '--local-directory' option is required when not running on IBM i.`);
+                exit(1);
+            } else if (localDirectory && isRunningOnIBMi) {
+                spinner.fail(`The '--local-directory' option is not supported when running on IBM i.`);
+                exit(1);
+            } else if (localDirectory && !ifsDirectory) {
+                spinner.fail(`The '--local-directory' option requires an IFS directory to deploy to using the '--ifs-directory' option.`);
+                exit(1);
+            } else if (ifsDirectory && isRunningOnIBMi) {
+                ifsDirectory = path.posix.resolve(cwd, ifsDirectory);
+            }
             const library = options.library ? options.library : undefined;
+            if (!localDirectory && !ifsDirectory && !library) {
+                spinner.fail(`The '--local-directory', '--ifs-directory', or '--library' option must be specified to indicate what tests to run.`);
+                exit(1);
+            }
             const sourceFiles = options.sourceFiles ? options.sourceFiles : undefined;
             const libraryList = options.libraryList ? options.libraryList : undefined;
             const currentLibrary = options.currentLibrary ? options.currentLibrary : undefined;
@@ -151,7 +162,6 @@ function main() {
             // Setup credentials based on if running on IBM i
             let localSSH: LocalSSH | undefined;
             let credentials: ConnectionData;
-            const isRunningOnIBMi = os.type().includes('400');
             if (isRunningOnIBMi) {
                 if (localDirectory) {
                     spinner.fail(`The '--local-directory' option is not supported when running on IBM i.`);
@@ -451,8 +461,8 @@ function main() {
         });
 
     try {
-    program.parse(process.argv);
-        
+        program.parse(process.argv);
+
     } catch (error) {
         console.log(error);
     }
