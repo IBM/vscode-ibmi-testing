@@ -7,6 +7,8 @@
 
 The [IBM i Testing CLI](https://www.npmjs.com/package/@ibm/itest) (`itest`) is a companion to the [IBM i Testing](https://marketplace.visualstudio.com/items?itemName=IBM.vscode-ibmi-testing) VS Code extension, which allows you to run unit tests and generate code coverage results for RPG and COBOL programs on IBM i. With this CLI, you can run tests in your terminal on your local PC or in PASE on IBM i. This enables you to even script the execution of tests in a CI/CD pipeline.
 
+<img src="https://raw.githubusercontent.com/codefori/docs/refs/heads/main/src/content/docs/developing/testing/Testing_CLI.png">
+
 ## Installation
 
 This CLI can be used on your local PC or directly on IBM i. In either case, it can be installed globally via NPM:

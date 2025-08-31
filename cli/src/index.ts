@@ -108,17 +108,23 @@ function main() {
             const cwd = process.cwd();
             const localDirectory = options.localDirectory ? path.resolve(cwd, options.localDirectory) : undefined;
             let ifsDirectory = options.ifsDirectory ? options.ifsDirectory : undefined;
-            if (localDirectory && !ifsDirectory) {
+            if (ifsDirectory?.startsWith('//')) {
+                ifsDirectory = ifsDirectory.substring(1);
+            }
+            if (!localDirectory && !isRunningOnIBMi) {
+                spinner.fail(`The '--local-directory' option is required when not running on IBM i.`);
+                exit(1);
+            } else if (localDirectory && isRunningOnIBMi) {
+                spinner.fail(`The '--local-directory' option is not supported when running on IBM i.`);
+                exit(1);
+            } else if (localDirectory && !ifsDirectory) {
                 spinner.fail(`The '--local-directory' option requires an IFS directory to deploy to using the '--ifs-directory' option.`);
                 exit(1);
             } else if (ifsDirectory && isRunningOnIBMi) {
                 ifsDirectory = path.posix.resolve(cwd, ifsDirectory);
             }
-            if (ifsDirectory?.startsWith('//')) {
-                ifsDirectory = ifsDirectory.substring(1);
-            }
             const library = options.library ? options.library : undefined;
-            if(!localDirectory && !ifsDirectory && !library) {
+            if (!localDirectory && !ifsDirectory && !library) {
                 spinner.fail(`The '--local-directory', '--ifs-directory', or '--library' option must be specified to indicate what tests to run.`);
                 exit(1);
             }
@@ -455,8 +461,8 @@ function main() {
         });
 
     try {
-    program.parse(process.argv);
-        
+        program.parse(process.argv);
+
     } catch (error) {
         console.log(error);
     }
