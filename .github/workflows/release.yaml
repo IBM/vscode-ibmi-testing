@@ -49,6 +49,7 @@ jobs:
       - name: Install CLI Dependencies
         working-directory: cli
         run: |
+          npm run install:api
           npm install
 
       - name: Build Extension
