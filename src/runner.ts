@@ -51,6 +51,11 @@ export class IBMiTestRunner {
     }
 
     private async processRequestItems(testRun: TestRun, testBuckets: TestBucket[], item: TestItem): Promise<void> {
+        // Check for cancellation request before processing requested test items
+        if (this.token.isCancellationRequested) {
+            return;
+        }
+
         if (this.request.exclude?.includes(item)) {
             return;
         }
@@ -201,6 +206,12 @@ export class IBMiTestRunner {
         const testResultLogger = new TestResultLogger(testRun);
         const testLogger = new TestLogger(testOutputLogger, testResultLogger);
 
+        // Check for cancellation request before checking if RPGUnit is installed
+        if (this.token.isCancellationRequested) {
+            testRun.end();
+            return;
+        }
+
         // Check if RPGUnit is installed
         const installation = await RPGUnit.checkInstallation();
         if (!installation.status) {
@@ -218,6 +229,12 @@ export class IBMiTestRunner {
             compileMode: this.compileMode,
             testBuckets: testBuckets
         };
+
+        // Check for cancellation request before validating library list
+        if (this.token.isCancellationRequested) {
+            testRun.end();
+            return;
+        }
 
         // Validate library list has RPGUNIT and QDEVTOOLS
         await this.validateLibraryList(testBuckets);
