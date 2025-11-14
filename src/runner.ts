@@ -127,9 +127,9 @@ export class IBMiTestRunner {
             if (testFileItem.uri!.scheme === 'file') {
                 configHandler = new LocalConfigHandler(testOutputLogger, testBucketItem.uri!.fsPath, testFileItem.uri!.fsPath);
             } else if (testFileItem.uri!.scheme === 'member') {
-                configHandler = new QsysConfigHandler(connection, testOutputLogger, testFileItem.uri!.path);
+                configHandler = new QsysConfigHandler(connection as any, testOutputLogger, testFileItem.uri!.path);
             } else {
-                configHandler = new IfsConfigHandler(connection, testOutputLogger, testBucketItem.uri!.path, testFileItem.uri!.fsPath);
+                configHandler = new IfsConfigHandler(connection as any, testOutputLogger, testBucketItem.uri!.path, testFileItem.uri!.fsPath);
             }
             const testingConfig = await configHandler.getConfig();
 
@@ -380,7 +380,7 @@ export class IBMiTestRunner {
         };
 
         // Run test buckets
-        const runner: Runner = new Runner(connection, testRequest, testCallbacks, testLogger);
+        const runner: Runner = new Runner(connection as any, testRequest, testCallbacks, testLogger);
         await runner.run();
     }
 

@@ -47,7 +47,7 @@ export class TestFileData extends TestData {
                         memberContent = fs.readFileSync(this.item.uri!.fsPath, 'utf8');
                     } else {
                         const parsedPath = connection.parserMemberPath(this.item.uri!.path);
-                        memberContent = await ApiUtils.readMember(connection, parsedPath.library, parsedPath.file, parsedPath.name);
+                        memberContent = await ApiUtils.readMember(connection as any, parsedPath.library, parsedPath.file, parsedPath.name);
                     }
 
                     // Parse file
