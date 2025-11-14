@@ -29,6 +29,7 @@ export interface TestCallbacks {
     addCoverageDatasets(mergedCoverageDatasets: MergedCoverageData[]): void;
     shouldLogCoverage: () => boolean;
     getCoverageThresholds: () => string[];
+    isCancellationRequested: () => boolean;
     end: () => Promise<void>;
 }
 
@@ -48,10 +49,10 @@ export class Runner {
         this.testMetrics = {
             duration: 0,
             assertions: 0,
-            deployments: { success: 0, failed: 0, skipped: 0 },
-            compilations: { success: 0, failed: 0, skipped: 0 },
-            testFiles: { passed: 0, failed: 0, errored: 0 },
-            testCases: { passed: 0, failed: 0, errored: 0 }
+            deployments: { success: 0, errored: 0, skipped: 0, cancelled: 0 },
+            compilations: { success: 0, errored: 0, skipped: 0, cancelled: 0 },
+            testFiles: { passed: 0, failed: 0, errored: 0, skipped: 0, cancelled: 0 },
+            testCases: { passed: 0, failed: 0, errored: 0, skipped: 0, cancelled: 0 }
         };
         this.mappedCoverageDatasets = [];
     }
@@ -73,6 +74,27 @@ export class Runner {
                 const workspaceFolderPath = testBucket.uri.fsPath;
                 await this.testLogger.logWorkspace(workspaceFolderName, testBucket.testSuites.length);
 
+                // Check for cancellation request before deployment
+                if (this.testCallbacks.isCancellationRequested()) {
+                    await this.testLogger.logDeployment(workspaceFolderName, 'cancelled');
+                    this.testMetrics.deployments.cancelled++;
+
+                    // Skip all test suites since user requested cancellation
+                    for (const testSuite of testBucket.testSuites) {
+                        await this.testLogger.logTestSuite(testSuite.name, testSuite.systemName, testSuite.testCases.length);
+                        await this.testLogger.logCompilation(testSuite.name, 'cancelled', []);
+                        this.testMetrics.compilations.cancelled++;
+                        this.testMetrics.testFiles.cancelled++;
+
+                        for (const testCase of testSuite.testCases) {
+                            await this.testLogger.logTestCaseCancelled(testCase.name);
+                            await this.testCallbacks.skipped(testCase.uri);
+                            this.testMetrics.testCases.cancelled++;
+                        }
+                    }
+                    break;
+                }
+
                 // Deploy workspace
                 const deploymentStatus = this.testRequest.compileMode === 'skip' ? 'skipped' :
                     await this.testCallbacks.deploy(workspaceFolderPath);
@@ -81,19 +103,20 @@ export class Runner {
                 // Check deployment status
                 if (deploymentStatus === 'success') {
                     this.testMetrics.deployments.success++;
-                } else if (deploymentStatus === 'failed') {
-                    this.testMetrics.deployments.failed++;
+                } else if (deploymentStatus === 'errored') {
+                    this.testMetrics.deployments.errored++;
 
-                    // Error out all test suites since deployment failed
+                    // Skip all test suites since deployment failed
                     for (const testSuite of testBucket.testSuites) {
                         await this.testLogger.logTestSuite(testSuite.name, testSuite.systemName, testSuite.testCases.length);
                         await this.testLogger.logCompilation(testSuite.name, 'skipped', []);
                         this.testMetrics.compilations.skipped++;
+                        this.testMetrics.testFiles.skipped++;
 
                         for (const testCase of testSuite.testCases) {
-                            await this.testLogger.logTestCaseErrored(testCase.name, []);
-                            await this.testCallbacks.errored(testCase.uri, []);
-                            this.testMetrics.testCases.errored++;
+                            await this.testLogger.logTestCaseSkipped(testCase.name);
+                            await this.testCallbacks.skipped(testCase.uri);
+                            this.testMetrics.testCases.skipped++;
                         }
                     }
                     continue;
@@ -114,6 +137,21 @@ export class Runner {
                 // Log test suite
                 await this.testLogger.logTestSuite(testSuite.name, testSuite.systemName, testSuite.testCases.length);
 
+                // Check for cancellation request before compile
+                if (this.testCallbacks.isCancellationRequested()) {
+                    await this.testLogger.logCompilation(testSuite.name, 'cancelled', []);
+                    this.testMetrics.compilations.cancelled++;
+                    this.testMetrics.testFiles.cancelled++;
+
+                    // Skip all test cases since user requested cancellation
+                    for (const testCase of testSuite.testCases) {
+                        await this.testLogger.logTestCaseCancelled(testCase.name);
+                        await this.testCallbacks.skipped(testCase.uri);
+                        this.testMetrics.testCases.cancelled++;
+                    }
+                    continue;
+                }
+
                 // Compile test suite if needed
                 let isCompiled = this.testRequest.compileMode === 'skip' ? true :
                     this.testRequest.compileMode === 'force' ? false :
@@ -133,11 +171,26 @@ export class Runner {
 
                 // Check compilation status
                 if (!isCompiled) {
+                    this.testMetrics.testFiles.errored++;
+
                     // Error out all test cases since compile failed
                     for (const testCase of testSuite.testCases) {
                         await this.testLogger.logTestCaseErrored(testCase.name, []);
                         await this.testCallbacks.errored(testCase.uri, []);
                         this.testMetrics.testCases.errored++;
+                    }
+                    continue;
+                }
+
+                // Check for cancellation request before run
+                if (this.testCallbacks.isCancellationRequested()) {
+                    this.testMetrics.testFiles.cancelled++;
+
+                    // Skip all test cases since user requested cancellation
+                    for (const testCase of testSuite.testCases) {
+                        await this.testLogger.logTestCaseCancelled(testCase.name);
+                        await this.testCallbacks.skipped(testCase.uri);
+                        this.testMetrics.testCases.cancelled++;
                     }
                     continue;
                 }
@@ -214,7 +267,7 @@ export class Runner {
             srcFile = { name: srcFileName, library: tstLibrary };
             srcMbr = tstPgmName;
         } else {
-            return 'failed';
+            return 'errored';
         }
 
         let wrapperCmd: WrapperCmd | undefined;
@@ -316,9 +369,9 @@ export class Runner {
             const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
             compileResult = await this.connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
         } catch (error: any) {
-            await this.testLogger.logCompilation(testSuite.name, 'failed', [error.message ? error.message : error]);
-            this.testMetrics.compilations.failed++;
-            return 'failed';
+            await this.testLogger.logCompilation(testSuite.name, 'errored', [error.message ? error.message : error]);
+            this.testMetrics.compilations.errored++;
+            return 'errored';
         }
 
         try {
@@ -342,9 +395,9 @@ export class Runner {
             this.testMetrics.compilations.success++;
             return 'success';
         } else {
-            await this.testLogger.logCompilation(testSuite.name, 'failed', compileResult.stderr.split('\n'));
-            this.testMetrics.compilations.failed++;
-            return 'failed';
+            await this.testLogger.logCompilation(testSuite.name, 'errored', compileResult.stderr.split('\n'));
+            this.testMetrics.compilations.errored++;
+            return 'errored';
         }
     }
 

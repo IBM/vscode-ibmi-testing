@@ -1,4 +1,4 @@
-import { TestRunRequest, TestItem, TestRun, workspace, TestRunProfileKind, Uri, commands, TestMessage, Position, Location } from "vscode";
+import { TestRunRequest, TestItem, TestRun, workspace, TestRunProfileKind, Uri, commands, TestMessage, Position, Location, CancellationToken } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { getDeployTools, getInstance } from "./extensions/ibmi";
 import { Configuration, LibraryListValidation, Section } from "./configuration";
@@ -18,11 +18,13 @@ import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../api/
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
     private request: TestRunRequest;
+    private token: CancellationToken;
     private compileMode: CompileMode;
 
-    constructor(manager: IBMiTestManager, request: TestRunRequest, compileMode: CompileMode) {
+    constructor(manager: IBMiTestManager, request: TestRunRequest, token: CancellationToken, compileMode: CompileMode) {
         this.manager = manager;
         this.request = request;
+        this.token = token;
         this.compileMode = compileMode;
     }
 
@@ -228,7 +230,7 @@ export class IBMiTestRunner {
                 const workspaceFolder = workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath))!;
                 const defaultDeploymentMethod = config.defaultDeploymentMethod;
                 const deployResult = await deployTools!.launchDeploy(workspaceFolder.index, defaultDeploymentMethod || undefined);
-                const deploymentStatus = deployResult ? 'success' : 'failed';
+                const deploymentStatus = deployResult ? 'success' : 'errored';
                 return deploymentStatus;
             },
             getDeployDirectory: (workspaceFolderPath: string): string => {
@@ -373,6 +375,9 @@ export class IBMiTestRunner {
             getCoverageThresholds: (): string[] => {
                 // Not used
                 return [];
+            },
+            isCancellationRequested: (): boolean => {
+                return this.token.isCancellationRequested;
             },
             end: async (): Promise<void> => {
                 testRun.end();
