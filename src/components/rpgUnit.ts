@@ -264,10 +264,10 @@ export class RPGUnit implements IBMiComponent {
 
     static async checkInstallation(): Promise<{ status: boolean, error?: string }> {
         const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
+        const connection = ibmi!.getConnection()!;
 
-        const componentManager = connection?.getComponentManager();
-        const state = await componentManager?.getRemoteState(RPGUnit.ID);
+        const componentManager = connection.getComponentManager();
+        const state = await componentManager.getRemoteState(RPGUnit.ID);
         const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         const title = state === 'NeedsUpdate' ?
             'RPGUnit Update Required' :

@@ -69,7 +69,7 @@ export async function activate(context: ExtensionContext) {
 	// Subscribe to IBM i connect and disconnect events
 	let connection: IBMi | undefined;
 	ibmi!.subscribe(context, 'connected', 'Load IBM i Test Manager', async () => {
-		connection = ibmi!.getConnection();
+		connection = ibmi!.getConnection()!;
 		await testOutputLogger.log(LogLevel.Debug, `Connected to ${connection.currentUser}@${connection.currentHost}`);
 
 		if (!manager) {

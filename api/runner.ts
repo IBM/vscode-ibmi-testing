@@ -213,6 +213,8 @@ export class Runner {
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
             srcFile = { name: srcFileName, library: tstLibrary };
             srcMbr = tstPgmName;
+        } else {
+            return 'failed';
         }
 
         let wrapperCmd: WrapperCmd | undefined;
@@ -381,6 +383,8 @@ export class Runner {
             const tstLibrary = parsedPath.library;
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
+        } else {
+            return;
         }
 
         const qualifiedTstPgm = `${tstPgm.library}/${tstPgm.name}`.toLocaleUpperCase();

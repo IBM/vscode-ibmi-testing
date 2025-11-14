@@ -37,8 +37,7 @@ export namespace TestStubCodeActions {
             ),
             commands.registerCommand('vscode-rpgle.generateTestStub', async (document: TextDocument, docs: Cache, exportProcedures: Declaration[]) => {
                 const ibmi = getInstance();
-                const connection = ibmi!.getConnection();
-                const content = ibmi!.getContent();
+                const connection = ibmi!.getConnection()!;
 
                 // Get test stub generation preferences
                 const testStubPreferences = Configuration.getOrFallback<TestStubPreferences>(Section.testStubPreferences);
@@ -97,9 +96,14 @@ export namespace TestStubCodeActions {
                         path.posix.join(parsedPath.asp, parsedPath.library, testFileParentName, testFileName) :
                         path.posix.join(parsedPath.library, testFileParentName, testFileName);
                     testFileUri = Uri.from({ scheme: 'member', path: `/${testFilePath}` });
+                } else {
+                    window.showErrorMessage(`Unsupported file type: ${document.uri.scheme}`);
+                    return;
                 }
 
                 if (testFileUri.scheme === 'member') {
+                    const content = connection.getContent();
+
                     // Check if test source file exists
                     const parsedPath = connection.parserMemberPath(document.uri.path);
                     const sourceFileExists = await content.checkObject({ library: parsedPath.library, name: testFileParentName, type: '*FILE' });
@@ -563,16 +567,14 @@ export namespace TestStubCodeActions {
 
     function constructInclude(uri: Uri): { name: string, text: string } {
         if (uri.scheme === 'file') {
-            const workspaceFolder = workspace.getWorkspaceFolder(uri);
-            if (workspaceFolder) {
-                const newInclude = `'${asPosix(path.relative(workspaceFolder.uri.fsPath, uri.fsPath))}'`;
-                const newIncludeText = `/include ${newInclude}`;
+            const workspaceFolder = workspace.getWorkspaceFolder(uri)!;
+            const newInclude = `'${asPosix(path.relative(workspaceFolder.uri.fsPath, uri.fsPath))}'`;
+            const newIncludeText = `/include ${newInclude}`;
 
-                return { name: newInclude, text: newIncludeText };
-            }
+            return { name: newInclude, text: newIncludeText };
         } else {
             const ibmi = getInstance();
-            const connection = ibmi!.getConnection();
+            const connection = ibmi!.getConnection()!;
             const parsedPath = connection.parserMemberPath(uri.path);
             const newInclude = `${parsedPath.file},${parsedPath.name}`;
             const newIncludeText = `/include ${newInclude}`;

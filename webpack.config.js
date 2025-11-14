@@ -30,7 +30,7 @@ const extensionConfig = {
   },
   module: {
     rules: [
-      { test: /\.([cm]?ts|tsx)$/, loader: "ts-loader", options: { allowTsInNodeModules: true, transpileOnly: true } }
+      { test: /\.([cm]?ts|tsx)$/, loader: "ts-loader", options: { allowTsInNodeModules: true } }
     ]
   },
   devtool: 'nosources-source-map',

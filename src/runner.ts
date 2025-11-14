@@ -120,7 +120,7 @@ export class IBMiTestRunner {
             }
 
             const ibmi = getInstance();
-            const connection = ibmi!.getConnection();
+            const connection = ibmi!.getConnection()!;
 
             // Get testing config
             let configHandler: ConfigHandler;
@@ -189,7 +189,7 @@ export class IBMiTestRunner {
 
     async runHandler() {
         const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
+        const connection = ibmi!.getConnection()!;
         const config = connection.getConfig();
 
         // Create test run
@@ -388,7 +388,7 @@ export class IBMiTestRunner {
         const libraryListValidation = Configuration.get<LibraryListValidation>(Section.libraryListValidation);
         if (libraryListValidation) {
             const ibmi = getInstance();
-            const connection = ibmi!.getConnection();
+            const connection = ibmi!.getConnection()!;
 
             const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
             const qdevtoolsLibrary = 'QDEVTOOLS';

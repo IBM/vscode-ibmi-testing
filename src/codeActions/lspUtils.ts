@@ -58,7 +58,7 @@ export namespace LspUtils {
                 // LIKE can also be used on procedures, and it will return the return type of the procedure
                 reference = docs.procedures.find(s => s.name.toUpperCase() === refName);
                 if (reference) {
-                    return this.resolveType(docs, reference);
+                    return resolveType(docs, reference);
                 }
             }
 

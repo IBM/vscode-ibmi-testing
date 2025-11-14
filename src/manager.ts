@@ -106,7 +106,7 @@ export class IBMiTestManager {
         }
 
         const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
+        const connection = ibmi!.getConnection()!;
 
         // Get search parameters for tests in library list
         let libraries: string[] = [];
@@ -238,7 +238,7 @@ export class IBMiTestManager {
                 };
             } else if (uri.scheme === 'member') {
                 const ibmi = getInstance();
-                const connection = ibmi!.getConnection();
+                const connection = ibmi!.getConnection()!;
 
                 const parsedPath = connection.parserMemberPath(uri.path);
 
@@ -387,11 +387,11 @@ export class IBMiTestManager {
         // If the test is a member, check if its source file is in the set of test source files to search in
         if (uri.scheme === 'member') {
             const ibmi = getInstance();
-            const connection = ibmi!.getConnection();
+            const connection = ibmi!.getConnection()!;
 
             const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles).map(file => file.toLocaleUpperCase());
             const parsedPath = connection.parserMemberPath(uri.path);
-            if(!testSourceFiles.includes(parsedPath.file.toLocaleUpperCase())) {
+            if (!testSourceFiles.includes(parsedPath.file.toLocaleUpperCase())) {
                 return;
             }
         }
