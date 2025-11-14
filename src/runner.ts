@@ -8,7 +8,7 @@ import { Runner, TestCallbacks } from "../api/runner";
 import { MergedCoverageData, BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode } from "../api/types";
 import { TestLogger } from "../api/testLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
-import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
+import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
 import { testOutputLogger } from "./extension";
 import { TestCaseData, TestFileData } from "./testData";
 import { ApiUtils } from "../api/apiUtils";

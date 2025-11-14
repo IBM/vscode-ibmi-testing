@@ -4,6 +4,7 @@
 
 const path = require('path');
 const webpack = require(`webpack`);
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
@@ -35,7 +36,20 @@ const extensionConfig = {
   },
   devtool: 'nosources-source-map',
   plugins: [
-    new webpack.IgnorePlugin({ resourceRegExp: /(cpu-features|sshcrypto\.node)/u })
+    new webpack.IgnorePlugin({ resourceRegExp: /(cpu-features|sshcrypto\.node)/u }),
+    new ForkTsCheckerWebpackPlugin({
+      typescript: {
+        diagnosticOptions: {
+          semantic: true,
+          syntactic: true
+        }
+      },
+      issue: {
+        exclude: [
+          { file: '**/node_modules/**' }
+        ]
+      }
+    })
   ],
   infrastructureLogging: {
     level: "log", // enables logging required for problem matchers

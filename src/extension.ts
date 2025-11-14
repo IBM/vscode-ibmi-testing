@@ -2,7 +2,7 @@ import { ConfigurationChangeEvent, ExtensionContext, LogLevel, workspace } from 
 import { IBMiTestManager } from "./manager";
 import { getComponentRegistry, getInstance, loadBase } from "./extensions/ibmi";
 import { Configuration, Section } from "./configuration";
-import IBMi from "vscode-ibmi/src/api/IBMi";
+import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { RPGUnit } from "./components/rpgUnit";
 import { CodeCov } from "./components/codeCov";
 import * as tmp from "tmp";
