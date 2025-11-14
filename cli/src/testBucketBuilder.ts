@@ -26,12 +26,13 @@ export abstract class TestBucketBuilder {
 
         // Parse file
         const parsedContent = await this.rpgParser.getDocs(filePath, content);
-
-        // Find RPGLE test procedures
-        const rpgleTestCaseRegex = /^TEST.*$/i;
-        for (const procedure of parsedContent.procedures) {
-            if (rpgleTestCaseRegex.test(procedure.name)) {
-                testCases.push(procedure.name);
+        if (parsedContent) {
+            // Find RPGLE test procedures
+            const rpgleTestCaseRegex = /^TEST.*$/i;
+            for (const procedure of parsedContent.procedures) {
+                if (rpgleTestCaseRegex.test(procedure.name)) {
+                    testCases.push(procedure.name);
+                }
             }
         }
 

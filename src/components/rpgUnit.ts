@@ -1,5 +1,5 @@
-import { ComponentIdentification, ComponentState, IBMiComponent } from "vscode-ibmi/src/api/components/component";
-import IBMi from "vscode-ibmi/src/api/IBMi";
+import { ComponentIdentification, ComponentState, IBMiComponent } from "@halcyontech/vscode-ibmi-types/api/components/component";
+import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { Configuration, Section } from "../configuration";
 import { compareVersions } from 'compare-versions';
 import { GitHub, Release } from "../github";
@@ -264,10 +264,10 @@ export class RPGUnit implements IBMiComponent {
 
     static async checkInstallation(): Promise<{ status: boolean, error?: string }> {
         const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
+        const connection = ibmi!.getConnection()!;
 
-        const componentManager = connection?.getComponentManager();
-        const state = await componentManager?.getRemoteState(RPGUnit.ID);
+        const componentManager = connection.getComponentManager();
+        const state = await componentManager.getRemoteState(RPGUnit.ID);
         const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
         const title = state === 'NeedsUpdate' ?
             'RPGUnit Update Required' :

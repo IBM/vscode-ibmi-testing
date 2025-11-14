@@ -20,6 +20,9 @@ export class IBMiFileCoverage extends FileCoverage {
                 this.statementCoverage.total++;
             } else {
                 this.procedures.push(new DeclarationCoverage(line, executed, linePosition));
+                if (!this.declarationCoverage) {
+                    this.declarationCoverage = new TestCoverageCount(0, 0);
+                }
                 this.declarationCoverage.covered += executed ? 1 : 0;
                 this.declarationCoverage.total++;
             }

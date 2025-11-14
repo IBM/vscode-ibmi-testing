@@ -5,6 +5,7 @@
 const path = require('path');
 const webpack = require(`webpack`);
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
@@ -27,7 +28,7 @@ const extensionConfig = {
   },
   module: {
     rules: [
-      { test: /\.([cm]?ts|tsx)$/, loader: "ts-loader", options: { allowTsInNodeModules: true, transpileOnly: true } }
+      { test: /\.([cm]?ts|tsx)$/, loader: "ts-loader", options: { allowTsInNodeModules: true } }
     ]
   },
   entry: {
@@ -52,6 +53,19 @@ const extensionConfig = {
         },
       ],
     }),
+    new ForkTsCheckerWebpackPlugin({
+      typescript: {
+        diagnosticOptions: {
+          semantic: true,
+          syntactic: true
+        }
+      },
+      issue: {
+        exclude: [
+          { file: '**/node_modules/**' }
+        ]
+      }
+    })
   ]
 };
 module.exports = [extensionConfig];

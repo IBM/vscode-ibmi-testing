@@ -58,6 +58,7 @@ const TEST_OUTPUT_PATH = `./${LOG_DIRECTORY}/test-output.log`;
 const COMMAND_OUTPUT_PATH = `./${LOG_DIRECTORY}/command-output.log`;
 export const YELLOW_THRESHOLD = `60`;
 export const GREEN_THRESHOLD = `90`;
+const COVERAGE_THRESHOLDS = [YELLOW_THRESHOLD, GREEN_THRESHOLD];
 
 main();
 
@@ -92,7 +93,7 @@ function main() {
         .addOption(new Option(`--ll, --library-list <libraries...>`, `Libraries to add to the library list.`))
         .addOption(new Option(`--cl, --current-library <library>`, `The current library to use for the test run.`))
         .addOption(new Option(`--cc, --code-coverage [ccLvl]`, `Run with code coverage`).preset(CODE_COVERAGE_LINE).choices([CODE_COVERAGE_LINE, CODE_COVERAGE_PROC]))
-        .addOption(new Option(`--ct, --coverage-thresholds <threshholds...>`, `Set the code coverage thresholds (yellow and green).`).default([YELLOW_THRESHOLD, GREEN_THRESHOLD]))
+        .addOption(new Option(`--ct, --coverage-thresholds <threshholds...>`, `Set the code coverage thresholds (yellow and green).`).default(COVERAGE_THRESHOLDS))
         .addOption(new Option(`--sc, --skip-compilation`, `Skip compilation`))
         .addOption(new Option(`--sr, --summary-report [path]`, `Save summary report`).preset(SUMMARY_REPORT_PATH))
         .addOption(new Option(`--tr, --test-result [path]`, `Save test result logs`).preset(TEST_RESULT_PATH))
@@ -128,11 +129,11 @@ function main() {
                 spinner.fail(`The '--local-directory', '--ifs-directory', or '--library' option must be specified to indicate what tests to run.`);
                 exit(1);
             }
-            const sourceFiles = options.sourceFiles ? options.sourceFiles : undefined;
+            const sourceFiles = options.sourceFiles ? options.sourceFiles : SOURCE_FILES;
             const libraryList = options.libraryList ? options.libraryList : undefined;
             const currentLibrary = options.currentLibrary ? options.currentLibrary : undefined;
             const codeCoverage = options.codeCoverage ? options.codeCoverage : undefined;
-            const coverageThresholds = options.coverageThresholds ? options.coverageThresholds : undefined;
+            const coverageThresholds = options.coverageThresholds ? options.coverageThresholds : COVERAGE_THRESHOLDS;
             if (coverageThresholds) {
                 if (coverageThresholds.length > 2) {
                     spinner.fail(`The '--coverage-thresholds' option requires two thresholds (yellow and green).`);
@@ -235,7 +236,7 @@ function main() {
                 if (password) {
                     credentials.password = password;
                 } else if (privateKey) {
-                    credentials['privateKey'] = privateKey;
+                    (credentials as any)['privateKey'] = privateKey;
                 }
             }
 
@@ -320,7 +321,7 @@ function main() {
                     if (localDirectory) {
                         testBucketBuilder = new LocalTestBucketBuilder(testOutputLogger, codeCoverage, localDirectory);
                     } else {
-                        testBucketBuilder = new IfsTestBucketBuilder(testOutputLogger, codeCoverage, connection as any, ifsDirectory);
+                        testBucketBuilder = new IfsTestBucketBuilder(testOutputLogger, codeCoverage, connection as any, ifsDirectory!);
                     }
                 }
                 const testBuckets = await testBucketBuilder.getTestBuckets();
@@ -348,14 +349,14 @@ function main() {
                         try {
                             const content = connection.getContent();
                             await connection.sendCommand({ command: `mkdir -p "${ifsDirectory}"` });
-                            await content.uploadDirectory(workspaceFolderPath, ifsDirectory, { concurrency: 10 });
+                            await content.uploadDirectory(workspaceFolderPath, ifsDirectory!, { concurrency: 10 });
                             return 'success';
                         } catch (error) {
                             return 'failed';
                         }
                     },
                     getDeployDirectory: function (workspaceFolderPath: string): string {
-                        return ifsDirectory;
+                        return ifsDirectory!;
                     },
                     getLibraryList: async function (workspaceFolderPath?: string): Promise<ILELibrarySettings> {
                         const env = workspaceFolderPath ? await ApiUtils.getEnvConfig(workspaceFolderPath) : {};
@@ -372,11 +373,11 @@ function main() {
                         // Not used
                         return true;
                     },
-                    clearDiagnostics: function (): Promise<void> {
+                    clearDiagnostics: async function (): Promise<void> {
                         // Not used
                         return;
                     },
-                    loadDiagnostics: function (qualifiedObject: string, workspaceFolderPath?: string): Promise<void> {
+                    loadDiagnostics: async function (qualifiedObject: string, workspaceFolderPath?: string): Promise<void> {
                         // Not used
                         return;
                     },
@@ -401,27 +402,27 @@ function main() {
 
                         return testParams;
                     },
-                    setIsCompiled: function (uri: BasicUri, isCompiled: boolean): Promise<void> {
+                    setIsCompiled: async function (uri: BasicUri, isCompiled: boolean): Promise<void> {
                         // Not used
                         return;
                     },
-                    started: function (uri: BasicUri): Promise<void> {
+                    started: async function (uri: BasicUri): Promise<void> {
                         // Not used
                         return;
                     },
-                    skipped: function (uri: BasicUri): Promise<void> {
+                    skipped: async function (uri: BasicUri): Promise<void> {
                         // Not used
                         return;
                     },
-                    passed: function (uri: BasicUri, duration?: number): Promise<void> {
+                    passed: async function (uri: BasicUri, duration?: number): Promise<void> {
                         // Not used
                         return;
                     },
-                    failed: function (uri: BasicUri, messages: { line?: number; message: string; }[], duration?: number): Promise<void> {
+                    failed: async function (uri: BasicUri, messages: { line?: number; message: string; }[], duration?: number): Promise<void> {
                         // Not used
                         return;
                     },
-                    errored: function (uri: BasicUri, messages: { line?: number; message: string; }[], duration?: number): Promise<void> {
+                    errored: async function (uri: BasicUri, messages: { line?: number; message: string; }[], duration?: number): Promise<void> {
                         // Not used
                         return;
                     },
@@ -435,7 +436,7 @@ function main() {
                     getCoverageThresholds: function (): string[] {
                         return coverageThresholds;
                     },
-                    end: function (): Promise<void> {
+                    end: async function (): Promise<void> {
                         // Not used
                         return;
                     }

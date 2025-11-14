@@ -9,8 +9,8 @@ export class TestOutputLogger implements Logger {
         this.logFile = logFile;
 
         if (this.logFile) {
-            fs.mkdirSync(path.dirname(logFile), { recursive: true });
-            fs.writeFileSync(logFile, '');
+            fs.mkdirSync(path.dirname(this.logFile), { recursive: true });
+            fs.writeFileSync(this.logFile, '');
         }
     }
 

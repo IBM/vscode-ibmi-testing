@@ -2,7 +2,7 @@ import { ConfigurationChangeEvent, ExtensionContext, LogLevel, workspace } from 
 import { IBMiTestManager } from "./manager";
 import { getComponentRegistry, getInstance, loadBase } from "./extensions/ibmi";
 import { Configuration, Section } from "./configuration";
-import IBMi from "vscode-ibmi/src/api/IBMi";
+import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { RPGUnit } from "./components/rpgUnit";
 import { CodeCov } from "./components/codeCov";
 import * as tmp from "tmp";
@@ -69,7 +69,7 @@ export async function activate(context: ExtensionContext) {
 	// Subscribe to IBM i connect and disconnect events
 	let connection: IBMi | undefined;
 	ibmi!.subscribe(context, 'connected', 'Load IBM i Test Manager', async () => {
-		connection = ibmi!.getConnection();
+		connection = ibmi!.getConnection()!;
 		await testOutputLogger.log(LogLevel.Debug, `Connected to ${connection.currentUser}@${connection.currentHost}`);
 
 		if (!manager) {

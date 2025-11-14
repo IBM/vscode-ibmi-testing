@@ -39,7 +39,7 @@ export class TestFileData extends TestData {
                 const isRPGLE = ApiUtils.isRPGLE(this.item.uri!.fsPath);
                 if (isRPGLE) {
                     const ibmi = getInstance();
-                    const connection = ibmi!.getConnection();
+                    const connection = ibmi!.getConnection()!;
 
                     // Read file
                     let memberContent: string;
@@ -47,21 +47,23 @@ export class TestFileData extends TestData {
                         memberContent = fs.readFileSync(this.item.uri!.fsPath, 'utf8');
                     } else {
                         const parsedPath = connection.parserMemberPath(this.item.uri!.path);
-                        memberContent = await ApiUtils.readMember(connection, parsedPath.library, parsedPath.file, parsedPath.name);
+                        memberContent = await ApiUtils.readMember(connection as any, parsedPath.library, parsedPath.file, parsedPath.name);
                     }
 
                     // Parse file
                     const parser = new Parser();
                     const parsedContent = await parser.getDocs(this.item.uri!.path, memberContent, { collectReferences: false, withIncludes: false });
 
-                    // Find RPGLE test procedures
-                    const rpgleTestCaseRegex = /^TEST.*$/i;
-                    for (const procedure of parsedContent.procedures) {
-                        if (rpgleTestCaseRegex.test(procedure.name)) {
-                            testProcedures.push({
-                                name: procedure.name,
-                                range: new Range(new Position(procedure.range.start, 0), new Position(procedure.range.end, 0))
-                            });
+                    if (parsedContent) {
+                        // Find RPGLE test procedures
+                        const rpgleTestCaseRegex = /^TEST.*$/i;
+                        for (const procedure of parsedContent.procedures) {
+                            if (rpgleTestCaseRegex.test(procedure.name)) {
+                                testProcedures.push({
+                                    name: procedure.name,
+                                    range: new Range(new Position(procedure.range.start!, 0), new Position(procedure.range.end!, 0))
+                                });
+                            }
                         }
                     }
                 } else {
@@ -77,7 +79,6 @@ export class TestFileData extends TestData {
                                     range: documentSymbol.range
                                 });
                             }
-
                         }
                     }
                 }

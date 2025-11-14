@@ -4,6 +4,7 @@
 
 const path = require('path');
 const webpack = require(`webpack`);
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
@@ -30,12 +31,25 @@ const extensionConfig = {
   },
   module: {
     rules: [
-      { test: /\.([cm]?ts|tsx)$/, loader: "ts-loader", options: { allowTsInNodeModules: true, transpileOnly: true } }
+      { test: /\.([cm]?ts|tsx)$/, loader: "ts-loader", options: { allowTsInNodeModules: true } }
     ]
   },
   devtool: 'nosources-source-map',
   plugins: [
-    new webpack.IgnorePlugin({ resourceRegExp: /(cpu-features|sshcrypto\.node)/u })
+    new webpack.IgnorePlugin({ resourceRegExp: /(cpu-features|sshcrypto\.node)/u }),
+    new ForkTsCheckerWebpackPlugin({
+      typescript: {
+        diagnosticOptions: {
+          semantic: true,
+          syntactic: true
+        }
+      },
+      issue: {
+        exclude: [
+          { file: '**/node_modules/**' }
+        ]
+      }
+    })
   ],
   infrastructureLogging: {
     level: "log", // enables logging required for problem matchers

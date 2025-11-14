@@ -240,17 +240,18 @@
     "tmp": "^0.2.3"
   },
   "devDependencies": {
+    "@halcyontech/vscode-ibmi-types": "^2.17",
     "@types/node": "20.x",
     "@types/tmp": "^0.2.6",
     "@types/vscode": "^1.96.0",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
     "@typescript-eslint/parser": "^7.11.0",
     "eslint": "^8.57.0",
+    "fork-ts-checker-webpack-plugin": "^9.1.0",
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.5",
+    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
     "webpack": "^5.92.1",
-    "webpack-cli": "^5.1.4",
-    "vscode-ibmi": "github:halcyon-tech/vscode-ibmi",
-    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle"
+    "webpack-cli": "^5.1.4"
   }
 }

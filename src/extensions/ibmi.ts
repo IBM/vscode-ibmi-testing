@@ -1,8 +1,8 @@
-import { CodeForIBMi } from "vscode-ibmi/src/typings";
-import Instance from "vscode-ibmi/src/Instance";
-import { ComponentRegistry } from "vscode-ibmi/src/api/components/manager";
-import { DeployTools } from "vscode-ibmi/src/filesystems/local/deployTools";
-import { VscodeTools } from "vscode-ibmi/src/ui/Tools";
+import { CodeForIBMi } from "@halcyontech/vscode-ibmi-types";
+import Instance from "@halcyontech/vscode-ibmi-types/Instance";
+import { ComponentRegistry } from "@halcyontech/vscode-ibmi-types/api/components/manager";
+import { DeployTools } from "@halcyontech/vscode-ibmi-types/filesystems/local/deployTools";
+import { VscodeTools } from "@halcyontech/vscode-ibmi-types/ui/Tools";
 import { Extension, extensions } from "vscode";
 
 let baseExtension: Extension<CodeForIBMi> | undefined;

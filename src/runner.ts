@@ -8,7 +8,7 @@ import { Runner, TestCallbacks } from "../api/runner";
 import { MergedCoverageData, BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode } from "../api/types";
 import { TestLogger } from "../api/testLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
-import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
+import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
 import { testOutputLogger } from "./extension";
 import { TestCaseData, TestFileData } from "./testData";
 import { ApiUtils } from "../api/apiUtils";
@@ -120,16 +120,16 @@ export class IBMiTestRunner {
             }
 
             const ibmi = getInstance();
-            const connection = ibmi!.getConnection();
+            const connection = ibmi!.getConnection()!;
 
             // Get testing config
             let configHandler: ConfigHandler;
             if (testFileItem.uri!.scheme === 'file') {
                 configHandler = new LocalConfigHandler(testOutputLogger, testBucketItem.uri!.fsPath, testFileItem.uri!.fsPath);
             } else if (testFileItem.uri!.scheme === 'member') {
-                configHandler = new QsysConfigHandler(connection, testOutputLogger, testFileItem.uri!.path);
+                configHandler = new QsysConfigHandler(connection as any, testOutputLogger, testFileItem.uri!.path);
             } else {
-                configHandler = new IfsConfigHandler(connection, testOutputLogger, testBucketItem.uri!.path, testFileItem.uri!.fsPath);
+                configHandler = new IfsConfigHandler(connection as any, testOutputLogger, testBucketItem.uri!.path, testFileItem.uri!.fsPath);
             }
             const testingConfig = await configHandler.getConfig();
 
@@ -189,7 +189,7 @@ export class IBMiTestRunner {
 
     async runHandler() {
         const ibmi = getInstance();
-        const connection = ibmi!.getConnection();
+        const connection = ibmi!.getConnection()!;
         const config = connection.getConfig();
 
         // Create test run
@@ -380,7 +380,7 @@ export class IBMiTestRunner {
         };
 
         // Run test buckets
-        const runner: Runner = new Runner(connection, testRequest, testCallbacks, testLogger);
+        const runner: Runner = new Runner(connection as any, testRequest, testCallbacks, testLogger);
         await runner.run();
     }
 
@@ -388,7 +388,7 @@ export class IBMiTestRunner {
         const libraryListValidation = Configuration.get<LibraryListValidation>(Section.libraryListValidation);
         if (libraryListValidation) {
             const ibmi = getInstance();
-            const connection = ibmi!.getConnection();
+            const connection = ibmi!.getConnection()!;
 
             const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
             const qdevtoolsLibrary = 'QDEVTOOLS';

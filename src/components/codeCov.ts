@@ -1,5 +1,5 @@
-import { ComponentIdentification, ComponentState, IBMiComponent } from "vscode-ibmi/src/api/components/component";
-import IBMi from "vscode-ibmi/src/api/IBMi";
+import { ComponentIdentification, ComponentState, IBMiComponent } from "@halcyontech/vscode-ibmi-types/api/components/component";
+import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { LogLevel } from "vscode";
 import { testOutputLogger } from "../extension";
 

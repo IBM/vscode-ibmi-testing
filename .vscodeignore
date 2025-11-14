@@ -13,7 +13,6 @@ examples/**
 .yarnrc
 webpack.config.js
 vsc-extension-quickstart.md
-ibmi-testing.code-workspace
 **/tsconfig.json
 **/.eslintrc.json
 **/*.map
