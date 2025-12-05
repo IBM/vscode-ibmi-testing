@@ -272,9 +272,9 @@ export class Runner {
 
         let wrapperCmd: WrapperCmd | undefined;
         let compileParams: RUCRTRPG | RUCRTCBL = {
-            tstPgm: `${tstPgm.library}/${tstPgm.name}`.toLocaleUpperCase(),
-            srcFile: srcFile ? `${srcFile.library}/${srcFile.name}`.toLocaleUpperCase() : undefined,
-            srcMbr: srcMbr?.toLocaleUpperCase(),
+            tstPgm: this.connection.upperCaseName(`${tstPgm.library}/${tstPgm.name}`),
+            srcFile: srcFile ? this.connection.upperCaseName(`${srcFile.library}/${srcFile.name}`) : undefined,
+            srcMbr: srcMbr ? this.connection.upperCaseName(srcMbr) : undefined,
             srcStmf: srcStmf
         };
 
@@ -440,7 +440,7 @@ export class Runner {
             return;
         }
 
-        const qualifiedTstPgm = `${tstPgm.library}/${tstPgm.name}`.toLocaleUpperCase();
+        const qualifiedTstPgm = this.connection.upperCaseName(`${tstPgm.library}/${tstPgm.name}`);
 
 
         const testCases: (TestCase | undefined)[] = [];
