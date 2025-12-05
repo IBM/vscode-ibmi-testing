@@ -121,7 +121,8 @@ export class IBMiTestManager {
             const libraryList = await ibmi!.getLibraryList(connection);
             libraries = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
         }
-        const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles);
+        const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles)
+            .map(file => connection.upperCaseName(file));
         const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
         const qsysExtensions = testSuffixes.qsys.map((suffix) => suffix.slice(1));
 
@@ -368,6 +369,9 @@ export class IBMiTestManager {
 
 
     private async loadFileOrMember(uri: Uri, loadTestCases: boolean, isChanged: boolean = false): Promise<void> {
+        const ibmi = getInstance();
+        const connection = ibmi!.getConnection()!;
+
         // Get test suffixes based on the URI scheme
         const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
         let uriSpecificSuffixes: string[];
@@ -380,18 +384,16 @@ export class IBMiTestManager {
         }
 
         // Check if the URI ends with any of the uri specific suffixes
-        if (!uriSpecificSuffixes.some(suffix => uri.path.toLocaleUpperCase().endsWith(suffix))) {
+        if (!uriSpecificSuffixes.some(suffix => connection.upperCaseName(uri.path).endsWith(suffix))) {
             return;
         }
 
         // If the test is a member, check if its source file is in the set of test source files to search in
         if (uri.scheme === 'member') {
-            const ibmi = getInstance();
-            const connection = ibmi!.getConnection()!;
-
-            const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles).map(file => file.toLocaleUpperCase());
+            const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles)
+                .map(file => connection.upperCaseName(file));
             const parsedPath = connection.parserMemberPath(uri.path);
-            if (!testSourceFiles.includes(parsedPath.file.toLocaleUpperCase())) {
+            if (!testSourceFiles.includes(connection.upperCaseName(parsedPath.file))) {
                 return;
             }
         }

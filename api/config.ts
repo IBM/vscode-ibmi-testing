@@ -209,7 +209,7 @@ export class QsysConfigHandler implements ConfigHandler {
         const configExists = await content.checkObject({
             library: parsedMemberPath.library,
             name: parsedMemberPath.file,
-            member: parsedMemberPath.name.toLocaleUpperCase(),
+            member: this.connection.upperCaseName(parsedMemberPath.name),
             type: '*FILE',
         });
         if (!configExists) {

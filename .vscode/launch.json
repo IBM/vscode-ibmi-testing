@@ -28,6 +28,8 @@
 			"program": "${workspaceFolder}/cli/dist/index.js",
 			"sourceMaps": true,
 			"args": [
+				"--local-directory",
+				"../examples/ibmi-company_system",
 				"--ifs-directory",
 				"/home/${input:ibmiUser}/builds/ibmi-company_system",
 				"--library-list",

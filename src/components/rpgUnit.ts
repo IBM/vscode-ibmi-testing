@@ -27,7 +27,7 @@ export class RPGUnit implements IBMiComponent {
 
         try {
             // Check if product library exists
-            const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
+            const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
             const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
             if (productLibraryExists) {
                 // Get installed version of RPGUnit
@@ -138,7 +138,7 @@ export class RPGUnit implements IBMiComponent {
         const config = connection.getConfig();
 
         // Check if product library exists
-        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
+        const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
         const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
         if (productLibraryExists) {
             const result = await window.showInformationMessage('Delete product library',
@@ -186,10 +186,11 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Creating save file in temporary library
+        const tempLibrary = connection.upperCaseName(config.tempLibrary);
         const createSavfCommand = content.toCl(`CRTSAVF`, {
-            'FILE': `${config.tempLibrary}/RPGUNIT`
+            'FILE': `${tempLibrary}/RPGUNIT`
         });
-        await testOutputLogger.log(LogLevel.Info, `Creating RPGUNIT save file in ${config.tempLibrary}.LIB: ${createSavfCommand}`);
+        await testOutputLogger.log(LogLevel.Info, `Creating RPGUNIT save file in ${tempLibrary}.LIB: ${createSavfCommand}`);
         const createSavfResult = await connection.runCommand({ command: createSavfCommand, environment: `ile`, noLibList: true });
         if (createSavfResult.code !== 0 && !createSavfResult.stderr.includes('CPF5813')) {
             await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to create save file`, createSavfResult.stderr);
@@ -199,11 +200,11 @@ export class RPGUnit implements IBMiComponent {
         // Transfer save file to temporary library
         const transferCommand = content.toCl(`CPYFRMSTMF`, {
             'FROMSTMF': remotePath,
-            'TOMBR': `\'/QSYS.LIB/${config.tempLibrary}.LIB/RPGUNIT.FILE\'`,
+            'TOMBR': `\'/QSYS.LIB/${tempLibrary}.LIB/RPGUNIT.FILE\'`,
             'STMFCCSID': 37,
             'MBROPT': `*REPLACE`
         });
-        await testOutputLogger.log(LogLevel.Info, `Transferring RPGUNIT save file to ${config.tempLibrary}.LIB: ${transferCommand}`);
+        await testOutputLogger.log(LogLevel.Info, `Transferring RPGUNIT save file to ${tempLibrary}.LIB: ${transferCommand}`);
         const transferResult = await connection.runCommand({ command: transferCommand, environment: `ile`, noLibList: true });
         if (transferResult.code !== 0) {
             await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to transfer save file`, transferResult.stderr);
@@ -214,7 +215,7 @@ export class RPGUnit implements IBMiComponent {
         const restoreCommand = content.toCl(`RSTLIB`, {
             'SAVLIB': 'RPGUNIT',
             'DEV': `*SAVF`,
-            'SAVF': `${config.tempLibrary}/RPGUNIT`,
+            'SAVF': `${tempLibrary}/RPGUNIT`,
             'RSTLIB': productLibrary
         });
         await testOutputLogger.log(LogLevel.Info, `Restoring RPGUNIT save file contents into ${productLibrary}.LIB: ${restoreCommand}`);
@@ -268,7 +269,7 @@ export class RPGUnit implements IBMiComponent {
 
         const componentManager = connection.getComponentManager();
         const state = await componentManager.getRemoteState(RPGUnit.ID);
-        const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
+        const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
         const title = state === 'NeedsUpdate' ?
             'RPGUnit Update Required' :
             'RPGUnit Installation Required';

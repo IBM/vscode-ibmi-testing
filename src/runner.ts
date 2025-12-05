@@ -280,7 +280,7 @@ export class IBMiTestRunner {
                 return await ApiUtils.getEnvConfig(workspaceFolderPath) || {};
             },
             getProductLibrary: (): string => {
-                const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
+                const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
                 return productLibrary;
             },
             getBaseExecutionParams: (tstpgm: string, xmlStmf: string, tstPrc?: string): RUCALLTST => {
@@ -412,7 +412,7 @@ export class IBMiTestRunner {
             const ibmi = getInstance();
             const connection = ibmi!.getConnection()!;
 
-            const productLibrary = Configuration.getOrFallback<string>(Section.productLibrary);
+            const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
             const qdevtoolsLibrary = 'QDEVTOOLS';
 
             const testBucketsMissingProductLibrary = [];
