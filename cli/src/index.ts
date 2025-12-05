@@ -352,7 +352,7 @@ function main() {
                             await content.uploadDirectory(workspaceFolderPath, ifsDirectory!, { concurrency: 10 });
                             return 'success';
                         } catch (error) {
-                            return 'failed';
+                            return 'errored';
                         }
                     },
                     getDeployDirectory: function (workspaceFolderPath: string): string {
@@ -435,6 +435,9 @@ function main() {
                     },
                     getCoverageThresholds: function (): string[] {
                         return coverageThresholds;
+                    },
+                    isCancellationRequested: (): boolean => {
+                        return false;
                     },
                     end: async function (): Promise<void> {
                         // Not used

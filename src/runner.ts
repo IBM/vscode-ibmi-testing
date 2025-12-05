@@ -1,4 +1,4 @@
-import { TestRunRequest, TestItem, TestRun, workspace, TestRunProfileKind, Uri, commands, TestMessage, Position, Location } from "vscode";
+import { TestRunRequest, TestItem, TestRun, workspace, TestRunProfileKind, Uri, commands, TestMessage, Position, Location, CancellationToken } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { getDeployTools, getInstance } from "./extensions/ibmi";
 import { Configuration, LibraryListValidation, Section } from "./configuration";
@@ -18,11 +18,13 @@ import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../api/
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
     private request: TestRunRequest;
+    private token: CancellationToken;
     private compileMode: CompileMode;
 
-    constructor(manager: IBMiTestManager, request: TestRunRequest, compileMode: CompileMode) {
+    constructor(manager: IBMiTestManager, request: TestRunRequest, token: CancellationToken, compileMode: CompileMode) {
         this.manager = manager;
         this.request = request;
+        this.token = token;
         this.compileMode = compileMode;
     }
 
@@ -49,6 +51,11 @@ export class IBMiTestRunner {
     }
 
     private async processRequestItems(testRun: TestRun, testBuckets: TestBucket[], item: TestItem): Promise<void> {
+        // Check for cancellation request before processing requested test items
+        if (this.token.isCancellationRequested) {
+            return;
+        }
+
         if (this.request.exclude?.includes(item)) {
             return;
         }
@@ -199,6 +206,12 @@ export class IBMiTestRunner {
         const testResultLogger = new TestResultLogger(testRun);
         const testLogger = new TestLogger(testOutputLogger, testResultLogger);
 
+        // Check for cancellation request before checking if RPGUnit is installed
+        if (this.token.isCancellationRequested) {
+            testRun.end();
+            return;
+        }
+
         // Check if RPGUnit is installed
         const installation = await RPGUnit.checkInstallation();
         if (!installation.status) {
@@ -217,6 +230,12 @@ export class IBMiTestRunner {
             testBuckets: testBuckets
         };
 
+        // Check for cancellation request before validating library list
+        if (this.token.isCancellationRequested) {
+            testRun.end();
+            return;
+        }
+
         // Validate library list has RPGUNIT and QDEVTOOLS
         await this.validateLibraryList(testBuckets);
 
@@ -228,7 +247,7 @@ export class IBMiTestRunner {
                 const workspaceFolder = workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath))!;
                 const defaultDeploymentMethod = config.defaultDeploymentMethod;
                 const deployResult = await deployTools!.launchDeploy(workspaceFolder.index, defaultDeploymentMethod || undefined);
-                const deploymentStatus = deployResult ? 'success' : 'failed';
+                const deploymentStatus = deployResult ? 'success' : 'errored';
                 return deploymentStatus;
             },
             getDeployDirectory: (workspaceFolderPath: string): string => {
@@ -373,6 +392,9 @@ export class IBMiTestRunner {
             getCoverageThresholds: (): string[] => {
                 // Not used
                 return [];
+            },
+            isCancellationRequested: (): boolean => {
+                return this.token.isCancellationRequested;
             },
             end: async (): Promise<void> => {
                 testRun.end();

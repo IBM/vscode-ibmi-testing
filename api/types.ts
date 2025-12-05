@@ -77,9 +77,9 @@ export type Env = Record<string, string>;
 
 export type TestStatus = 'passed' | 'failed' | 'errored';
 
-export type DeploymentStatus = 'success' | 'failed' | 'skipped';
+export type DeploymentStatus = 'success' | 'errored' | 'skipped' | 'cancelled';
 
-export type CompilationStatus = 'success' | 'failed' | 'skipped';
+export type CompilationStatus = 'success' | 'errored' | 'skipped' | 'cancelled';
 
 export type ExecutionStatus = 'passed' | 'failed' | 'errored';
 
@@ -93,23 +93,29 @@ export interface TestMetrics {
     assertions: number,
     deployments: {
         success: number,
-        failed: number,
-        skipped: number
+        errored: number,
+        skipped: number,
+        cancelled: number
     },
     compilations: {
         success: number,
-        failed: number,
-        skipped: number
+        errored: number,
+        skipped: number,
+        cancelled: number
     },
     testFiles: {
         passed: number,
         failed: number,
-        errored: number
+        errored: number,
+        skipped: number,
+        cancelled: number
     },
     testCases: {
         passed: number,
         failed: number,
-        errored: number
+        errored: number,
+        skipped: number,
+        cancelled: number
     }
 }
 

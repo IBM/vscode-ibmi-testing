@@ -28,13 +28,16 @@ export class TestLogger {
     async logDeployment(workspaceName: string, status: DeploymentStatus) {
         if (status === 'success') {
             await this.testResultLogger.append(` ${c.grey(`[ Deployment Successful ]`)}\r\n`);
-            await this.testOutputLogger.log(LogLevel.Info, `Successfully deployed ${workspaceName}`);
-        } else if (status === 'failed') {
-            await this.testResultLogger.append(` ${c.red(`[ Deployment Failed ]`)}\r\n`);
-            await this.testOutputLogger.log(LogLevel.Error, `Failed to deploy ${workspaceName}`);
+            await this.testOutputLogger.log(LogLevel.Info, `Deployment successful for ${workspaceName}`);
+        } else if (status === 'errored') {
+            await this.testResultLogger.append(` ${c.yellow(`[ Deployment Error ]`)}\r\n`);
+            await this.testOutputLogger.log(LogLevel.Error, `Deployment error for ${workspaceName}`);
         } else if (status === 'skipped') {
             await this.testResultLogger.append(` ${c.grey(`[ Deployment Skipped ]`)}\r\n`);
-            await this.testOutputLogger.log(LogLevel.Error, `Skipped deploy of ${workspaceName}`);
+            await this.testOutputLogger.log(LogLevel.Error, `Deployment skipped for ${workspaceName}`);
+        } else if (status === 'cancelled') {
+            await this.testResultLogger.append(` ${c.magenta(`[ Deployment Cancelled ]`)}\r\n`);
+            await this.testOutputLogger.log(LogLevel.Warning, `Deployment cancelled for ${workspaceName}`);
         }
     }
 
@@ -56,17 +59,20 @@ export class TestLogger {
     async logCompilation(testSuiteName: string, status: CompilationStatus, messages: string[]) {
         if (status === 'success') {
             await this.testResultLogger.append(` ${c.grey(`[ Compilation Successful ]`)}\r\n`);
-            await this.testOutputLogger.log(LogLevel.Info, `Successfully compiled ${testSuiteName}`);
-        } else if (status === 'failed') {
-            await this.testResultLogger.append(` ${c.red(`[ Compilation Failed ]`)}\r\n`);
-            await this.testOutputLogger.log(LogLevel.Error, `Failed to compile ${testSuiteName}`);
+            await this.testOutputLogger.log(LogLevel.Info, `Compilation successful for ${testSuiteName}`);
+        } else if (status === 'errored') {
+            await this.testResultLogger.append(` ${c.yellow(`[ Compilation Error ]`)}\r\n`);
+            await this.testOutputLogger.log(LogLevel.Error, `Compilation error for ${testSuiteName}`);
         } else if (status === 'skipped') {
             await this.testResultLogger.append(` ${c.grey(`[ Compilation Skipped ]`)}\r\n`);
-            await this.testOutputLogger.log(LogLevel.Warning, `Skipped compilation for ${testSuiteName}`);
+            await this.testOutputLogger.log(LogLevel.Warning, `Compilation skipped for ${testSuiteName}`);
+        } else if (status === 'cancelled') {
+            await this.testResultLogger.append(` ${c.magenta(`[ Compilation Cancelled ]`)}\r\n`);
+            await this.testOutputLogger.log(LogLevel.Warning, `Compilation cancelled for ${testSuiteName}`);
         }
 
         for (const message of messages) {
-            await this.testResultLogger.append(`\t${c.red(`${message}`)}\r\n`);
+            await this.testResultLogger.append(`\t${c.yellow(`${message}`)}\r\n`);
         }
     }
 
@@ -91,22 +97,97 @@ export class TestLogger {
         await this.testOutputLogger.log(LogLevel.Error, `Test case ${testCaseName} errored${duration !== undefined ? ` in ${duration}s` : ``}`);
     }
 
+    async logTestCaseSkipped(testCaseName: string) {
+        await this.testResultLogger.append(`\t${c.grey(`○`)}  ${testCaseName}\r\n`);
+        await this.testOutputLogger.log(LogLevel.Warning, `Test case ${testCaseName} skipped`);
+    }
+
+    async logTestCaseCancelled(testCaseName: string) {
+        await this.testResultLogger.append(`\t${c.magenta(`○`)}  ${testCaseName}\r\n`);
+        await this.testOutputLogger.log(LogLevel.Warning, `Test case ${testCaseName} cancelled`);
+    }
+
     async logMetrics(metrics: TestMetrics) {
-        const totalDeployments = metrics.deployments.success + metrics.deployments.failed + metrics.deployments.skipped;
-        const totalCompilations = metrics.compilations.success + metrics.compilations.failed + metrics.compilations.skipped;
-        const totalTestFiles = metrics.testFiles.passed + metrics.testFiles.failed + metrics.testFiles.errored;
-        const totalTestCases = metrics.testCases.passed + metrics.testCases.failed + metrics.testCases.errored;
+        const isCancellationRequested =
+            metrics.deployments.cancelled > 0 || metrics.compilations.cancelled > 0 ||
+            metrics.testFiles.cancelled > 0 || metrics.testCases.cancelled > 0;
+
+        const hasFailures =
+            metrics.testFiles.failed > 0 || metrics.testCases.failed > 0;
+
+        const hasErrors =
+            metrics.deployments.errored > 0 || metrics.compilations.errored > 0 ||
+            metrics.testFiles.errored > 0 || metrics.testCases.errored > 0;
+
+        const totalDeployments =
+            metrics.deployments.success + metrics.deployments.errored +
+            metrics.deployments.skipped + metrics.deployments.cancelled;
+
+        const totalCompilations =
+            metrics.compilations.success + metrics.compilations.errored +
+            metrics.compilations.skipped + metrics.compilations.cancelled;
+
+        const totalTestFiles =
+            metrics.testFiles.passed + metrics.testFiles.failed +
+            metrics.testFiles.errored + metrics.testFiles.skipped +
+            metrics.testFiles.cancelled;
+
+        const totalTestCases =
+            metrics.testCases.passed + metrics.testCases.failed +
+            metrics.testCases.errored + metrics.testCases.skipped +
+            metrics.testCases.cancelled;
 
         // Format text with ansi colors
         const testExecutionHeading = `${c.bgBlue(` EXECUTION `)}`;
-        const deploymentResult = `Deployments:  ${c.green(`${metrics.deployments.success} successful`)} | ${c.red(`${metrics.deployments.failed} failed`)} | ${metrics.deployments.skipped} skipped ${c.grey(`(${totalDeployments})`)}`;
-        const compilationResult = `Compilations: ${c.green(`${metrics.compilations.success} successful`)} | ${c.red(`${metrics.compilations.failed} failed`)} | ${metrics.compilations.skipped} skipped ${c.grey(`(${totalCompilations})`)}`;
+
+        let deploymentResult =
+            `Deployments:  ${c.green(`${metrics.deployments.success} successful`)} | ` +
+            `${c.yellow(`${metrics.deployments.errored} errored`)} | ` +
+            `${metrics.deployments.skipped} skipped | `;
+        if (isCancellationRequested) {
+            deploymentResult += `${c.magenta(`${metrics.deployments.cancelled} cancelled`)} `;
+        }
+        deploymentResult += `${c.grey(`(${totalDeployments})`)}`;
+
+        let compilationResult =
+            `Compilations: ${c.green(`${metrics.compilations.success} successful`)} | ` +
+            `${c.yellow(`${metrics.compilations.errored} errored`)} | ` +
+            `${metrics.compilations.skipped} skipped | `;
+        if (isCancellationRequested) {
+            compilationResult += `${c.magenta(`${metrics.compilations.cancelled} cancelled`)} `;
+        }
+        compilationResult += `${c.grey(`(${totalCompilations})`)}`;
+
         const testResultsHeading = `${c.bgBlue(` RESULTS `)}`;
-        const testFileResult = `Test Files:   ${c.green(`${metrics.testFiles.passed} passed`)} | ${c.red(`${metrics.testFiles.failed} failed`)} | ${c.yellow(`${metrics.testFiles.errored} errored`)} ${c.grey(`(${totalTestFiles})`)}`;
-        const testCaseResult = `Test Cases:   ${c.green(`${metrics.testCases.passed} passed`)} | ${c.red(`${metrics.testCases.failed} failed`)} | ${c.yellow(`${metrics.testCases.errored} errored`)} ${c.grey(`(${totalTestCases})`)}`;
+
+        let testFileResult =
+            `Test Files:   ${c.green(`${metrics.testFiles.passed} passed`)} | ` +
+            `${c.red(`${metrics.testFiles.failed} failed`)} | ` +
+            `${c.yellow(`${metrics.testFiles.errored} errored`)} | ` +
+            `${c.grey(`${metrics.testFiles.skipped} skipped`)} | `;
+
+        if (isCancellationRequested) {
+            testFileResult += `${c.magenta(`${metrics.testFiles.cancelled} cancelled`)} `;
+        }
+        testFileResult += `${c.grey(`(${totalTestFiles})`)}`;
+
+        let testCaseResult =
+            `Test Cases:   ${c.green(`${metrics.testCases.passed} passed`)} | ` +
+            `${c.red(`${metrics.testCases.failed} failed`)} | ` +
+            `${c.yellow(`${metrics.testCases.errored} errored`)} | ` +
+            `${c.grey(`${metrics.testCases.skipped} skipped`)} | `;
+        if (isCancellationRequested) {
+            testCaseResult += `${c.magenta(`${metrics.testCases.cancelled} cancelled`)} `;
+        }
+        testCaseResult += `${c.grey(`(${totalTestCases})`)}`;
+
         const assertionResult = `Assertions:   ${metrics.assertions}`;
         const durationResult = `Duration:     ${metrics.duration}s`;
-        const finalResult = (metrics.testFiles.failed > 0 || metrics.testCases.failed > 0) ? c.bgRed(` FAIL `) : (metrics.testFiles.errored || metrics.testCases.errored) > 0 ? c.bgYellow(` ERROR `) : c.bgGreen(` PASS `);
+        const finalResult =
+            isCancellationRequested ? c.bgMagenta(` CANCELLED `) :
+                hasErrors ? c.bgYellow(` ERROR `) :
+                    hasFailures ? c.bgRed(` FAIL `) :
+                        c.bgGreen(` PASS `);
 
         // Calculate box width
         const maxContentWidth = Math.max(

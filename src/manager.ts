@@ -33,7 +33,7 @@ export class IBMiTestManager {
         ['Run Tests', 'Run Tests (Force Compile)', 'Run Tests (Skip Compile)'].forEach((profile, index) => {
             const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
             this.controller.createRunProfile(profile, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, compileMode);
+                const runner = new IBMiTestRunner(this, request, token, compileMode);
                 await runner.runHandler();
             }, index === 0, undefined, false);
         });
@@ -42,7 +42,7 @@ export class IBMiTestManager {
         ['Run Tests with Line Coverage', 'Run Tests with Line Coverage (Force Compile)', 'Run Tests with Line Coverage (Skip Compile)'].forEach((profile, index) => {
             const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
             const lineCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, compileMode);
+                const runner = new IBMiTestRunner(this, request, token, compileMode);
                 await runner.runHandler();
             }, index === 0, undefined, false);
             lineCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
@@ -52,7 +52,7 @@ export class IBMiTestManager {
         ['Run Tests with Procedure Coverage', 'Run Tests with Procedure Coverage (Force Compile)', 'Run Tests with Procedure Coverage (Skip Compile)'].forEach((profile, index) => {
             const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
             const procedureCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, compileMode);
+                const runner = new IBMiTestRunner(this, request, token, compileMode);
                 await runner.runHandler();
             }, false, undefined, false);
             procedureCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
