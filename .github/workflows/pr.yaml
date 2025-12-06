@@ -28,6 +28,7 @@ jobs:
       - name: Install Dependencies
         run: |
           npm install
+          npm install -g vsce
           cd cli
           npm install
           cd ..

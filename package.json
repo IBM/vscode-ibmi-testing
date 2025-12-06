@@ -246,7 +246,6 @@
     "@types/vscode": "^1.96.0",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
     "@typescript-eslint/parser": "^7.11.0",
-    "@vscode/vsce": "^2.32.0",
     "eslint": "^8.57.0",
     "fork-ts-checker-webpack-plugin": "^9.1.0",
     "ts-loader": "^9.5.1",
