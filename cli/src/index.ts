@@ -27,6 +27,7 @@ import os from 'os';
 import { exit } from "process";
 import inquirer from "inquirer";
 import pkg from '../package.json';
+import { Writable } from "stream";
 
 interface Options {
     localDirectory?: string;
@@ -64,7 +65,11 @@ main();
 
 function main() {
     const spinner = ora({
-        stream: process.stdout
+        stream: new Writable({
+            write(chunk, encoding, callback) {
+                callback();
+            }
+        })
     });
 
     // Setup CLI information
