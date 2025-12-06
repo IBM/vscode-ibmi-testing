@@ -63,7 +63,9 @@ const COVERAGE_THRESHOLDS = [YELLOW_THRESHOLD, GREEN_THRESHOLD];
 main();
 
 function main() {
-    const spinner = ora();
+    const spinner = ora({
+        stream: process.stdout
+    });
 
     // Setup CLI information
     program
