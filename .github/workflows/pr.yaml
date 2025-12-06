@@ -30,6 +30,7 @@ jobs:
           npm install
           cd cli
           npm install
+          cd ..
 
       - name: Build Extension
         run: vsce package
@@ -79,12 +80,12 @@ jobs:
           npm i -g @ibm/itest
         
       - name: Build Sample Project
-        working-directory: examples
+        working-directory: examples/ibmi-company_system
         run: |
           ici \
             --cmd "mkdir -p './builds/itest_${GITHUB_HEAD_REF}'" \
             --rcwd "./builds/itest_${GITHUB_HEAD_REF}" \
-            --push "./ibmi-company_system" \
+            --push "." \
             --ignore --cl "CRTLIB ITESTCSYS" \
             --ignore --cl "CLRLIB ITESTCSYS" \
             --cmd "/QOpenSys/pkgs/bin/gmake BIN_LIB=ITESTCSYS"
