@@ -108,3 +108,8 @@ jobs:
           --ll ITESTCSYS RPGUNIT QDEVTOOLS \
           --cl ITESTCSYS \
           --cc --sr --tr --to --co
+        env:
+          IBMI_HOST: ${{ secrets.IBMI_HOST }}
+          IBMI_USER: ${{ secrets.IBMI_USER }}
+          IBMI_PASSWORD: ${{ secrets.IBMI_PASSWORD }}
+          IBMI_SSH_PORT: ${{ secrets.IBMI_SSH_PORT }}
