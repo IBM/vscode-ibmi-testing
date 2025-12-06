@@ -25,10 +25,11 @@ jobs:
           node-version: ${{ matrix.node-version }}
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install Extension Dependencies
+      - name: Install Dependencies
         run: |
           npm install
-          npm install -g vsce
+          cd cli
+          npm install
 
       - name: Build Extension
         run: vsce package
@@ -40,7 +41,7 @@ jobs:
           path: ./*.vsix
           if-no-files-found: error
   cli:
-    name: Build Extension
+    name: Build CLI
 
     runs-on: ubuntu-latest
 
@@ -71,6 +72,11 @@ jobs:
         run: |
           npm run webpack
           npm publish --dry-run
+    
+      - name: Install CLI Tools
+        run: |
+          npm i -g @ibm/ibmi-ci
+          npm i -g @ibm/itest
         
       - name: Build Sample Project
         working-directory: examples
