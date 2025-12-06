@@ -102,6 +102,7 @@ jobs:
       - name: Test CLI
         working-directory: cli
         run: |
+          chmod +x ./dist/index.js
           ls -la dist/
           ./dist/index.js \
           --ld ../examples/ibmi-company_system
