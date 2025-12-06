@@ -6,8 +6,8 @@ on:
   pull_request:
 
 jobs:
-  build:
-    name: Validation
+  extension:
+    name: Build Extension
 
     runs-on: ubuntu-latest
 
@@ -30,12 +30,6 @@ jobs:
           npm install
           npm install -g vsce
 
-      - name: Install CLI Dependencies
-        working-directory: cli
-        run: |
-          npm run install:api
-          npm install
-
       - name: Build Extension
         run: vsce package
 
@@ -45,9 +39,61 @@ jobs:
           name: vscode-ibmi-testing-pr-build
           path: ./*.vsix
           if-no-files-found: error
+  cli:
+    name: Build Extension
+
+    runs-on: ubuntu-latest
+
+    environment: COMMON1
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install CLI Dependencies
+        working-directory: cli
+        run: |
+          npm run install:api
+          npm install
 
       - name: Build CLI
         working-directory: cli
         run: |
           npm run webpack
           npm publish --dry-run
+        
+      - name: Build Sample Project
+        working-directory: examples
+        run: |
+          ici \
+            --cmd "mkdir -p './builds/itest_${GITHUB_HEAD_REF}'" \
+            --rcwd "./builds/itest_${GITHUB_HEAD_REF}" \
+            --push "./ibmi-company_system" \
+            --ignore --cl "CRTLIB ITESTCSYS" \
+            --ignore --cl "CLRLIB ITESTCSYS" \
+            --cmd "/QOpenSys/pkgs/bin/gmake BIN_LIB=ITESTCSYS"
+        env:
+          IBMI_HOST: ${{ secrets.IBMI_HOST }}
+          IBMI_USER: ${{ secrets.IBMI_USER }}
+          IBMI_PASSWORD: ${{ secrets.IBMI_PASSWORD }}
+          IBMI_SSH_PORT: ${{ secrets.IBMI_SSH_PORT }}
+
+      - name: Test CLI
+        working-directory: cli
+        run: |
+          ./dist/index.js \
+          --ld ../examples/ibmi-company_system
+          --id /home/SANJULA/builds/ibmi-company_system \
+          --ll ITESTCSYS RPGUNIT QDEVTOOLS \
+          --cl ITESTCSYS \
+          --cc --sr --tr --to --co
