@@ -25,6 +25,8 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    environment: COMMON1
+
     strategy:
       matrix:
         node-version: [20.x]
@@ -34,6 +36,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
+          submodules: recursive
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -60,6 +63,42 @@ jobs:
         run: |
           npm run webpack
           npm publish --dry-run
+
+      - name: Install CLI Tools
+        run: |
+          npm i -g @ibm/ibmi-ci
+
+      - name: Build Sample Project
+        working-directory: examples/ibmi-company_system
+        run: |
+          ici \
+            --cmd "mkdir -p './builds/itest_${GITHUB_HEAD_REF}'" \
+            --rcwd "./builds/itest_${GITHUB_HEAD_REF}" \
+            --push "." \
+            --ignore --cl "CRTLIB ITESTREL" \
+            --ignore --cl "CLRLIB ITESTREL" \
+            --cmd "/QOpenSys/pkgs/bin/gmake BIN_LIB=ITESTREL"
+        env:
+          IBMI_HOST: ${{ secrets.IBMI_HOST }}
+          IBMI_USER: ${{ secrets.IBMI_USER }}
+          IBMI_PASSWORD: ${{ secrets.IBMI_PASSWORD }}
+          IBMI_SSH_PORT: ${{ secrets.IBMI_SSH_PORT }}
+
+      - name: Test CLI
+        working-directory: cli
+        run: |
+          chmod +x ./dist/index.js
+          ./dist/index.js \
+          --ld ../examples/ibmi-company_system \
+          --id /home/SANJULA/builds/ibmi-company_system \
+          --ll ITESTREL RPGUNIT QDEVTOOLS \
+          --cl ITESTREL \
+          --cc --sr --tr --to --co
+        env:
+          IBMI_HOST: ${{ secrets.IBMI_HOST }}
+          IBMI_USER: ${{ secrets.IBMI_USER }}
+          IBMI_PASSWORD: ${{ secrets.IBMI_PASSWORD }}
+          IBMI_SSH_PORT: ${{ secrets.IBMI_SSH_PORT }}
 
       - name: Publish to Open VSX
         if: github.event_name == 'release' || inputs.publish_openvsx == true
