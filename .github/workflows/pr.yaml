@@ -81,7 +81,6 @@ jobs:
       - name: Install CLI Tools
         run: |
           npm i -g @ibm/ibmi-ci
-          npm i -g @ibm/itest
         
       - name: Build Sample Project
         working-directory: examples/ibmi-company_system
@@ -103,9 +102,8 @@ jobs:
         working-directory: cli
         run: |
           chmod +x ./dist/index.js
-          ls -la dist/
           ./dist/index.js \
-          --ld ../examples/ibmi-company_system
+          --ld ../examples/ibmi-company_system \
           --id /home/SANJULA/builds/ibmi-company_system \
           --ll ITESTCSYS RPGUNIT QDEVTOOLS \
           --cl ITESTCSYS \
