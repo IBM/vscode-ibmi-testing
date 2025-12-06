@@ -31,7 +31,6 @@ jobs:
           npm install -g vsce
           cd cli
           npm install
-          cd ..
 
       - name: Build Extension
         run: |
