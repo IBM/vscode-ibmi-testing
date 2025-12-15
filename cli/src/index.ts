@@ -389,7 +389,7 @@ function main() {
                     getProductLibrary: function (): string {
                         return "RPGUNIT";
                     },
-                    getBaseExecutionParams: function (tstpgm: string, xmlStmf: string, tstPrc?: string): RUCALLTST {
+                    getBaseExecutionParams: function (tstpgm: string, xmlStmf: string, xmlType: string, tstPrc?: string): RUCALLTST {
                         const testParams: RUCALLTST = {
                             tstPgm: tstpgm,
                             tstPrc: tstPrc,
@@ -399,7 +399,8 @@ function main() {
                             libl: "*CURRENT",
                             jobD: "*DFT",
                             rclRsc: "*NO",
-                            xmlStmf: xmlStmf
+                            xmlStmf: xmlStmf,
+                            xmlType: xmlType
                         };
 
                         return testParams;

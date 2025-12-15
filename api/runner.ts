@@ -19,7 +19,7 @@ export interface TestCallbacks {
     loadDiagnostics: (qualifiedObject: string, workspaceFolderPath?: string) => Promise<void>;
     getEnvConfig: (workspaceFolderPath: string) => Promise<Env>;
     getProductLibrary: () => string;
-    getBaseExecutionParams: (tstpgm: string, xmlStmf: string, tstPrc?: string) => RUCALLTST;
+    getBaseExecutionParams: (tstpgm: string, xmlStmf: string, xmlType: string, tstPrc?: string) => RUCALLTST;
     setIsCompiled: (uri: BasicUri, isCompiled: boolean) => Promise<void>;
     started: (uri: BasicUri) => Promise<void>;
     skipped: (uri: BasicUri) => Promise<void>;
@@ -462,9 +462,10 @@ export class Runner {
             const testStorage = IBMiTestStorage.getTestStorage(this.connection, `${tstPgm.name}${testCase?.name ? `_${testCase?.name}` : ``}`);
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Test storage for ${testSuite.name}: ${JSON.stringify(testStorage)}`);
             const xmlStmf = testStorage.RPGUNIT;
+            const xmlType = `*TYPE2`;
 
             // Merge base execution params (ie. from VS Code settings) and execution params from config file
-            const baseExecutionParams = this.testCallbacks.getBaseExecutionParams(qualifiedTstPgm, xmlStmf, testCase?.name);
+            const baseExecutionParams = this.testCallbacks.getBaseExecutionParams(qualifiedTstPgm, xmlStmf, xmlType, testCase?.name);
             const rucalltst = testSuite.testingConfig?.rpgunit?.rucalltst;
             const wrapperCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.wrapperCmd;
             if (wrapperCmd) {
@@ -526,6 +527,7 @@ export class Runner {
             }
 
             let hitRunTimeError: boolean = false;
+            let resolvedXmlStmf: string = testParams.xmlStmf;
             if (testResult.stdout.length > 0) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Info, `${testSuite.name} execution output:\n${testResult.stdout}`);
                 const lines = testResult.stdout.split('\n');
@@ -535,6 +537,15 @@ export class Runner {
                         await this.testLogger.logRunTimeWarning(trimmedLine);
                         hitRunTimeError = true;
                     }
+                }
+
+                const match = testResult.stdout.match(/XML file\s*:\s*([\s\S]*?)XML type\s*:/);
+                if (match && match.length >= 1) {
+                    resolvedXmlStmf = match[1]
+                        .split(/\r?\n/)
+                        .map((line: string) => line.trim().slice(1, -1))
+                        .filter((line: string) => line.length > 0)
+                        .join('');
                 }
             }
             if (testResult.stderr.length > 0) {
@@ -600,7 +611,7 @@ export class Runner {
             // Parse XML test case results
             let testCaseResults: TestCaseResult[] = [];
             try {
-                const xmlStmfContent = (await content.downloadStreamfileRaw(testParams.xmlStmf));
+                const xmlStmfContent = (await content.downloadStreamfileRaw(resolvedXmlStmf));
                 const xml = await parseStringPromise(xmlStmfContent);
                 testCaseResults = XMLParser.parseTestResults(xml, testSuite.uri.scheme === 'file' || testSuite.uri.scheme === 'streamfile');
             } catch (error: any) {

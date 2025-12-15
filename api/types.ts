@@ -187,7 +187,8 @@ export interface RUCALLTST {
     libl?: string,
     jobD?: string,
     rclRsc?: string,
-    xmlStmf: string
+    xmlStmf: string,
+    xmlType: string
 }
 
 export interface CODECOV {
