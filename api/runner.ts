@@ -462,7 +462,7 @@ export class Runner {
             const testStorage = IBMiTestStorage.getTestStorage(this.connection, `${tstPgm.name}${testCase?.name ? `_${testCase?.name}` : ``}`);
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Test storage for ${testSuite.name}: ${JSON.stringify(testStorage)}`);
             const xmlStmf = testStorage.RPGUNIT;
-            const xmlType = `*TYPE2`;
+            const xmlType = `*VSCODE1`;
 
             // Merge base execution params (ie. from VS Code settings) and execution params from config file
             const baseExecutionParams = this.testCallbacks.getBaseExecutionParams(qualifiedTstPgm, xmlStmf, xmlType, testCase?.name);
