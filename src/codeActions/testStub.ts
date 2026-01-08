@@ -35,13 +35,13 @@ export namespace TestStubCodeActions {
                     }
                 }
             ),
-            commands.registerCommand('vscode-rpgle.generateTestStub', async (document: TextDocument, docs: Cache, exportProcedures: Declaration[]) => {
+            commands.registerCommand('vscode-rpgle.generateTestStub', async (document: TextDocument, docs: Cache, exportProcedures: Declaration[], forcePreferences?: Partial<TestStubPreferences>) => {
                 const ibmi = getInstance();
                 const connection = ibmi!.getConnection()!;
 
                 // Get test stub generation preferences
                 const testStubPreferences = Configuration.getOrFallback<TestStubPreferences>(Section.testStubPreferences);
-                const showTestStubPreview = testStubPreferences["Show Test Stub Preview"];
+                const showTestStubPreview = forcePreferences?.["Show Test Stub Preview"] ?? testStubPreferences["Show Test Stub Preview"];
                 const promptForTestName = testStubPreferences["Prompt For Test Name"];
                 const testSourceFile = testStubPreferences["Test Source File"];
                 const testSourceDirectory = testStubPreferences["Test Source Directory"];
