@@ -1,4 +1,4 @@
-import { ConfigurationChangeEvent, ExtensionContext, LogLevel, workspace } from "vscode";
+import { commands, ConfigurationChangeEvent, ExtensionContext, LogLevel, TestRunRequest, Uri, window, workspace } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { getComponentRegistry, getInstance, loadBase } from "./extensions/ibmi";
 import { Configuration, Section } from "./configuration";
@@ -8,12 +8,13 @@ import { CodeCov } from "./components/codeCov";
 import * as tmp from "tmp";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestStubCodeActions } from "./codeActions/testStub";
+import { IBMiTestingApi } from "./types";
 
 export let testOutputLogger: TestOutputLogger = new TestOutputLogger();
 export let manager: IBMiTestManager | undefined;
 let userLibraryList: string[] | undefined;
 
-export async function activate(context: ExtensionContext) {
+export async function activate(context: ExtensionContext): Promise<IBMiTestingApi> {
 	console.log('Congratulations, your extension "vscode-ibmi-testing" is now active!');
 	const installedVersion = context.extension.packageJSON.version;
 	await testOutputLogger.log(LogLevel.Info, `IBM i Testing (v${installedVersion}) extension activated!`);
@@ -99,6 +100,12 @@ export async function activate(context: ExtensionContext) {
 	// Miscellaneous setup
 	TestStubCodeActions.registerTestStubCodeActions(context);
 	tmp.setGracefulCleanup();
+
+	return {
+		getManager: () => {
+			return manager;
+		}
+	};
 }
 
 export async function deactivate() {

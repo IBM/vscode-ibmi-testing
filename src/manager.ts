@@ -7,6 +7,7 @@ import { ApiUtils } from "../api/apiUtils";
 import { Configuration, Section } from "./configuration";
 import { testOutputLogger } from "./extension";
 import { TestData, TestFileData } from "./testData";
+import { CompileMode } from "../api/types";
 
 export class IBMiTestManager {
     public context: ExtensionContext;
@@ -33,8 +34,7 @@ export class IBMiTestManager {
         ['Run Tests', 'Run Tests (Force Compile)', 'Run Tests (Skip Compile)'].forEach((profile, index) => {
             const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
             this.controller.createRunProfile(profile, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, token, compileMode);
-                await runner.runHandler();
+                await this.createTestRun(request, token, compileMode);
             }, index === 0, undefined, false);
         });
 
@@ -42,8 +42,7 @@ export class IBMiTestManager {
         ['Run Tests with Line Coverage', 'Run Tests with Line Coverage (Force Compile)', 'Run Tests with Line Coverage (Skip Compile)'].forEach((profile, index) => {
             const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
             const lineCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, token, compileMode);
-                await runner.runHandler();
+                await this.createTestRun(request, token, compileMode);
             }, index === 0, undefined, false);
             lineCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
         });
@@ -52,8 +51,7 @@ export class IBMiTestManager {
         ['Run Tests with Procedure Coverage', 'Run Tests with Procedure Coverage (Force Compile)', 'Run Tests with Procedure Coverage (Skip Compile)'].forEach((profile, index) => {
             const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
             const procedureCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-                const runner = new IBMiTestRunner(this, request, token, compileMode);
-                await runner.runHandler();
+                await this.createTestRun(request, token, compileMode);
             }, false, undefined, false);
             procedureCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
         });
@@ -175,7 +173,7 @@ export class IBMiTestManager {
         }
     }
 
-    private async getOrCreateFile(uri: Uri): Promise<{ item: TestItem; data: TestData; } | undefined> {
+    public async getOrCreateFile(uri: Uri): Promise<{ item: TestItem; data: TestData; } | undefined> {
         // Check if test item already exists
         const allTestItems = this.getFlattenedTestItems();
         const existingItem = allTestItems.find((item) => item.uri!.toString() === uri.toString());
@@ -409,5 +407,12 @@ export class IBMiTestManager {
                 await result.data.load();
             }
         }
+    }
+
+    public async createTestRun(request: TestRunRequest, token: CancellationToken | undefined, compileMode: CompileMode): Promise<string[]> {
+        const runner = new IBMiTestRunner(this, request, token, compileMode);
+        await runner.runHandler();
+        // TODO: Return test result
+        return [];
     }
 }

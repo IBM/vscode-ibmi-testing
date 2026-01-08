@@ -18,10 +18,10 @@ import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../api/
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
     private request: TestRunRequest;
-    private token: CancellationToken;
+    private token: CancellationToken | undefined;
     private compileMode: CompileMode;
 
-    constructor(manager: IBMiTestManager, request: TestRunRequest, token: CancellationToken, compileMode: CompileMode) {
+    constructor(manager: IBMiTestManager, request: TestRunRequest, token: CancellationToken | undefined, compileMode: CompileMode) {
         this.manager = manager;
         this.request = request;
         this.token = token;
@@ -52,7 +52,7 @@ export class IBMiTestRunner {
 
     private async processRequestItems(testRun: TestRun, testBuckets: TestBucket[], item: TestItem): Promise<void> {
         // Check for cancellation request before processing requested test items
-        if (this.token.isCancellationRequested) {
+        if (this.token?.isCancellationRequested) {
             return;
         }
 
@@ -207,7 +207,7 @@ export class IBMiTestRunner {
         const testLogger = new TestLogger(testOutputLogger, testResultLogger);
 
         // Check for cancellation request before checking if RPGUnit is installed
-        if (this.token.isCancellationRequested) {
+        if (this.token?.isCancellationRequested) {
             testRun.end();
             return;
         }
@@ -231,7 +231,7 @@ export class IBMiTestRunner {
         };
 
         // Check for cancellation request before validating library list
-        if (this.token.isCancellationRequested) {
+        if (this.token?.isCancellationRequested) {
             testRun.end();
             return;
         }
@@ -395,7 +395,7 @@ export class IBMiTestRunner {
                 return [];
             },
             isCancellationRequested: (): boolean => {
-                return this.token.isCancellationRequested;
+                return this.token?.isCancellationRequested ? true : false;
             },
             end: async (): Promise<void> => {
                 testRun.end();
