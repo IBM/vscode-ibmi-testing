@@ -283,7 +283,7 @@ export class IBMiTestRunner {
                 const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
                 return productLibrary;
             },
-            getBaseExecutionParams: (tstpgm: string, xmlStmf: string, xmlType: string, tstPrc?: string): RUCALLTST => {
+            getBaseExecutionParams: (tstpgm: string, xmlStmf: string, tstPrc?: string): RUCALLTST => {
                 const testParams: RUCALLTST = {
                     tstPgm: tstpgm,
                     tstPrc: tstPrc,
@@ -294,7 +294,8 @@ export class IBMiTestRunner {
                     jobD: Configuration.get<string>(Section.jobDescription),
                     rclRsc: Configuration.get<string>(Section.reclaimResources),
                     xmlStmf: xmlStmf,
-                    xmlType: xmlType
+                    xmlType: "*VSCODE1",
+                    onFailure: Configuration.get<string>(Section.onFailure)
                 };
 
                 return testParams;

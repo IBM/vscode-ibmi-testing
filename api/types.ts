@@ -188,7 +188,8 @@ export interface RUCALLTST {
     jobD?: string,
     rclRsc?: string,
     xmlStmf: string,
-    xmlType: string
+    xmlType: string,
+    onFailure?: string
 }
 
 export interface CODECOV {

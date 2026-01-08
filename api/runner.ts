@@ -19,7 +19,7 @@ export interface TestCallbacks {
     loadDiagnostics: (qualifiedObject: string, workspaceFolderPath?: string) => Promise<void>;
     getEnvConfig: (workspaceFolderPath: string) => Promise<Env>;
     getProductLibrary: () => string;
-    getBaseExecutionParams: (tstpgm: string, xmlStmf: string, xmlType: string, tstPrc?: string) => RUCALLTST;
+    getBaseExecutionParams: (tstpgm: string, xmlStmf: string, tstPrc?: string) => RUCALLTST;
     setIsCompiled: (uri: BasicUri, isCompiled: boolean) => Promise<void>;
     started: (uri: BasicUri) => Promise<void>;
     skipped: (uri: BasicUri) => Promise<void>;
@@ -462,10 +462,9 @@ export class Runner {
             const testStorage = IBMiTestStorage.getTestStorage(this.connection, `${tstPgm.name}${testCase?.name ? `_${testCase?.name}` : ``}`);
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Test storage for ${testSuite.name}: ${JSON.stringify(testStorage)}`);
             const xmlStmf = testStorage.RPGUNIT;
-            const xmlType = `*VSCODE1`;
 
             // Merge base execution params (ie. from VS Code settings) and execution params from config file
-            const baseExecutionParams = this.testCallbacks.getBaseExecutionParams(qualifiedTstPgm, xmlStmf, xmlType, testCase?.name);
+            const baseExecutionParams = this.testCallbacks.getBaseExecutionParams(qualifiedTstPgm, xmlStmf, testCase?.name);
             const rucalltst = testSuite.testingConfig?.rpgunit?.rucalltst;
             const wrapperCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.wrapperCmd;
             if (wrapperCmd) {
