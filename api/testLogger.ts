@@ -113,7 +113,7 @@ export class TestLogger {
                 }).join(`\r\n`) ?? '';
                 await this.testOutputLogger.log(LogLevel.Error, `Assertion ${assertionResult.name}()${assertionResult.line ? ` [Line ${assertionResult.line}]` : ``} failed:\r\n${callstackOutput}`);
             } else if (assertionResult.outcome === 'error') {
-                await this.testResultLogger.append(`\t\t${c.yellow(`⚠  ${assertionResult.errorType ? `${c.bold(`${assertionResult.errorType}`)}: ` : ``}${assertionResult.message}`)}\r\n`);
+                await this.testResultLogger.append(`\t\t${c.yellow(`⚠  ${assertionResult.errorType ? `${c.bold(`${assertionResult.errorType}:`)} ` : ``}${assertionResult.message}`)}\r\n`);
                 let receiverSenderOutput = '';
                 if (assertionResult.messageReceiver && assertionResult.messageSender) {
                     const receiverOutput = `Receiver: ${assertionResult.messageReceiver.procedure} (${assertionResult.messageReceiver.programLibrary}/${assertionResult.messageReceiver.program}->${assertionResult.messageReceiver.module}:${assertionResult.messageReceiver.line})`;
