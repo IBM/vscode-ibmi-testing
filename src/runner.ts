@@ -1,11 +1,11 @@
-import { TestRunRequest, TestItem, TestRun, workspace, TestRunProfileKind, Uri, commands, TestMessage, Position, Location, CancellationToken } from "vscode";
+import { TestRunRequest, TestItem, TestRun, workspace, TestRunProfileKind, Uri, commands, TestMessage, Position, Location, CancellationToken, TestMessageStackFrame } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { getDeployTools, getInstance } from "./extensions/ibmi";
 import { Configuration, LibraryListValidation, Section } from "./configuration";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { RPGUnit } from "./components/rpgUnit";
 import { Runner, TestCallbacks } from "../api/runner";
-import { MergedCoverageData, BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode } from "../api/types";
+import { MergedCoverageData, BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode, AssertionResult } from "../api/types";
 import { TestLogger } from "../api/testLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
 import { ILELibrarySettings } from "@halcyontech/vscode-ibmi-types/api/CompileTools";
@@ -18,10 +18,10 @@ import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../api/
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
     private request: TestRunRequest;
-    private token: CancellationToken;
+    private token: CancellationToken | undefined;
     private compileMode: CompileMode;
 
-    constructor(manager: IBMiTestManager, request: TestRunRequest, token: CancellationToken, compileMode: CompileMode) {
+    constructor(manager: IBMiTestManager, request: TestRunRequest, token: CancellationToken | undefined, compileMode: CompileMode) {
         this.manager = manager;
         this.request = request;
         this.token = token;
@@ -52,7 +52,7 @@ export class IBMiTestRunner {
 
     private async processRequestItems(testRun: TestRun, testBuckets: TestBucket[], item: TestItem): Promise<void> {
         // Check for cancellation request before processing requested test items
-        if (this.token.isCancellationRequested) {
+        if (this.token?.isCancellationRequested) {
             return;
         }
 
@@ -207,7 +207,7 @@ export class IBMiTestRunner {
         const testLogger = new TestLogger(testOutputLogger, testResultLogger);
 
         // Check for cancellation request before checking if RPGUnit is installed
-        if (this.token.isCancellationRequested) {
+        if (this.token?.isCancellationRequested) {
             testRun.end();
             return;
         }
@@ -231,7 +231,7 @@ export class IBMiTestRunner {
         };
 
         // Check for cancellation request before validating library list
-        if (this.token.isCancellationRequested) {
+        if (this.token?.isCancellationRequested) {
             testRun.end();
             return;
         }
@@ -293,7 +293,9 @@ export class IBMiTestRunner {
                     libl: Configuration.get<string>(Section.libraryList),
                     jobD: Configuration.get<string>(Section.jobDescription),
                     rclRsc: Configuration.get<string>(Section.reclaimResources),
-                    xmlStmf: xmlStmf
+                    xmlStmf: xmlStmf,
+                    xmlType: "*VSCODE1",
+                    onFailure: Configuration.get<string>(Section.onFailure)
                 };
 
                 return testParams;
@@ -341,7 +343,7 @@ export class IBMiTestRunner {
                     testRun.passed(testItem, duration);
                 }
             },
-            failed: async (uri: BasicUri, messages: { line?: number; message: string; }[], duration?: number): Promise<void> => {
+            failed: async (uri: BasicUri, assertionResults: AssertionResult[], duration?: number): Promise<void> => {
                 const testItem = allTestItems.find((item) =>
                     item.uri!.scheme === uri.scheme &&
                     item.uri!.fsPath === uri.fsPath &&
@@ -350,17 +352,52 @@ export class IBMiTestRunner {
                 if (testItem) {
                     // Add messages inline in the editor
                     const testMessages: TestMessage[] = [];
-                    for (const message of messages) {
-                        const testMessage = new TestMessage(message.message);
-                        const range = message.line ? new Position(message.line - 1, 0) : testItem.range;
-                        testMessage.location = range ? new Location(testItem.uri!, range) : undefined;
-                        testMessages.push(testMessage);
+                    for (const assertionResult of assertionResults) {
+                        if (assertionResult.message) {
+                            const message = assertionResult.errorType ? `${assertionResult.errorType}: ${assertionResult.message}` : assertionResult.message;
+                            const testMessage = new TestMessage(message);
+                            const range = assertionResult.line ? new Position(assertionResult.line - 1, 0) : testItem.range;
+                            testMessage.location = range ? new Location(testItem.uri!, range) : undefined;
+
+                            if (assertionResult.expected) {
+                                testMessage.expectedOutput = assertionResult.expected.value;
+                            }
+
+                            if (assertionResult.actual) {
+                                testMessage.actualOutput = assertionResult.actual.value;
+                            }
+
+                            if (assertionResult.callstack && assertionResult.callstack.length > 0) {
+                                const stackTrace: TestMessageStackFrame[] = [];
+                                for (const callstackItem of assertionResult.callstack) {
+                                    stackTrace.push({
+                                        label: `${callstackItem.procedure} (${callstackItem.programLibrary}/${callstackItem.program}->${callstackItem.module}:${callstackItem.line})`
+                                    });
+                                }
+                                testMessage.stackTrace = stackTrace;
+                            }
+
+                            if (assertionResult.messageReceiver && assertionResult.messageSender) {
+                                const stackTrace: TestMessageStackFrame[] = [
+                                    {
+                                        label: `${assertionResult.messageReceiver.procedure} (${assertionResult.messageReceiver.programLibrary}/${assertionResult.messageReceiver.program}->${assertionResult.messageReceiver.module}:${assertionResult.messageReceiver.line})`
+                                    },
+                                    {
+                                        label: `${assertionResult.messageSender.procedure} (${assertionResult.messageSender.programLibrary}/${assertionResult.messageSender.program}->${assertionResult.messageSender.module}:${assertionResult.messageSender.line})`
+                                    }
+                                ];
+
+                                testMessage.stackTrace = stackTrace;
+                            }
+
+                            testMessages.push(testMessage);
+                        }
                     }
 
                     testRun.failed(testItem, testMessages, duration);
                 }
             },
-            errored: async (uri: BasicUri, messages: { line?: number; message: string; }[], duration?: number): Promise<void> => {
+            errored: async (uri: BasicUri, assertionResults: AssertionResult[], duration?: number): Promise<void> => {
                 const testItem = allTestItems.find((item) =>
                     item.uri!.scheme === uri.scheme &&
                     item.uri!.fsPath === uri.fsPath &&
@@ -369,11 +406,46 @@ export class IBMiTestRunner {
                 if (testItem) {
                     // Add messages inline in the editor
                     const testMessages: TestMessage[] = [];
-                    for (const message of messages) {
-                        const testMessage = new TestMessage(message.message);
-                        const range = message.line ? new Position(message.line - 1, 0) : testItem.range;
-                        testMessage.location = range ? new Location(testItem.uri!, range) : undefined;
-                        testMessages.push(testMessage);
+                    for (const assertionResult of assertionResults) {
+                        if (assertionResult.message) {
+                            const message = assertionResult.errorType ? `${assertionResult.errorType}: ${assertionResult.message}` : assertionResult.message;
+                            const testMessage = new TestMessage(message);
+                            const range = assertionResult.line ? new Position(assertionResult.line - 1, 0) : testItem.range;
+                            testMessage.location = range ? new Location(testItem.uri!, range) : undefined;
+
+                            if (assertionResult.expected) {
+                                testMessage.expectedOutput = assertionResult.expected.value;
+                            }
+
+                            if (assertionResult.actual) {
+                                testMessage.actualOutput = assertionResult.actual.value;
+                            }
+
+                            if (assertionResult.callstack && assertionResult.callstack.length > 0) {
+                                const stackTrace: TestMessageStackFrame[] = [];
+                                for (const callstackItem of assertionResult.callstack) {
+                                    stackTrace.push({
+                                        label: `${callstackItem.procedure} (${callstackItem.programLibrary}/${callstackItem.program}->${callstackItem.module}:${callstackItem.line})`
+                                    });
+                                }
+                                testMessage.stackTrace = stackTrace;
+                            }
+
+                            if (assertionResult.messageReceiver && assertionResult.messageSender) {
+                                const stackTrace: TestMessageStackFrame[] = [
+                                    {
+                                        label: `${assertionResult.messageReceiver.procedure} (${assertionResult.messageReceiver.programLibrary}/${assertionResult.messageReceiver.program}->${assertionResult.messageReceiver.module}:${assertionResult.messageReceiver.line})`
+                                    },
+                                    {
+                                        label: `${assertionResult.messageSender.procedure} (${assertionResult.messageSender.programLibrary}/${assertionResult.messageSender.program}->${assertionResult.messageSender.module}:${assertionResult.messageSender.line})`
+                                    }
+                                ];
+
+                                testMessage.stackTrace = stackTrace;
+                            }
+
+                            testMessages.push(testMessage);
+                        }
                     }
 
                     testRun.errored(testItem, testMessages, duration);
@@ -394,7 +466,7 @@ export class IBMiTestRunner {
                 return [];
             },
             isCancellationRequested: (): boolean => {
-                return this.token.isCancellationRequested;
+                return this.token?.isCancellationRequested ? true : false;
             },
             end: async (): Promise<void> => {
                 testRun.end();

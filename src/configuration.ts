@@ -29,7 +29,8 @@ export enum Section {
     jobDescription = 'jobDescription',
     reportDetail = 'reportDetail',
     createReport = 'createReport',
-    reclaimResources = 'reclaimResources'
+    reclaimResources = 'reclaimResources',
+    onFailure = 'onFailure'
 }
 
 export const defaultConfigurations: { [T in Section]: ValueType } = {
@@ -54,7 +55,8 @@ export const defaultConfigurations: { [T in Section]: ValueType } = {
     [Section.jobDescription]: '*DFT',
     [Section.reportDetail]: '*BASIC',
     [Section.createReport]: '*ALLWAYS',
-    [Section.reclaimResources]: '*NO'
+    [Section.reclaimResources]: '*NO',
+    [Section.onFailure]: '*ABORT',
 };
 
 export namespace Configuration {

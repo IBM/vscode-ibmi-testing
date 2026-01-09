@@ -1,4 +1,4 @@
-import { CompilationStatus, DeploymentStatus, Logger, LogLevel, MergedCoverageData, TestMetrics } from "./types";
+import { AssertionResult, CompilationStatus, DeploymentStatus, Logger, LogLevel, MergedCoverageData, TestMetrics } from "./types";
 import c from "ansi-colors";
 import * as path from "path";
 import { table, TableUserConfig } from "table";
@@ -76,24 +76,18 @@ export class TestLogger {
         }
     }
 
-    async logTestCasePassed(testCaseName: string, duration?: number) {
-        await this.testResultLogger.append(`\t${c.green(`✔`)}  ${testCaseName} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
+    async logTestCasePassed(testCaseName: string, assertionCount: number, duration?: number) {
+        await this.testResultLogger.append(`\t${c.green(`✔`)}  ${testCaseName} ${c.grey(`(${assertionCount}) ${duration !== undefined ? `${duration}s` : ``}`)}\r\n`);
         await this.testOutputLogger.log(LogLevel.Info, `Test case ${testCaseName} passed${duration !== undefined ? ` in ${duration}s` : ``}`);
     }
 
-    async logTestCaseFailed(testCaseName: string, messages: { line?: number, message: string }[], duration?: number) {
-        await this.testResultLogger.append(`\t${c.red(`✘`)}  ${testCaseName} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
-        for (const message of messages) {
-            await this.testResultLogger.append(`\t\t${c.red(`${c.bold(`Failure`)}${message.line ? ` (line ${message.line})` : ``}: ${message.message}`)}\r\n`);
-        }
+    async logTestCaseFailed(testCaseName: string, assertionCount: number, duration?: number) {
+        await this.testResultLogger.append(`\t${c.red(`✘`)}  ${testCaseName} ${c.grey(`(${assertionCount}) ${duration !== undefined ? `${duration}s` : ``}`)}\r\n`);
         await this.testOutputLogger.log(LogLevel.Error, `Test case ${testCaseName} failed${duration !== undefined ? ` in ${duration}s` : ``}`);
     }
 
-    async logTestCaseErrored(testCaseName: string, messages: { line?: number, message: string }[], duration?: number) {
-        await this.testResultLogger.append(`\t${c.yellow(`⚠`)}  ${testCaseName} ${c.grey(duration !== undefined ? `${duration}s` : ``)}\r\n`);
-        for (const message of messages) {
-            await this.testResultLogger.append(`\t\t${c.yellow(`${c.bold(`Error`)}${message.line ? ` (line ${message.line})` : ``}: ${message.message}`)}\r\n`);
-        }
+    async logTestCaseErrored(testCaseName: string, assertionCount: number, duration?: number) {
+        await this.testResultLogger.append(`\t${c.yellow(`⚠`)}  ${testCaseName} ${c.grey(`(${assertionCount}) ${duration !== undefined ? `${duration}s` : ``}`)}\r\n`);
         await this.testOutputLogger.log(LogLevel.Error, `Test case ${testCaseName} errored${duration !== undefined ? ` in ${duration}s` : ``}`);
     }
 
@@ -105,6 +99,32 @@ export class TestLogger {
     async logTestCaseCancelled(testCaseName: string) {
         await this.testResultLogger.append(`\t${c.magenta(`○`)}  ${testCaseName}\r\n`);
         await this.testOutputLogger.log(LogLevel.Warning, `Test case ${testCaseName} cancelled`);
+    }
+
+    async logAssertionResult(assertionResults: AssertionResult[]) {
+        for (const assertionResult of assertionResults) {
+            if (assertionResult.outcome === 'success') {
+                await this.testResultLogger.append(`\t\t${c.green(`✔`)}  ${assertionResult.name}()${assertionResult.line ? ` [Line ${assertionResult.line}]` : ``}\r\n`);
+                await this.testOutputLogger.log(LogLevel.Info, `Assertion ${assertionResult.name}()${assertionResult.line ? ` [Line ${assertionResult.line}]` : ``} passed`);
+            } else if (assertionResult.outcome === 'failure') {
+                await this.testResultLogger.append(`\t\t${c.red(`✘  ${c.bold(`${assertionResult.name}()`)}${assertionResult.line ? ` [Line ${assertionResult.line}]` : ``}${assertionResult.message ? ` - ${assertionResult.message}` : ``}`)}\r\n`);
+                const callstackOutput = assertionResult.callstack?.map(callstackItem => {
+                    return `${callstackItem.procedure} (${callstackItem.programLibrary}/${callstackItem.program}->${callstackItem.module}:${callstackItem.line})`;
+                }).join(`\r\n`) ?? '';
+                await this.testOutputLogger.log(LogLevel.Error, `Assertion ${assertionResult.name}()${assertionResult.line ? ` [Line ${assertionResult.line}]` : ``} failed:\r\n${callstackOutput}`);
+            } else if (assertionResult.outcome === 'error') {
+                await this.testResultLogger.append(`\t\t${c.yellow(`⚠  ${assertionResult.errorType ? `${c.bold(`${assertionResult.errorType}`)}: ` : ``}${assertionResult.message}`)}\r\n`);
+                let receiverSenderOutput = '';
+                if (assertionResult.messageReceiver && assertionResult.messageSender) {
+                    const receiverOutput = `Receiver: ${assertionResult.messageReceiver.procedure} (${assertionResult.messageReceiver.programLibrary}/${assertionResult.messageReceiver.program}->${assertionResult.messageReceiver.module}:${assertionResult.messageReceiver.line})`;
+                    const senderOutput = `Sender: ${assertionResult.messageSender.procedure} (${assertionResult.messageSender.programLibrary}/${assertionResult.messageSender.program}->${assertionResult.messageSender.module}:${assertionResult.messageSender.line})`;
+                    await this.testResultLogger.append(`\t\t\t${c.yellow(receiverOutput)}\r\n`);
+                    await this.testResultLogger.append(`\t\t\t${c.yellow(senderOutput)}\r\n`);
+                    receiverSenderOutput = `${receiverOutput}\r\n${senderOutput}`;
+                }
+                await this.testOutputLogger.log(LogLevel.Error, `${assertionResult.errorType ? `${assertionResult.errorType}: ` : ``}${assertionResult.message}:\r\n${receiverSenderOutput}`);
+            }
+        }
     }
 
     async logMetrics(metrics: TestMetrics) {

@@ -2,7 +2,7 @@ import IBMi from "vscode-ibmi/src/api/IBMi";
 import { Runner, TestCallbacks } from "../../api/runner";
 import { ConnectionData } from "vscode-ibmi/src/api/types";
 import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
-import { DeploymentStatus, Env, RUCALLTST, BasicUri, TestRequest, MergedCoverageData, CCLVL } from "../../api/types";
+import { DeploymentStatus, Env, RUCALLTST, BasicUri, TestRequest, MergedCoverageData, CCLVL, AssertionResult } from "../../api/types";
 import { TestLogger } from "../../api/testLogger";
 import { SummaryLogger } from "./loggers/summaryLogger";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
@@ -399,7 +399,9 @@ function main() {
                             libl: "*CURRENT",
                             jobD: "*DFT",
                             rclRsc: "*NO",
-                            xmlStmf: xmlStmf
+                            xmlStmf: xmlStmf,
+                            xmlType: "*VSCODE1",
+                            onFailure: "*ABORT"
                         };
 
                         return testParams;
@@ -420,11 +422,11 @@ function main() {
                         // Not used
                         return;
                     },
-                    failed: async function (uri: BasicUri, messages: { line?: number; message: string; }[], duration?: number): Promise<void> {
+                    failed: async function (uri: BasicUri, assertionResults: AssertionResult[], duration?: number): Promise<void> {
                         // Not used
                         return;
                     },
-                    errored: async function (uri: BasicUri, messages: { line?: number; message: string; }[], duration?: number): Promise<void> {
+                    errored: async function (uri: BasicUri, assertionResults: AssertionResult[], duration?: number): Promise<void> {
                         // Not used
                         return;
                     },

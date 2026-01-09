@@ -1,6 +1,5 @@
 
-import { parseStringPromise } from "xml2js";
-import { MergedCoverageData, BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, MappedCoverageData, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestStatus, TestSuite, WrapperCmd } from "./types";
+import { MergedCoverageData, BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, MappedCoverageData, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestSuite, WrapperCmd, TestOutcome, AssertionResult } from "./types";
 import { TestLogger } from "./testLogger";
 import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
 import IBMi from "vscode-ibmi/src/api/IBMi";
@@ -8,6 +7,7 @@ import { ApiUtils } from "./apiUtils";
 import { IBMiTestStorage } from "./storage";
 import { CodeCoverageParser } from "./codeCoverageParser";
 import { XMLParser } from "./xmlParser";
+import * as xmljs from "xml-js";
 import * as path from "path";
 
 export interface TestCallbacks {
@@ -24,8 +24,8 @@ export interface TestCallbacks {
     started: (uri: BasicUri) => Promise<void>;
     skipped: (uri: BasicUri) => Promise<void>;
     passed: (uri: BasicUri, duration?: number) => Promise<void>;
-    failed: (uri: BasicUri, messages: { line?: number, message: string }[], duration?: number) => Promise<void>;
-    errored: (uri: BasicUri, messages: { line?: number, message: string }[], duration?: number) => Promise<void>;
+    failed: (uri: BasicUri, assertionResults: AssertionResult[], duration?: number) => Promise<void>;
+    errored: (uri: BasicUri, assertionResults: AssertionResult[], duration?: number) => Promise<void>;
     addCoverageDatasets(mergedCoverageDatasets: MergedCoverageData[]): void;
     shouldLogCoverage: () => boolean;
     getCoverageThresholds: () => string[];
@@ -175,7 +175,7 @@ export class Runner {
 
                     // Error out all test cases since compile failed
                     for (const testCase of testSuite.testCases) {
-                        await this.testLogger.logTestCaseErrored(testCase.name, []);
+                        await this.testLogger.logTestCaseErrored(testCase.name, 0);
                         await this.testCallbacks.errored(testCase.uri, []);
                         this.testMetrics.testCases.errored++;
                     }
@@ -515,17 +515,22 @@ export class Runner {
                 const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
                 testResult = await this.connection.runCommand({ command: testCommand, environment: `ile`, env: env });
             } catch (error: any) {
-                const messages = [{ message: error.message ? error.message : error }];
+                const assertionResult: AssertionResult[] = [{
+                    outcome: 'error',
+                    message: error.message ? error.message : error
+                }];
                 for (const testCase of testSuite.testCases) {
-                    await this.testLogger.logTestCaseErrored(testCase.name, messages);
-                    await this.testCallbacks.errored(testCase.uri, messages);
+                    await this.testLogger.logTestCaseErrored(testCase.name, 0);
+                    await this.testCallbacks.errored(testCase.uri, assertionResult);
                     this.testMetrics.testCases.errored++;
+                    await this.testLogger.logAssertionResult(assertionResult);
                 }
 
                 this.testMetrics.testFiles.errored++;
             }
 
             let hitRunTimeError: boolean = false;
+            let resolvedXmlStmf: string = testParams.xmlStmf;
             if (testResult.stdout.length > 0) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Info, `${testSuite.name} execution output:\n${testResult.stdout}`);
                 const lines = testResult.stdout.split('\n');
@@ -535,6 +540,15 @@ export class Runner {
                         await this.testLogger.logRunTimeWarning(trimmedLine);
                         hitRunTimeError = true;
                     }
+                }
+
+                const match = testResult.stdout.match(/XML file\s*:\s*([\s\S]*?)XML type\s*:/);
+                if (match && match.length >= 1) {
+                    resolvedXmlStmf = match[1]
+                        .split(/\r?\n/)
+                        .map((line: string) => line.trim().slice(1, -1))
+                        .filter((line: string) => line.length > 0)
+                        .join('');
                 }
             }
             if (testResult.stderr.length > 0) {
@@ -600,39 +614,43 @@ export class Runner {
             // Parse XML test case results
             let testCaseResults: TestCaseResult[] = [];
             try {
-                const xmlStmfContent = (await content.downloadStreamfileRaw(testParams.xmlStmf));
-                const xml = await parseStringPromise(xmlStmfContent);
-                testCaseResults = XMLParser.parseTestResults(xml, testSuite.uri.scheme === 'file' || testSuite.uri.scheme === 'streamfile');
+                const xmlStmfContent = (await content.downloadStreamfileRaw(resolvedXmlStmf)).toString();
+                const xmlAsJs = xmljs.xml2js(xmlStmfContent, { compact: false, alwaysChildren: true });
+                testCaseResults = XMLParser.parseTestResults(xmlAsJs, testSuite.uri.scheme === 'file' || testSuite.uri.scheme === 'streamfile');
             } catch (error: any) {
                 for (const testCase of testSuite.testCases) {
-                    const messages = [{ message: error.message ? error.message : error }];
-                    await this.testLogger.logTestCaseErrored(testCase.name, messages);
-                    await this.testCallbacks.errored(testCase.uri, messages);
+                    const assertionResult: AssertionResult[] = [{
+                        outcome: 'error',
+                        message: error.message ? error.message : error
+                    }];
+                    await this.testLogger.logTestCaseErrored(testCase.name, 0);
+                    await this.testCallbacks.errored(testCase.uri, assertionResult);
                     this.testMetrics.testCases.errored++;
+                    await this.testLogger.logAssertionResult(assertionResult);
                 }
             }
 
             // Process test case results
-            let testFileStatus: TestStatus = hitRunTimeError ? 'errored' : 'passed';
+            let testFileStatus: TestOutcome = hitRunTimeError ? 'error' : 'success';
             for (const testCaseResult of testCaseResults) {
                 // const parentItem = isTestCase ? item.parent! : item;
 
                 const mappedTestCase = testSuite.testCases.find(testCase => testCase.name.toLocaleUpperCase() === testCaseResult.name);
                 if (mappedTestCase) {
                     // Test case result is mapped to a test item
-                    if (testCaseResult.status === 'passed') {
-                        await this.testLogger.logTestCasePassed(mappedTestCase.name, testCaseResult.time);
+                    if (testCaseResult.outcome === 'success') {
+                        await this.testLogger.logTestCasePassed(mappedTestCase.name, testCaseResult.results?.length || 0, testCaseResult.time);
                         await this.testCallbacks.passed(mappedTestCase.uri, testCaseResult.time);
                         this.testMetrics.testCases.passed++;
-                    } else if (testCaseResult.status === 'failed') {
-                        testFileStatus = testCaseResult.status;
-                        await this.testLogger.logTestCaseFailed(mappedTestCase.name, testCaseResult.failure || [], testCaseResult.time);
-                        await this.testCallbacks.failed(mappedTestCase.uri, testCaseResult.failure || [], testCaseResult.time);
+                    } else if (testCaseResult.outcome === 'failure') {
+                        testFileStatus = testCaseResult.outcome;
+                        await this.testLogger.logTestCaseFailed(mappedTestCase.name, testCaseResult.results?.length || 0, testCaseResult.time);
+                        await this.testCallbacks.failed(mappedTestCase.uri, testCaseResult.results || [], testCaseResult.time);
                         this.testMetrics.testCases.failed++;
-                    } else if (testCaseResult.status === 'errored') {
-                        testFileStatus = testCaseResult.status;
-                        await this.testLogger.logTestCaseErrored(mappedTestCase.name, testCaseResult.error || [], testCaseResult.time);
-                        await this.testCallbacks.errored(mappedTestCase.uri, testCaseResult.error || [], testCaseResult.time);
+                    } else if (testCaseResult.outcome === 'error') {
+                        testFileStatus = testCaseResult.outcome;
+                        await this.testLogger.logTestCaseErrored(mappedTestCase.name, testCaseResult.results?.length || 0, testCaseResult.time);
+                        await this.testCallbacks.errored(mappedTestCase.uri, testCaseResult.results || [], testCaseResult.time);
                         this.testMetrics.testCases.errored++;
                     }
 
@@ -640,29 +658,33 @@ export class Runner {
                     this.testMetrics.assertions += testCaseResult.assertions || 0;
                 } else {
                     // Test case result is not mapped to a test item (ie. setUpSuite, setUp, tearDown, tearDownSuite)
-                    if (testCaseResult.status === 'passed') {
+                    if (testCaseResult.outcome === 'success') {
                         // This should never happened
                         await this.testLogger.testOutputLogger.log(LogLevel.Error, `Test case ${testCaseResult.name} passed${testCaseResult.time !== undefined ? ` in ${testCaseResult.time}s` : ``} but was not mapped to a test item`);
-                    } else if (testCaseResult.status === 'failed') {
-                        testFileStatus = testCaseResult.status;
-                        await this.testLogger.logTestCaseFailed(testCaseResult.name, testCaseResult.failure || [], testCaseResult.time);
-                        await this.testCallbacks.failed(testSuite.uri, testCaseResult.failure || [], testCaseResult.time);
-                    } else if (testCaseResult.status === 'errored') {
-                        testFileStatus = testCaseResult.status;
-                        await this.testLogger.logTestCaseErrored(testCaseResult.name, testCaseResult.error || [], testCaseResult.time);
-                        await this.testCallbacks.errored(testSuite.uri, testCaseResult.error || [], testCaseResult.time);
+                    } else if (testCaseResult.outcome === 'failure') {
+                        testFileStatus = testCaseResult.outcome;
+                        await this.testLogger.logTestCaseFailed(testCaseResult.name, testCaseResult.results?.length || 0, testCaseResult.time);
+                        await this.testCallbacks.failed(testSuite.uri, testCaseResult.results || [], testCaseResult.time);
+                    } else if (testCaseResult.outcome === 'error') {
+                        testFileStatus = testCaseResult.outcome;
+                        await this.testLogger.logTestCaseErrored(testCaseResult.name, testCaseResult.results?.length || 0, testCaseResult.time);
+                        await this.testCallbacks.errored(testSuite.uri, testCaseResult.results || [], testCaseResult.time);
                     }
 
                     this.testMetrics.duration += testCaseResult.time || 0;
                     this.testMetrics.assertions += testCaseResult.assertions || 0;
                 }
+
+                if (testCaseResult.results) {
+                    await this.testLogger.logAssertionResult(testCaseResult.results);
+                }
             }
 
-            if (testFileStatus === 'passed') {
+            if (testFileStatus === 'success') {
                 this.testMetrics.testFiles.passed++;
-            } else if (testFileStatus === 'failed') {
+            } else if (testFileStatus === 'failure') {
                 this.testMetrics.testFiles.failed++;
-            } else if (testFileStatus === 'errored') {
+            } else if (testFileStatus === 'error') {
                 this.testMetrics.testFiles.errored++;
             }
         }

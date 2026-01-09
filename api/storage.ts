@@ -25,7 +25,7 @@ export namespace IBMiTestStorage {
         const time = new Date().getTime();
 
         return {
-            RPGUNIT: `${config.tempDir}/${TEST_OUTPUT_DIRECTORY}/${RPGUNIT_DIRECTORY}/${prefix}_${time}.xml`,
+            RPGUNIT: `${config.tempDir}/${TEST_OUTPUT_DIRECTORY}/${RPGUNIT_DIRECTORY}/${prefix}-%F.%T.<MSECONDS>.xml`,
             CODECOV: `${config.tempDir}/${TEST_OUTPUT_DIRECTORY}/${CODECOV_DIRECTORY}/${prefix}_${time}.cczip`
         };
     }
