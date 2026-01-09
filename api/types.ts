@@ -60,28 +60,53 @@ export interface TestCase {
 
 export interface TestCaseResult {
     name: string,
-    status: TestStatus,
-    time?: number,
-    assertions?: number,
-    failure?: {
-        line?: number,
-        message: string
-    }[],
-    error?: {
-        line?: number,
-        message: string
-    }[]
+    outcome: TestOutcome,
+    time: number,
+    assertions: number,
+    results?: AssertionResult[]
+}
+
+export interface AssertionResult {
+    name?: string,
+    outcome: TestOutcome,
+    line?: number, // Used for success and failure only
+    message?: string, // Used for failure and error only
+    expected?: ValueInfo,
+
+    // Failure specific fields
+    actual?: ValueInfo,
+    callstack?: CallstackItem[],
+    diagnosticMessages?: string[],
+
+    // Error specific fields
+    errorType?: string,
+    messageSender?: CallstackItem,
+    messageReceiver?: CallstackItem
+}
+
+export interface CallstackItem {
+    program: string,
+    programLibrary: string,
+    module: string,
+    moduleLibrary: string,
+    procedure: string,
+    line: number
+}
+
+export interface ValueInfo {
+    value: string,
+    type: string,
+    length: number,
+    originalLength: number
 }
 
 export type Env = Record<string, string>;
 
-export type TestStatus = 'passed' | 'failed' | 'errored';
+export type TestOutcome = 'success' | 'failure' | 'error';
 
 export type DeploymentStatus = 'success' | 'errored' | 'skipped' | 'cancelled';
 
 export type CompilationStatus = 'success' | 'errored' | 'skipped' | 'cancelled';
-
-export type ExecutionStatus = 'passed' | 'failed' | 'errored';
 
 export interface TestStorage {
     RPGUNIT: string,
