@@ -20,6 +20,15 @@
                     "cOption": [
                         "*EVENTF"
                     ]
+                },
+                "rucalltst": {
+                    "order": "*API",
+                    "libl": "*CURRENT",
+                    "jobD": "*DFT",
+                    "detail": "*BASIC",
+                    "output": "*ALLWAYS",
+                    "rclRsc": "*NO",
+                    "onFailure": "*ABORT"
                 }
             },
             "properties": {
@@ -557,7 +566,8 @@
                         "jobD": "*DFT",
                         "detail": "*BASIC",
                         "output": "*ALLWAYS",
-                        "rclRsc": "*NO"
+                        "rclRsc": "*NO",
+                        "onFailure": "*ABORT"
                     },
                     "properties": {
                         "tstPgm": {
@@ -638,6 +648,19 @@
                                 "Resources are reclaimed at the end of the test suite."
                             ],
                             "markdownDescription": "Reclaim Resources\n\nSpecifies when to reclaim resources. Resources, such as open files, can be reclaimed after each test case or at the end of the test suite. This option is useful if the test suite calls OPM programs, which do not set the `*INLR` indicator."
+                        },
+                        "onFailure": {
+                            "type": "string",
+                            "default": "*ABORT",
+                            "enum": [
+                                "*ABORT",
+                                "*CONTINUE"
+                            ],
+                            "enumDescriptions": [
+                                "Test case aborts execution after a failing assertion.",
+                                "Test case continues execution after a failing assertion."
+                            ],
+                            "markdownDescription": "On Failure\n\nSpecifies test execution behavior after a failing assertion."
                         },
                         "wrapperCmd": {
                             "type": "object",
@@ -721,6 +744,15 @@
                         "cOption": [
                             "*EVENTF"
                         ]
+                    },
+                    "rucalltst": {
+                        "order": "*API",
+                        "libl": "*CURRENT",
+                        "jobD": "*DFT",
+                        "detail": "*BASIC",
+                        "output": "*ALLWAYS",
+                        "rclRsc": "*NO",
+                        "onFailure": "*ABORT"
                     }
                 },
                 "codecov": {
