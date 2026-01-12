@@ -219,6 +219,20 @@
               "Resources are reclaimed at the end of the test suite."
             ],
             "markdownDescription": "Specifies when to reclaim resources. Resources, such as open files, can be reclaimed after each test case or at the end of the test suite. This option is useful if the test suite calls OPM programs, which do not set the `*INLR` indicator."
+          },
+          "IBM i Testing.onFailure": {
+            "order": 10,
+            "type": "string",
+            "default": "*ABORT",
+            "enum": [
+              "*ABORT",
+              "*CONTINUE"
+            ],
+            "enumDescriptions": [
+              "Test case aborts execution after a failing assertion.",
+              "Test case continues execution after a failing assertion."
+            ],
+            "markdownDescription": "Specifies test execution behavior after a failing assertion."
           }
         }
       }
