@@ -221,10 +221,9 @@ export class Runner {
         let testSuitePath: string;
 
         let deployDirectory: string | undefined;
-        let tstPgm: { name: string, library: string };
-        let srcFile: { name: string, library: string } | undefined;
-        let srcMbr: string | undefined;
-        let srcStmf: string | undefined;
+
+        let replacementVariables: { [key: string]: string | undefined } = {};
+        let compileParams: RUCRTRPG | RUCRTCBL;
 
         if (testSuite.uri.scheme === 'file') {
             testBucketPath = testBucket.uri.fsPath;
@@ -232,51 +231,71 @@ export class Runner {
 
             // Use current library as the test library
             const libraryList = await this.testCallbacks.getLibraryList(testBucketPath);
-            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+            const currentLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
             // Get relative local path to test
             const relativePathToTest = path.relative(testBucketPath, testSuitePath).replace(/\\/g, '/');
 
             // Construct remote path to test
             deployDirectory = this.testCallbacks.getDeployDirectory(testBucketPath);
-            srcStmf = path.posix.join(deployDirectory, relativePathToTest);
+            const srcStmf = path.posix.join(deployDirectory, relativePathToTest);
 
-            tstPgm = { name: testSuite.systemName, library: tstLibrary };
+            replacementVariables = {
+                '&CURLIB': currentLibrary,
+                '&NAME': testSuite.name,
+                '&SHORTNAME': testSuite.systemName,
+                '&FULLPATH': srcStmf,
+            };
+            compileParams = {
+                tstPgm: '&CURLIB/&SHORTNAME',
+                srcStmf: '&FULLPATH'
+            };
         } else if (testSuite.uri.scheme === 'streamfile') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 
             // Use current library as the test library
             const libraryList = await this.testCallbacks.getLibraryList();
-            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+            const currentLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
             deployDirectory = testBucketPath;
-            srcStmf = testSuitePath;
+            const srcStmf = testSuitePath;
 
-            tstPgm = { name: testSuite.systemName, library: tstLibrary };
+            replacementVariables = {
+                '&CURLIB': currentLibrary,
+                '&NAME': testSuite.name,
+                '&SHORTNAME': testSuite.systemName,
+                '&FULLPATH': srcStmf,
+            };
+            compileParams = {
+                tstPgm: '&CURLIB/&SHORTNAME',
+                srcStmf: '&FULLPATH'
+            };
         } else if (testSuite.uri.scheme === 'member') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 
-            const parsedPath = this.connection.parserMemberPath(testSuitePath);
-            const tstPgmName = parsedPath.name;
-            const tstLibrary = parsedPath.library;
-            const srcFileName = parsedPath.file;
+            const libraryList = await this.testCallbacks.getLibraryList();
+            const currentLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
-            tstPgm = { name: testSuite.systemName, library: tstLibrary };
-            srcFile = { name: srcFileName, library: tstLibrary };
-            srcMbr = tstPgmName;
+            const parsedPath = this.connection.parserMemberPath(testSuitePath);
+
+            replacementVariables = {
+                '&CURLIB': currentLibrary,
+                '&OPENLIB': parsedPath.library,
+                '&OPENSPF': parsedPath.file,
+                '&OPENMBR': testSuite.systemName,
+            };
+            compileParams = {
+                tstPgm: '&OPENLIB/&OPENMBR',
+                srcFile: '&OPENLIB/&OPENSPF',
+                srcMbr: '&OPENMBR',
+            };
         } else {
             return 'errored';
         }
 
         let wrapperCmd: WrapperCmd | undefined;
-        let compileParams: RUCRTRPG | RUCRTCBL = {
-            tstPgm: this.connection.upperCaseName(`${tstPgm.library}/${tstPgm.name}`),
-            srcFile: srcFile ? this.connection.upperCaseName(`${srcFile.library}/${srcFile.name}`) : undefined,
-            srcMbr: srcMbr ? this.connection.upperCaseName(srcMbr) : undefined,
-            srcStmf: srcStmf
-        };
 
         const isRPGLE = ApiUtils.isRPGLE(testSuitePath);
         if (isRPGLE) {
@@ -305,6 +324,22 @@ export class Runner {
                 ...compileParams,
                 ...rucrtcbl
             };
+        }
+
+        // Perform variable replacement
+        const keys = ['tstPgm', 'srcFile', 'srcMbr', 'srcStmf'] as const;
+        for (const key of keys) {
+            if (compileParams[key]) {
+                for (const [variable, value] of Object.entries(replacementVariables)) {
+                    if (value) {
+                        compileParams[key] = compileParams[key].replaceAll(variable, value);
+                    }
+                }
+
+                if (key !== 'srcStmf') {
+                    compileParams[key] = this.connection.upperCaseName(compileParams[key]);
+                }
+            }
         }
 
         // Set TGTCCSID to *JOB by default
@@ -409,6 +444,7 @@ export class Runner {
         let testSuitePath: string;
 
         let tstPgm: { name: string, library: string };
+        let replacementVariables: { [key: string]: string | undefined } = {};
 
         if (testSuite.uri.scheme === 'file') {
             testBucketPath = testBucket.uri.fsPath;
@@ -416,32 +452,49 @@ export class Runner {
 
             // Use current library as the test library
             const libraryList = await this.testCallbacks.getLibraryList(testBucketPath);
-            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+            const currentLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
-            tstPgm = { name: testSuite.systemName, library: tstLibrary };
+            tstPgm = { name: testSuite.systemName, library: currentLibrary };
+            replacementVariables = {
+                '&CURLIB': currentLibrary,
+                '&NAME': testSuite.name,
+                '&SHORTNAME': testSuite.systemName
+            };
         } else if (testSuite.uri.scheme === 'streamfile') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
 
             // Use current library as the test library
             const libraryList = await this.testCallbacks.getLibraryList();
-            const tstLibrary = libraryList?.currentLibrary || config.currentLibrary;
+            const currentLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
-            tstPgm = { name: testSuite.systemName, library: tstLibrary };
+            tstPgm = { name: testSuite.systemName, library: currentLibrary };
+            replacementVariables = {
+                '&CURLIB': currentLibrary,
+                '&NAME': testSuite.name,
+                '&SHORTNAME': testSuite.systemName
+            };
         } else if (testSuite.uri.scheme === 'member') {
             testBucketPath = testBucket.uri.path;
             testSuitePath = testSuite.uri.path;
+
+            const libraryList = await this.testCallbacks.getLibraryList();
+            const currentLibrary = libraryList?.currentLibrary || config.currentLibrary;
 
             const parsedPath = this.connection.parserMemberPath(testSuitePath);
             const tstLibrary = parsedPath.library;
 
             tstPgm = { name: testSuite.systemName, library: tstLibrary };
+            replacementVariables = {
+                '&CURLIB': currentLibrary,
+                '&OPENLIB': tstLibrary,
+                '&OPENMBR': testSuite.systemName,
+            };
         } else {
             return;
         }
 
         const qualifiedTstPgm = this.connection.upperCaseName(`${tstPgm.library}/${tstPgm.name}`);
-
 
         const testCases: (TestCase | undefined)[] = [];
         if (testSuite.isEntireSuite) {
@@ -474,6 +527,20 @@ export class Runner {
                 ...baseExecutionParams,
                 ...rucalltst
             };
+
+            // Perform variable replacement
+            const keys = ['tstPgm'] as const;
+            for (const key of keys) {
+                if (testParams[key]) {
+                    for (const [variable, value] of Object.entries(replacementVariables)) {
+                        if (value) {
+                            testParams[key] = testParams[key].replaceAll(variable, value);
+                        }
+                    }
+
+                    testParams[key] = this.connection.upperCaseName(testParams[key]);
+                }
+            }
 
             // Build call tests command
             const productLibrary = this.testCallbacks.getProductLibrary();
