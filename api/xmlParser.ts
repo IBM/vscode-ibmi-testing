@@ -12,7 +12,7 @@ export namespace XMLParser {
             const result: TestCaseResult = {
                 name: testcase.attributes.name.toLocaleUpperCase(),
                 outcome: testcase.attributes.outcome.toLocaleLowerCase(),
-                time: parseFloat(testcase.attributes.time),
+                time: Number((parseFloat(testcase.attributes.time) / 1000).toFixed(2)),
                 assertions: parseInt(testcase.attributes.assertions),
                 results: []
             };
