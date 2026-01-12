@@ -4,6 +4,7 @@
             "text": "QTEMPLATE tests",
             "tgtCcsid": "*JOB",
             "dbgView": "*SOURCE",
+            "rpgPpOpt": "*LVL2",
             "cOption": [
                 "*EVENTF"
             ]
@@ -15,6 +16,15 @@
             "cOption": [
                 "*EVENTF"
             ]
+        },
+        "rucalltst": {
+            "order": "*API",
+            "libl": "*CURRENT",
+            "jobD": "*DFT",
+            "detail": "*BASIC",
+            "output": "*ALLWAYS",
+            "rclRsc": "*NO",
+            "onFailure": "*ABORT"
         }
     }
 }
