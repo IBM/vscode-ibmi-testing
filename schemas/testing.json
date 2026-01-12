@@ -38,22 +38,22 @@
                         "tstPgm": {
                             "type": "string",
                             "default": "",
-                            "markdownDescription": "Test program\n\nSpecifies the name of the test program (`*SRVPGM`) to create. By default, this will be set to `&OPENLIB/&OPENMBR` for source members and `&CURLIB/&SHORTNAME` for local files. The following variables can be used:\n\n•`&OPENLIB`: Library name where the source member lives\n\n•`&OPENSPF`: Source file name where the source member lives\n\n•`&OPENMBR`: Name of the source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the file\n\n•`&SHORTNAME`: Shortened name of the file\n\n•`&FULLPATH`: Full path of the file on the remote system"
+                            "markdownDescription": "Test program\n\nSpecifies the name of the test program (`*SRVPGM`) to create. By default, this will be set to `&OPENLIB/&OPENMBR` for source members and `&CURLIB/&SHORTNAME` for local files. The following variables can be used:\n\n•`&OPENLIB`: Library name where the test source member lives\n\n•`&OPENSPF`: Source file name where the test source member lives\n\n•`&OPENMBR`: Name of the test source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the test file\n\n•`&SHORTNAME`: Shortened name of the test file\n\n•`&FULLPATH`: Full path of the file on the remote system"
                         },
                         "srcFile": {
                             "type": "string",
                             "default": "",
-                            "markdownDescription": "Source file\n\nSpecifies the name of the source file containing a member with the same name as `TSTPGM`. By default, this will be set to `&OPENLIB/&OPENSPF` for source members. The following variables can be used:\n\n•`&OPENLIB`: Library name where the source member lives\n\n•`&OPENSPF`: Source file name where the source member lives\n\n•`&OPENMBR`: Name of the source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the file\n\n•`&SHORTNAME`: Shortened name of the file\n\n•`&FULLPATH`: Full path of the file on the remote system"
+                            "markdownDescription": "Source file\n\nSpecifies the name of the source file containing a member with the same name as `TSTPGM`. By default, this will be set to `&OPENLIB/&OPENSPF` for source members. The following variables can be used:\n\n•`&OPENLIB`: Library name where the test source member lives\n\n•`&OPENSPF`: Source file name where the test source member lives\n\n•`&OPENMBR`: Name of the test source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the test file\n\n•`&SHORTNAME`: Shortened name of the test file\n\n•`&FULLPATH`: Full path of the file on the remote system"
                         },
                         "srcMbr": {
                             "type": "string",
                             "default": "",
-                            "markdownDescription": "Source member\n\nSpecifies the name of the member containing the source code to be compiled. By default, this will be set to `&OPENMBR` for source members. The following variables can be used:\n\n•`&OPENLIB`: Library name where the source member lives\n\n•`&OPENSPF`: Source file name where the source member lives\n\n•`&OPENMBR`: Name of the source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the file\n\n•`&SHORTNAME`: Shortened name of the file\n\n•`&FULLPATH`: Full path of the file on the remote system"
+                            "markdownDescription": "Source member\n\nSpecifies the name of the member containing the source code to be compiled. By default, this will be set to `&OPENMBR` for source members. The following variables can be used:\n\n•`&OPENLIB`: Library name where the test source member lives\n\n•`&OPENSPF`: Source file name where the test source member lives\n\n•`&OPENMBR`: Name of the test source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the test file\n\n•`&SHORTNAME`: Shortened name of the test file\n\n•`&FULLPATH`: Full path of the file on the remote system"
                         },
                         "srcStmf": {
                             "type": "string",
                             "default": "",
-                            "markdownDescription": "Source stream file\n\nSpecifies the path name of the stream file containing the source code to be compiled. By default, this will be set to `&FULLPATH` for local files. The following variables can be used:\n\n•`&OPENLIB`: Library name where the source member lives\n\n•`&OPENSPF`: Source file name where the source member lives\n\n•`&OPENMBR`: Name of the source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the file\n\n•`&SHORTNAME`: Shortened name of the file\n\n•`&FULLPATH`: Full path of the file on the remote system"
+                            "markdownDescription": "Source stream file\n\nSpecifies the path name of the stream file containing the source code to be compiled. By default, this will be set to `&FULLPATH` for local files. The following variables can be used:\n\n•`&OPENLIB`: Library name where the test source member lives\n\n•`&OPENSPF`: Source file name where the test source member lives\n\n•`&OPENMBR`: Name of the test source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the test file\n\n•`&SHORTNAME`: Shortened name of the test file\n\n•`&FULLPATH`: Full path of the file on the remote system"
                         },
                         "text": {
                             "type": "string",
@@ -284,22 +284,22 @@
                         "tstPgm": {
                             "type": "string",
                             "default": "",
-                            "markdownDescription": "Test program\n\nSpecifies the name of the test program (`*SRVPGM`) to create. By default, this will be set to `&OPENLIB/&OPENMBR` for source members and `&CURLIB/&SHORTNAME` for local files. The following variables can be used:\n\n•`&OPENLIB`: Library name where the source member lives\n\n•`&OPENSPF`: Source file name where the source member lives\n\n•`&OPENMBR`: Name of the source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the file\n\n•`&SHORTNAME`: Shortened name of the file\n\n•`&FULLPATH`: Full path of the file on the remote system"
+                            "markdownDescription": "Test program\n\nSpecifies the name of the test program (`*SRVPGM`) to create. By default, this will be set to `&OPENLIB/&OPENMBR` for source members and `&CURLIB/&SHORTNAME` for local files. The following variables can be used:\n\n•`&OPENLIB`: Library name where the test source member lives\n\n•`&OPENSPF`: Source file name where the test source member lives\n\n•`&OPENMBR`: Name of the test source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the test file\n\n•`&SHORTNAME`: Shortened name of the test file\n\n•`&FULLPATH`: Full path of the file on the remote system"
                         },
                         "srcFile": {
                             "type": "string",
                             "default": "",
-                            "markdownDescription": "Source file\n\nSpecifies the name of the source file containing a member with the same name as `TSTPGM`. By default, this will be set to `&OPENLIB/&OPENSPF` for source members. The following variables can be used:\n\n•`&OPENLIB`: Library name where the source member lives\n\n•`&OPENSPF`: Source file name where the source member lives\n\n•`&OPENMBR`: Name of the source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the file\n\n•`&SHORTNAME`: Shortened name of the file\n\n•`&FULLPATH`: Full path of the file on the remote system"
+                            "markdownDescription": "Source file\n\nSpecifies the name of the source file containing a member with the same name as `TSTPGM`. By default, this will be set to `&OPENLIB/&OPENSPF` for source members. The following variables can be used:\n\n•`&OPENLIB`: Library name where the test source member lives\n\n•`&OPENSPF`: Source file name where the test source member lives\n\n•`&OPENMBR`: Name of the test source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the test file\n\n•`&SHORTNAME`: Shortened name of the test file\n\n•`&FULLPATH`: Full path of the file on the remote system"
                         },
                         "srcMbr": {
                             "type": "string",
                             "default": "",
-                            "markdownDescription": "Source member\n\nSpecifies the name of the member containing the source code to be compiled. By default, this will be set to `&OPENMBR` for source members. The following variables can be used:\n\n•`&OPENLIB`: Library name where the source member lives\n\n•`&OPENSPF`: Source file name where the source member lives\n\n•`&OPENMBR`: Name of the source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the file\n\n•`&SHORTNAME`: Shortened name of the file\n\n•`&FULLPATH`: Full path of the file on the remote system"
+                            "markdownDescription": "Source member\n\nSpecifies the name of the member containing the source code to be compiled. By default, this will be set to `&OPENMBR` for source members. The following variables can be used:\n\n•`&OPENLIB`: Library name where the test source member lives\n\n•`&OPENSPF`: Source file name where the test source member lives\n\n•`&OPENMBR`: Name of the test source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the test file\n\n•`&SHORTNAME`: Shortened name of the test file\n\n•`&FULLPATH`: Full path of the file on the remote system"
                         },
                         "srcStmf": {
                             "type": "string",
                             "default": "",
-                            "markdownDescription": "Source stream file\n\nSpecifies the path name of the stream file containing the source code to be compiled. By default, this will be set to `&FULLPATH` for local files. The following variables can be used:\n\n•`&OPENLIB`: Library name where the source member lives\n\n•`&OPENSPF`: Source file name where the source member lives\n\n•`&OPENMBR`: Name of the source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the file\n\n•`&SHORTNAME`: Shortened name of the file\n\n•`&FULLPATH`: Full path of the file on the remote system"
+                            "markdownDescription": "Source stream file\n\nSpecifies the path name of the stream file containing the source code to be compiled. By default, this will be set to `&FULLPATH` for local files. The following variables can be used:\n\n•`&OPENLIB`: Library name where the test source member lives\n\n•`&OPENSPF`: Source file name where the test source member lives\n\n•`&OPENMBR`: Name of the test source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the test file\n\n•`&SHORTNAME`: Shortened name of the test file\n\n•`&FULLPATH`: Full path of the file on the remote system"
                         },
                         "text": {
                             "type": "string",
@@ -563,7 +563,7 @@
                         "tstPgm": {
                             "type": "string",
                             "default": "",
-                            "markdownDescription": "Test program\n\nSpecifies the name of the test program (`*SRVPGM`)."
+                            "markdownDescription": "Test program\n\nSpecifies the name of the test program (`*SRVPGM`). By default, this will be set to `&OPENLIB/&OPENMBR` for source members and `&CURLIB/&SHORTNAME` for local files. The following variables can be used:\n\n•`&OPENLIB`: Library name where the test source member lives\n\n•`&OPENSPF`: Source file name where the test source member lives\n\n•`&OPENMBR`: Name of the test source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the test file\n\n•`&SHORTNAME`: Shortened name of the test file\n\n•`&FULLPATH`: Full path of the file on the remote system"
                         },
                         "order": {
                             "type": "string",
