@@ -25,7 +25,7 @@ export class SummaryLogger {
             const errored = testMetrics.testFiles.errored;
             const totalTests = passed + failed + errored;
             const assertions = testMetrics.assertions;
-            const duration = testMetrics.duration;
+            const duration = testMetrics.duration.toFixed(2);
             const hasFailuresOrErrors = (testMetrics.testFiles.failed > 0 || testMetrics.testCases.failed > 0) ||
                 (testMetrics.testFiles.errored || testMetrics.testCases.errored) > 0;
             const testStatus = hasFailuresOrErrors ? 'failing' : 'passing';
