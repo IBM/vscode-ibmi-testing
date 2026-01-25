@@ -40,6 +40,7 @@
     "tmp": "^0.2.3",
     "unzipper": "^0.11.6",
     "vscode-ibmi": "github:halcyon-tech/vscode-ibmi",
+    "@ibm/ibmi-eventf-parser": "github:IBM/ibmi-eventf-parser#feature/resolveLineNumber",
     "xml-js": "^1.6.11",
     "xml2js": "^0.6.2"
   },

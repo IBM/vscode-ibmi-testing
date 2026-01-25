@@ -1,10 +1,21 @@
+import { Parser } from "./src";
 import { AssertionResult, CallstackItem, TestCaseResult, ValueInfo } from "./types";
 
-export namespace XMLParser {
-    export function parseTestResults(xml: any, isStreamFile: boolean): TestCaseResult[] {
+export class XMLParser {
+    private xml: any;
+    private isStreamFile: boolean;
+    private parser: Parser;
+
+    constructor(xml: any, isStreamFile: boolean, parser: Parser) {
+        this.xml = xml;
+        this.isStreamFile = isStreamFile;
+        this.parser = parser;
+    }
+
+    parseTestResults(): TestCaseResult[] {
         const results: TestCaseResult[] = [];
 
-        for (const testcase of xml.elements[0].elements) {
+        for (const testcase of this.xml.elements[0].elements) {
             if (testcase.name !== 'testcase') {
                 continue;
             }
@@ -19,13 +30,13 @@ export namespace XMLParser {
 
             for (const assertion of testcase.elements) {
                 if (assertion.name === 'success') {
-                    const assertionResult = parseSuccess(assertion, isStreamFile);
+                    const assertionResult = this.parseSuccess(assertion);
                     result.results!.push(assertionResult);
                 } else if (assertion.name === 'failure') {
-                    const assertionResult = parseFailure(assertion, isStreamFile);
+                    const assertionResult = this.parseFailure(assertion);
                     result.results!.push(assertionResult);
                 } else if (assertion.name === 'error') {
-                    const assertionResult = parseError(assertion, isStreamFile);
+                    const assertionResult = this.parseError(assertion);
                     result.results!.push(assertionResult);
                 }
             }
@@ -36,16 +47,16 @@ export namespace XMLParser {
         return results;
     }
 
-    function parseSuccess(success: any, isStreamFile: boolean): AssertionResult {
+    private parseSuccess(success: any): AssertionResult {
         const assertionResult: AssertionResult = {
             name: success.attributes.name,
             outcome: success.name,
-            line: convertLineNumbers(success.attributes.line, isStreamFile)
+            line: this.convertLineNumbers(success.attributes.line)
         };
 
         for (const child of success.elements) {
             if (child.name === 'expected') {
-                const expectedValue = parseValueInfo(child);
+                const expectedValue = this.parseValueInfo(child);
                 if (expectedValue) {
                     assertionResult.expected = expectedValue;
                 }
@@ -55,32 +66,32 @@ export namespace XMLParser {
         return assertionResult;
     }
 
-    function parseFailure(failure: any, isStreamFile: boolean): AssertionResult {
+    private parseFailure(failure: any): AssertionResult {
         const assertionResult: AssertionResult = {
             name: failure.attributes.name,
             outcome: failure.name,
-            line: convertLineNumbers(failure.attributes.line, isStreamFile),
+            line: this.convertLineNumbers(failure.attributes.line),
             message: failure.attributes.message
         };
 
         for (const child of failure.elements) {
             if (child.name === 'callstack') {
-                const callstack = parseCallstack(child, isStreamFile);
+                const callstack = this.parseCallstack(child);
                 if (callstack) {
                     assertionResult.callstack = callstack;
                 }
             } else if (child.name === 'expected') {
-                const expectedValue = parseValueInfo(child);
+                const expectedValue = this.parseValueInfo(child);
                 if (expectedValue) {
                     assertionResult.expected = expectedValue;
                 }
             } else if (child.name === 'actual') {
-                const actualValue = parseValueInfo(child);
+                const actualValue = this.parseValueInfo(child);
                 if (actualValue) {
                     assertionResult.actual = actualValue;
                 }
             } else if (child.name === 'diagnosticMessages') {
-                const diagnosticMessages = parseDiagnosticMessages(child);
+                const diagnosticMessages = this.parseDiagnosticMessages(child);
                 if (diagnosticMessages) {
                     assertionResult.diagnosticMessages = diagnosticMessages;
                 }
@@ -90,7 +101,7 @@ export namespace XMLParser {
         return assertionResult;
     }
 
-    function parseError(error: any, isStreamFile: boolean): AssertionResult {
+    private parseError(error: any): AssertionResult {
         const assertionResult: AssertionResult = {
             outcome: error.name,
             message: error.attributes.message,
@@ -100,12 +111,12 @@ export namespace XMLParser {
 
         for (const child of error.elements) {
             if (child.name === 'messageSender') {
-                const callstack = parseCallstackItem(child, isStreamFile);
+                const callstack = this.parseCallstackItem(child);
                 if (callstack) {
                     assertionResult.messageSender = callstack;
                 }
             } else if (child.name === 'messageReceiver') {
-                const callstack = parseCallstackItem(child, isStreamFile);
+                const callstack = this.parseCallstackItem(child);
                 if (callstack) {
                     assertionResult.messageReceiver = callstack;
                 }
@@ -115,11 +126,11 @@ export namespace XMLParser {
         return assertionResult;
     }
 
-    function parseCallstack(callstack: any, isStreamFile: boolean): CallstackItem[] | undefined {
+    private parseCallstack(callstack: any): CallstackItem[] | undefined {
         const callstackItems: CallstackItem[] = [];
 
         for (const child of callstack.elements) {
-            callstackItems.push(parseCallstackItem(child, isStreamFile));
+            callstackItems.push(this.parseCallstackItem(child));
         }
 
         if (callstackItems.length > 0) {
@@ -127,18 +138,18 @@ export namespace XMLParser {
         }
     }
 
-    function parseCallstackItem(callstackItem: any, isStreamFile: boolean): CallstackItem {
+    private parseCallstackItem(callstackItem: any): CallstackItem {
         return {
             program: callstackItem.attributes.program,
             programLibrary: callstackItem.attributes.programLibrary,
             module: callstackItem.attributes.module,
             moduleLibrary: callstackItem.attributes.moduleLibrary,
             procedure: callstackItem.attributes.procedure,
-            line: convertLineNumbers(callstackItem.attributes.line, isStreamFile)!
+            line: this.convertLineNumbers(callstackItem.attributes.line)!
         };
     }
 
-    function parseDiagnosticMessages(diagnosticMessages: any): string[] | undefined {
+    private parseDiagnosticMessages(diagnosticMessages: any): string[] | undefined {
         const messages: string[] = [];
 
         for (const child of diagnosticMessages.elements) {
@@ -156,7 +167,7 @@ export namespace XMLParser {
     }
 
 
-    function parseValueInfo(expectedOrActual: any): ValueInfo | undefined {
+    private parseValueInfo(expectedOrActual: any): ValueInfo | undefined {
         const valueInfo: ValueInfo = {
             value: '',
             type: '',
@@ -188,13 +199,18 @@ export namespace XMLParser {
         }
     }
 
-    function convertLineNumbers(rawLine: string | undefined, isStreamFile: boolean): number | undefined {
+    private convertLineNumbers(rawLine: string | undefined): number | undefined {
         let line = rawLine ? parseInt(rawLine) : undefined;
-        if (!isStreamFile && line) {
-            // Stream files: Line numbers match line numbers of the source code
-            // Source members: Line numbers must be divided by 100 because they are specified with 2 decimal positions
-            // https://github.com/tools-400/irpgunit/issues/15#issuecomment-2871972032
-            line = line / 100;
+        if (line) {
+            if (this.isStreamFile) {
+                // Resolve the expanded source line number to its true line number in the original source
+                line = this.parser.resolveLineNumber(line);
+            } else {
+                // Stream files: Line numbers match line numbers of the source code
+                // Source members: Line numbers must be divided by 100 because they are specified with 2 decimal positions
+                // https://github.com/tools-400/irpgunit/issues/15#issuecomment-2871972032
+                line = line / 100;
+            }
         }
 
         return line;
