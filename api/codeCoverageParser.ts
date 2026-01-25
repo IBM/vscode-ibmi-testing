@@ -3,17 +3,22 @@ import * as tmp from "tmp";
 import * as path from "path";
 import * as unzipper from "unzipper";
 import * as xml2js from "xml2js";
-import { CoverageData, LogLevel } from "./types";
+import { CCLVL, CoverageData, LogLevel } from "./types";
 import { TestLogger } from "./testLogger";
 import IBMi from "vscode-ibmi/src/api/IBMi";
+import Parser from "vscode-rpgle/language/parser";
 
 export class CodeCoverageParser {
     private connection: IBMi;
     private testLogger: TestLogger;
+    private rpgleParser: Parser;
+    private ccLvl: CCLVL;
 
-    constructor(connection: IBMi, testLogger: TestLogger) {
+    constructor(connection: IBMi, testLogger: TestLogger, ccLvl: CCLVL) {
         this.connection = connection;
         this.testLogger = testLogger;
+        this.ccLvl = ccLvl;
+        this.rpgleParser = new Parser();
     }
 
     async getCoverage(outputZipPath: string): Promise<CoverageData[] | undefined> {
@@ -64,20 +69,21 @@ export class CodeCoverageParser {
                     source.testcase[0][`$`];
 
                 const sourcePath = path.join(tmpdir.name, `src`, data.sourceFile);
-                const rawSource = fs.readFileSync(sourcePath);
-                const sourceCode = rawSource.toString().split(`\n`);
+                const sourceCode = fs.readFileSync(sourcePath).toString();
+                const sourceCodeSplit = sourceCode.split(`\n`);
 
                 const realHits = testCase.v2fileHits || testCase.hits;
                 const realLines = data.v2fileLines || data.lines;
                 const realSigs = data.v2qualifiedSignatures || data.signatures;
+                const realSigsSplit = realSigs.split(`+`);
 
-                const indexesExecuted = this.getRunLines(sourceCode.length, realHits);
-                const activeLines = this.getLines(realLines, indexesExecuted);
+                const indexesExecuted = this.getRunLines(sourceCodeSplit.length, realHits);
+                const activeLines = await this.getLines(realLines, indexesExecuted, realSigsSplit, sourcePath, sourceCode);
 
                 const lineKeys = Object.keys(activeLines).map(Number);;
                 let countRan = 0;
                 lineKeys.forEach(key => {
-                    if (activeLines[key] === true) {
+                    if (activeLines[key].executed === true) {
                         countRan++;
                     }
                 });
@@ -88,7 +94,7 @@ export class CodeCoverageParser {
                     path: data.sourceFile,
                     localPath: sourcePath,
                     coverage: {
-                        signitures: realSigs.split(`+`),
+                        signitures: realSigsSplit,
                         lineString: realLines,
                         activeLines,
                         percentRan
@@ -102,13 +108,13 @@ export class CodeCoverageParser {
         }
     }
 
-    private getLines(string: string, indexesExecuted: number[]): { [key: number]: boolean } {
+    private async getLines(realLines: string, indexesExecuted: number[], realSigsSplit: string[], sourcePath: string, sourceCode: string): Promise<{ [key: number]: { name: string; executed: boolean; }; }> {
         const lineNumbers = [];
         let line = 0;
         let currentValue = ``;
         let concat = false;
 
-        for (const char of string) {
+        for (const char of realLines) {
             switch (char) {
                 case `#`:
                     if (currentValue !== ``) {
@@ -147,10 +153,27 @@ export class CodeCoverageParser {
             }
         }
 
-        let lines: { [key: number]: boolean } = {};
+        let lines: { [key: number]: { name: string, executed: boolean } } = {};
 
         for (const i in lineNumbers) {
-            lines[lineNumbers[i]] = indexesExecuted.includes(Number(i));
+            const lineNumber = lineNumbers[i];
+
+            let name: string = lineNumber.toString();
+            if (this.ccLvl === '*PROC') {
+                const docs = await this.rpgleParser.getDocs(sourcePath, sourceCode);
+                if (docs) {
+                    const zeroBasedLine = Number(lineNumber) - 1;
+                    const mappedProcedure = docs.procedures.find(p => p.position.path === sourcePath && p.position.range.line === zeroBasedLine);
+                    if (mappedProcedure) {
+                        name = mappedProcedure.name;
+                    } else if (zeroBasedLine === 0 && realSigsSplit.length > 0) {
+                        name = realSigsSplit[0];
+                    }
+                }
+            }
+
+            const executed = indexesExecuted.includes(Number(i));
+            lines[lineNumber] = { name, executed };
         }
 
         return lines;

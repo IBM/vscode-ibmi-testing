@@ -234,7 +234,7 @@ export interface CoverageData {
     coverage: {
         signitures: string[],
         lineString: string,
-        activeLines: { [key: number]: boolean },
+        activeLines: { [key: number]: { name: string, executed: boolean } },
         percentRan: string
     }
 }
@@ -248,5 +248,5 @@ export interface MappedCoverageData {
 export interface MergedCoverageData {
     uri: BasicUri;
     ccLvl: CCLVL;
-    activeLines: { [key: number]: boolean }
+    activeLines: { [key: number]: { name: string, executed: boolean } }
 }
