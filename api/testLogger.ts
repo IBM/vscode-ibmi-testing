@@ -104,7 +104,9 @@ export class TestLogger {
     async logAssertionResult(assertionResults: AssertionResult[]) {
         for (const assertionResult of assertionResults) {
             if (assertionResult.outcome === 'success') {
-                await this.testResultLogger.append(`\t\t${c.green(`✔`)}  ${assertionResult.name}()${assertionResult.line ? ` [Line ${assertionResult.line}]` : ``}\r\n`);
+                // TODO: Uncomment this line when line numbers are properly mapped
+                // await this.testResultLogger.append(`\t\t${c.green(`✔`)}  ${assertionResult.name}()${assertionResult.line ? ` [Line ${assertionResult.line}]` : ``}\r\n`);
+
                 await this.testOutputLogger.log(LogLevel.Info, `Assertion ${assertionResult.name}()${assertionResult.line ? ` [Line ${assertionResult.line}]` : ``} passed`);
             } else if (assertionResult.outcome === 'failure') {
                 await this.testResultLogger.append(`\t\t${c.red(`✘  ${c.bold(`${assertionResult.name}()`)}${assertionResult.line ? ` [Line ${assertionResult.line}]` : ``}${assertionResult.message ? ` - ${assertionResult.message}` : ``}`)}\r\n`);
