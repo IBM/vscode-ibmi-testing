@@ -3,7 +3,7 @@ import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { Configuration, Section } from "../configuration";
 import { compareVersions } from 'compare-versions';
 import { GitHub, Release } from "../github";
-import { commands, LogLevel, ProgressLocation, QuickPickItem, QuickPickItemKind, window } from "vscode";
+import { commands, env, LogLevel, ProgressLocation, QuickPickItem, QuickPickItemKind, Uri, window } from "vscode";
 import * as tmp from "tmp";
 import * as path from "path";
 import { getInstance } from "../extensions/ibmi";
@@ -13,6 +13,11 @@ export class RPGUnit implements IBMiComponent {
     static ID: string = "RPGUnit";
     static MINIMUM_VERSION: string = '6.0.0';
     static VERSION_REGEX = 'v\\d+(\\.\\d+){2}(\\.b\\d{1,3}|\\.r)?';
+    static EXTENSION_VERSION: string;
+
+    constructor(installedVersion: string) {
+        RPGUnit.EXTENSION_VERSION = installedVersion;
+    }
 
     getIdentification(): ComponentIdentification {
         return {
@@ -274,18 +279,20 @@ export class RPGUnit implements IBMiComponent {
             'RPGUnit Update Required' :
             'RPGUnit Installation Required';
         const installMessage = state === 'NeedsUpdate' ?
-            `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i.` :
-            (state !== 'Installed' ? `RPGUnit must be installed with at least v${RPGUnit.MINIMUM_VERSION} on the IBM i.` : undefined);
+            `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i to use v${RPGUnit.EXTENSION_VERSION} of the IBM i Testing extension.` :
+            (state !== 'Installed' ? `RPGUnit must be installed with at least v${RPGUnit.MINIMUM_VERSION} on the IBM i to use v${RPGUnit.EXTENSION_VERSION} of the IBM i Testing extension.` : undefined);
         const installQuestion = state === 'NeedsUpdate' ?
             `Can it be updated in ${productLibrary}.LIB?` :
             (state !== 'Installed' ? `Can it be installed into ${productLibrary}.LIB?` : undefined);
         const installButton = state === 'NeedsUpdate' ?
             'Update' :
             (state !== 'Installed' ? 'Install' : undefined);
+        const compatabilityMessage = `It is always recommended to stay current to leverage the latest enhancements. However if you would like to keep the current version of RPGUnit, check the documentation to see what version of the extension is compatible.`;
+        const configreProductLibraryMessage = `You can also maintain several different versions of RPGUnit by installing it into a different library. Simply configure the product library in the extension settings and make sure to set your library list accordingly.`;
 
         if (installMessage && installQuestion && installButton) {
             // Prompt user to install or update RPGUnit
-            window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}` }, installButton, 'Configure Product Library').then(async (value) => {
+            window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}\n\n${compatabilityMessage}\n\n${configreProductLibraryMessage}` }, installButton, 'Configure Product Library', 'View Documentation').then(async (value) => {
                 if (value === installButton) {
                     await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
                         progress.report({ message: `Installing ${RPGUnit.ID}` });
@@ -293,6 +300,8 @@ export class RPGUnit implements IBMiComponent {
                     });
                 } else if (value === 'Configure Product Library') {
                     await commands.executeCommand('workbench.action.openSettings', '@ext:IBM.vscode-ibmi-testing');
+                } else if (value === 'View Documentation') {
+                    await env.openExternal(Uri.parse('https://codefori.github.io/docs/developing/testing/overview/#2-rpgunit'));
                 }
             });
             return { status: false, error: installMessage };
