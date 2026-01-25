@@ -10,13 +10,14 @@ import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestStubCodeActions } from "./codeActions/testStub";
 import { IBMiTestingApi } from "./types";
 
+export let installedVersion: string;
 export let testOutputLogger: TestOutputLogger = new TestOutputLogger();
 export let manager: IBMiTestManager | undefined;
 let userLibraryList: string[] | undefined;
 
 export async function activate(context: ExtensionContext): Promise<IBMiTestingApi> {
 	console.log('Congratulations, your extension "vscode-ibmi-testing" is now active!');
-	const installedVersion = context.extension.packageJSON.version;
+	installedVersion = context.extension.packageJSON.version;
 	await testOutputLogger.log(LogLevel.Info, `IBM i Testing (v${installedVersion}) extension activated!`);
 
 	// Load Code4i API
