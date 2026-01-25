@@ -9,6 +9,7 @@ import { CodeCoverageParser } from "./codeCoverageParser";
 import { XMLParser } from "./xmlParser";
 import * as xmljs from "xml-js";
 import * as path from "path";
+import { getParser } from "./evfEventFileReader";
 
 export interface TestCallbacks {
     deploy: (workspaceFolderPath: string) => Promise<DeploymentStatus>;
@@ -678,12 +679,16 @@ export class Runner {
                 }
             }
 
+            const parser = await getParser(this.connection, ``, ``);
+
             // Parse XML test case results
             let testCaseResults: TestCaseResult[] = [];
             try {
                 const xmlStmfContent = (await content.downloadStreamfileRaw(resolvedXmlStmf)).toString();
                 const xmlAsJs = xmljs.xml2js(xmlStmfContent, { compact: false, alwaysChildren: true });
-                testCaseResults = XMLParser.parseTestResults(xmlAsJs, testSuite.uri.scheme === 'file' || testSuite.uri.scheme === 'streamfile');
+                const isStreamFile = testSuite.uri.scheme === 'file' || testSuite.uri.scheme === 'streamfile';
+                const xmlParser = new XMLParser(xmlAsJs, isStreamFile, parser);
+                testCaseResults = xmlParser.parseTestResults();
             } catch (error: any) {
                 for (const testCase of testSuite.testCases) {
                     const assertionResult: AssertionResult[] = [{
