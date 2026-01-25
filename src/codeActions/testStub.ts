@@ -494,7 +494,7 @@ export namespace TestStubCodeActions {
 
         if (detail) {
             if (detail.type) {
-                declarations.push(`dcl-s ${name} ${detail.type.name}${detail.type.value ? `(${detail.type.value})` : ``};`);
+                declarations.push(`dcl-s ${name} ${detail.type.name}${detail.type.value && detail.type.value as any !== true ? `(${detail.type.value})` : ``};`);
             } else if (detail.reference) {
                 declarations.push(`dcl-ds ${name} likeDs(${detail.reference.name}) inz;`);
             }
