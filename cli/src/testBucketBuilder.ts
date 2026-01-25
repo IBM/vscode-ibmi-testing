@@ -11,12 +11,12 @@ import * as path from 'path';
 export abstract class TestBucketBuilder {
     protected testOutputLogger: TestOutputLogger;
     protected ccLvl: CCLVL | undefined;
-    protected rpgParser: Parser;
+    protected rpgleParser: Parser;
 
     constructor(testOutputLogger: TestOutputLogger, ccLvl: CCLVL | undefined) {
         this.testOutputLogger = testOutputLogger;
         this.ccLvl = ccLvl;
-        this.rpgParser = new Parser();
+        this.rpgleParser = new Parser();
     }
 
     abstract getTestBuckets(): Promise<TestBucket[]>;
@@ -25,7 +25,7 @@ export abstract class TestBucketBuilder {
         const testCases: string[] = [];
 
         // Parse file
-        const parsedContent = await this.rpgParser.getDocs(filePath, content);
+        const parsedContent = await this.rpgleParser.getDocs(filePath, content);
         if (parsedContent) {
             // Find RPGLE test procedures
             const rpgleTestCaseRegex = /^TEST.*$/i;

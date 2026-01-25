@@ -623,7 +623,7 @@ export class Runner {
             }
 
             if (testSuite.ccLvl) {
-                const codeCoverageParser = new CodeCoverageParser(this.connection, this.testLogger);
+                const codeCoverageParser = new CodeCoverageParser(this.connection, this.testLogger, testSuite.ccLvl);
                 const codeCoverage = await codeCoverageParser.getCoverage(coverageParams!.outStmf);
                 if (codeCoverage) {
                     for (const coverageData of codeCoverage) {
