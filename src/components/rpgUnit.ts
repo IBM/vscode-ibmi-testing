@@ -7,12 +7,17 @@ import { commands, env, LogLevel, ProgressLocation, QuickPickItem, QuickPickItem
 import * as tmp from "tmp";
 import * as path from "path";
 import { getInstance } from "../extensions/ibmi";
-import { installedVersion, testOutputLogger } from "../extension";
+import { testOutputLogger } from "../extension";
 
 export class RPGUnit implements IBMiComponent {
     static ID: string = "RPGUnit";
     static MINIMUM_VERSION: string = '6.0.0';
     static VERSION_REGEX = 'v\\d+(\\.\\d+){2}(\\.b\\d{1,3}|\\.r)?';
+    static EXTENSION_VERSION: string;
+
+    constructor(installedVersion: string) {
+        RPGUnit.EXTENSION_VERSION = installedVersion;
+    }
 
     getIdentification(): ComponentIdentification {
         return {
@@ -274,8 +279,8 @@ export class RPGUnit implements IBMiComponent {
             'RPGUnit Update Required' :
             'RPGUnit Installation Required';
         const installMessage = state === 'NeedsUpdate' ?
-            `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i to use v${installedVersion} of the IBM i Testing extension.` :
-            (state !== 'Installed' ? `RPGUnit must be installed with at least v${RPGUnit.MINIMUM_VERSION} on the IBM i to use v${installedVersion} of the IBM i Testing extension.` : undefined);
+            `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i to use v${RPGUnit.EXTENSION_VERSION} of the IBM i Testing extension.` :
+            (state !== 'Installed' ? `RPGUnit must be installed with at least v${RPGUnit.MINIMUM_VERSION} on the IBM i to use v${RPGUnit.EXTENSION_VERSION} of the IBM i Testing extension.` : undefined);
         const installQuestion = state === 'NeedsUpdate' ?
             `Can it be updated in ${productLibrary}.LIB?` :
             (state !== 'Installed' ? `Can it be installed into ${productLibrary}.LIB?` : undefined);

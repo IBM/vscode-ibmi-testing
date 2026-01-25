@@ -10,14 +10,13 @@ import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestStubCodeActions } from "./codeActions/testStub";
 import { IBMiTestingApi } from "./types";
 
-export let installedVersion: string;
 export let testOutputLogger: TestOutputLogger = new TestOutputLogger();
 export let manager: IBMiTestManager | undefined;
 let userLibraryList: string[] | undefined;
 
 export async function activate(context: ExtensionContext): Promise<IBMiTestingApi> {
 	console.log('Congratulations, your extension "vscode-ibmi-testing" is now active!');
-	installedVersion = context.extension.packageJSON.version;
+	const installedVersion = context.extension.packageJSON.version;
 	await testOutputLogger.log(LogLevel.Info, `IBM i Testing (v${installedVersion}) extension activated!`);
 
 	// Load Code4i API
@@ -62,7 +61,7 @@ export async function activate(context: ExtensionContext): Promise<IBMiTestingAp
 	});
 
 	// Register components
-	const rpgUnit = new RPGUnit();
+	const rpgUnit = new RPGUnit(installedVersion);
 	const codeCov = new CodeCov();
 	const componentRegistry = getComponentRegistry();
 	componentRegistry?.registerComponent(context, rpgUnit);
