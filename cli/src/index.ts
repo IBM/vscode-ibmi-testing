@@ -27,6 +27,8 @@ import os from 'os';
 import { exit } from "process";
 import inquirer from "inquirer";
 import pkg from '../package.json';
+import Parser from "vscode-rpgle/language/parser";
+import Cache from "vscode-rpgle/language/models/cache";
 
 interface Options {
     localDirectory?: string;
@@ -347,6 +349,10 @@ function main() {
                 // Setup test callbacks
                 let finalCoverageDatasets: MergedCoverageData[] = [];
                 const testCallbacks: TestCallbacks = {
+                    getDocs: async function (uri: string, content: string): Promise<any> {
+                        const rpgleParser = new Parser();
+                        return await rpgleParser.getDocs(uri, content);
+                    },
                     deploy: async function (workspaceFolderPath: string): Promise<DeploymentStatus> {
                         try {
                             const content = connection.getContent();

@@ -9,8 +9,10 @@ import { CodeCoverageParser } from "./codeCoverageParser";
 import { XMLParser } from "./xmlParser";
 import * as xmljs from "xml-js";
 import * as path from "path";
+import Cache from "vscode-rpgle/language/models/cache";
 
 export interface TestCallbacks {
+    getDocs: (uri: string, content: string) => Promise<Cache | undefined>;
     deploy: (workspaceFolderPath: string) => Promise<DeploymentStatus>;
     getDeployDirectory(workspaceFolderPath: string): string;
     getLibraryList(workspaceFolderPath?: string): Promise<ILELibrarySettings>
@@ -623,7 +625,7 @@ export class Runner {
             }
 
             if (testSuite.ccLvl) {
-                const codeCoverageParser = new CodeCoverageParser(this.connection, this.testLogger, testSuite.ccLvl);
+                const codeCoverageParser = new CodeCoverageParser(this.connection, this.testCallbacks, this.testLogger, testSuite.ccLvl);
                 const codeCoverage = await codeCoverageParser.getCoverage(coverageParams!.outStmf);
                 if (codeCoverage) {
                     for (const coverageData of codeCoverage) {
