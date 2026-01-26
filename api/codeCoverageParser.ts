@@ -6,19 +6,19 @@ import * as xml2js from "xml2js";
 import { CCLVL, CoverageData, LogLevel } from "./types";
 import { TestLogger } from "./testLogger";
 import IBMi from "vscode-ibmi/src/api/IBMi";
-import Parser from "vscode-rpgle/language/parser";
+import { TestCallbacks } from "./runner";
 
 export class CodeCoverageParser {
     private connection: IBMi;
+    private testCallbacks: TestCallbacks;
     private testLogger: TestLogger;
-    private rpgleParser: Parser;
     private ccLvl: CCLVL;
 
-    constructor(connection: IBMi, testLogger: TestLogger, ccLvl: CCLVL) {
+    constructor(connection: IBMi, testCallbacks: TestCallbacks, testLogger: TestLogger, ccLvl: CCLVL) {
         this.connection = connection;
+        this.testCallbacks = testCallbacks;
         this.testLogger = testLogger;
         this.ccLvl = ccLvl;
-        this.rpgleParser = new Parser();
     }
 
     async getCoverage(outputZipPath: string): Promise<CoverageData[] | undefined> {
@@ -160,7 +160,7 @@ export class CodeCoverageParser {
 
             let name: string = lineNumber.toString();
             if (this.ccLvl === '*PROC') {
-                const docs = await this.rpgleParser.getDocs(sourcePath, sourceCode);
+                const docs = await this.testCallbacks.getDocs(sourcePath, sourceCode);
                 if (docs) {
                     const zeroBasedLine = Number(lineNumber) - 1;
                     const mappedProcedure = docs.procedures.find(p => p.position.path === sourcePath && p.position.range.line === zeroBasedLine);
