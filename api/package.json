@@ -39,9 +39,10 @@
     "table": "^6.9.0",
     "tmp": "^0.2.3",
     "unzipper": "^0.11.6",
-    "vscode-ibmi": "github:halcyon-tech/vscode-ibmi",
     "xml-js": "^1.6.11",
-    "xml2js": "^0.6.2"
+    "xml2js": "^0.6.2",
+    "vscode-ibmi": "github:halcyon-tech/vscode-ibmi",
+    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.16",
