@@ -19,6 +19,13 @@ on:
         required: true
         default: true
 
+  release:
+    types: [created]
+
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
 jobs:
   release:
     name: Release and Publish
@@ -79,5 +86,3 @@ jobs:
         run: |
           npm run webpack
           npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
