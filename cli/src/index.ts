@@ -349,7 +349,7 @@ function main() {
                 // Setup test callbacks
                 let finalCoverageDatasets: MergedCoverageData[] = [];
                 const testCallbacks: TestCallbacks = {
-                    getDocs: async function (uri: string, content: string): Promise<any> {
+                    getDocs: async function (uri: string, content: string): Promise<any | undefined> {
                         const rpgleParser = new Parser();
                         return await rpgleParser.getDocs(uri, content);
                     },

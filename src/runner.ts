@@ -14,6 +14,7 @@ import { TestCaseData, TestFileData } from "./testData";
 import { ApiUtils } from "../api/apiUtils";
 import * as path from "path";
 import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../api/config";
+import Parser from "vscode-rpgle/language/parser";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
@@ -243,6 +244,10 @@ export class IBMiTestRunner {
         const deployTools = getDeployTools();
         const allTestItems = this.manager.getFlattenedTestItems();
         const testCallbacks: TestCallbacks = {
+            getDocs: async (uri: string, content: string): Promise<any | undefined> => {
+                const rpgleParser = new Parser();
+                return await rpgleParser.getDocs(uri, content);
+            },
             deploy: async (workspaceFolderPath: string): Promise<DeploymentStatus> => {
                 const workspaceFolder = workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath))!;
                 const defaultDeploymentMethod = config.defaultDeploymentMethod;

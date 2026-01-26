@@ -249,6 +249,7 @@
     "preinstall": "cd api && npm install && cd .."
   },
   "dependencies": {
+    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
     "compare-versions": "^6.1.1",
     "node-fetch": "^3.3.2",
     "octokit": "^4.1.2",
@@ -265,7 +266,6 @@
     "fork-ts-checker-webpack-plugin": "^9.1.0",
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.5",
-    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
     "webpack": "^5.92.1",
     "webpack-cli": "^5.1.4"
   }
