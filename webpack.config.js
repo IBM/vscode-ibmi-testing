@@ -46,7 +46,8 @@ const extensionConfig = {
       },
       issue: {
         exclude: [
-          { file: '**/node_modules/**' }
+          { file: '**/node_modules/**' },
+          { file: 'api/node_modules/**' }
         ]
       }
     })
