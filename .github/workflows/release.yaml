@@ -19,6 +19,9 @@ on:
         required: true
         default: true
 
+  release:
+    types: [created]
+
 permissions:
   id-token: write  # Required for OIDC
   contents: read
