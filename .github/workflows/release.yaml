@@ -63,6 +63,11 @@ jobs:
         working-directory: cli
         run: |
           npm run webpack
+
+      - name: Dry Run CLI Publish
+        if: github.event_name == 'release' || inputs.publish_npm == true
+        working-directory: cli
+        run: |
           npm publish --dry-run
 
       - name: Publish to Open VSX
