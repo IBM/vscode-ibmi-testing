@@ -35,7 +35,7 @@ export namespace TestStubCodeActions {
                     }
                 }
             ),
-            commands.registerCommand('vscode-rpgle.generateTestStub', async (document: TextDocument, docs: Cache, exportProcedures: Declaration[], forcePreferences?: Partial<TestStubPreferences>) => {
+            commands.registerCommand('vscode-ibmi-testing.generateTestStub', async (document: TextDocument, docs: Cache, exportProcedures: Declaration[], forcePreferences?: Partial<TestStubPreferences>) => {
                 const ibmi = getInstance();
                 const connection = ibmi!.getConnection()!;
 
@@ -400,7 +400,7 @@ export namespace TestStubCodeActions {
                 const testCaseAction = new CodeAction(title, CodeActionKind.RefactorExtract);
                 testCaseAction.command = {
                     title: title,
-                    command: `vscode-rpgle.generateTestStub`,
+                    command: `vscode-ibmi-testing.generateTestStub`,
                     arguments: [document, docs, [currentProcedure]]
                 };
                 codeActions.push(testCaseAction);
@@ -411,7 +411,7 @@ export namespace TestStubCodeActions {
             const testSuiteAction = new CodeAction(title, CodeActionKind.RefactorExtract);
             testSuiteAction.command = {
                 title: title,
-                command: `vscode-rpgle.generateTestStub`,
+                command: `vscode-ibmi-testing.generateTestStub`,
                 arguments: [document, docs, exportProcedures]
             };
             codeActions.push(testSuiteAction);
