@@ -1,4 +1,4 @@
-import { CodeAction, CodeActionKind, commands, ExtensionContext, languages, Position, Range, TextDocument, ThemeIcon, Uri, window, workspace, WorkspaceEdit } from "vscode";
+import { CodeAction, CodeActionKind, commands, ExtensionContext, languages, Position, ProgressLocation, Range, TextDocument, ThemeIcon, Uri, window, workspace, WorkspaceEdit } from "vscode";
 import Declaration from "vscode-rpgle/language/models/declaration";
 import Cache from "vscode-rpgle/language/models/cache";
 import { getInstance } from "../extensions/ibmi";
@@ -133,6 +133,13 @@ export namespace TestStubCodeActions {
                     return;
                 }
             }
+        }
+
+        // Check if the test file URI is amongst the opened text documents
+        const openedTextDocuments = workspace.textDocuments;
+        const openedTestDocument = openedTextDocuments.find(document => document.uri.fsPath === testFileUri.fsPath);
+        if (openedTestDocument) {
+            testFileUri = openedTestDocument.uri;
         }
 
         // Generate test case spec
@@ -379,11 +386,23 @@ export namespace TestStubCodeActions {
 
         const isApplied = await workspace.applyEdit(testStubEdit);
         if (isApplied) {
-            if (!testDocument) {
-                testDocument = await workspace.openTextDocument(testFileUri);
-            }
-            await window.showTextDocument(testDocument);
-            return testFileUri;
+            return await window.withProgress({ location: ProgressLocation.Window }, async () => {
+                if (!testDocument) {
+                    testDocument = await workspace.openTextDocument(testFileUri);
+                }
+
+                if (testDocument.isDirty) {
+                    await testDocument.save();
+                }
+
+                await window.showTextDocument(testDocument);
+
+                if (document.uri.scheme === 'member') {
+                    commands.executeCommand("code-for-ibmi.refreshObjectBrowser");
+                }
+
+                return testFileUri;
+            });
         }
     }
 
