@@ -42,8 +42,8 @@ export class SummaryLogger {
                 // Calculate line counts
                 let coveredLines = 0;
                 let uncoveredLines = 0;
-                for (const lineStatus of Object.values(coverageData.activeLines)) {
-                    if (lineStatus) {
+                for (const info of Object.values(coverageData.activeLines)) {
+                    if (info.executed) {
                         coveredLines++;
                     } else {
                         uncoveredLines++;

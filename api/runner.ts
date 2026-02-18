@@ -786,12 +786,12 @@ export class Runner {
                 const existingLines = existingData.activeLines;
                 const newLines = mappedCoverageData.coverageData.coverage.activeLines;
 
-                for (const [lineStr, covered] of Object.entries(newLines)) {
+                for (const [lineStr, info] of Object.entries(newLines)) {
                     const line = Number(lineStr);
                     if (line in existingLines) {
-                        existingLines[line] = existingLines[line] || covered;
+                        existingLines[line].executed = existingLines[line].executed || info.executed;
                     } else {
-                        existingLines[line] = covered;
+                        existingLines[line] = info;
                     }
                 }
             }

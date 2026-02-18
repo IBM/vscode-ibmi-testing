@@ -357,11 +357,11 @@ export class TestLogger {
                 const covered: number[] = [];
                 const uncovered: number[] = [];
 
-                for (const [line, info] of Object.entries(coverageData.activeLines)) {
+                for (const [lineStr, info] of Object.entries(coverageData.activeLines)) {
                     if (info.executed) {
-                        covered.push(Number(line));
+                        covered.push(Number(lineStr));
                     } else {
-                        uncovered.push(Number(line));
+                        uncovered.push(Number(lineStr));
                     }
                 }
 
@@ -373,8 +373,8 @@ export class TestLogger {
                 const coveredProcedures: { name: string; line: number }[] = [];
                 const uncoveredProcedures: { name: string; line: number }[] = [];
 
-                for (const [line, info] of Object.entries(coverageData.activeLines)) {
-                    const proc = { name: info.name, line: Number(line) };
+                for (const [lineStr, info] of Object.entries(coverageData.activeLines)) {
+                    const proc = { name: info.name, line: Number(lineStr) };
 
                     if (info.executed) {
                         coveredProcedures.push(proc);
