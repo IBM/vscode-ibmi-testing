@@ -69,7 +69,7 @@ export class RPGUnit implements IBMiComponent {
                             return 'NeedsUpdate';
                         }
                     } else {
-                        await testOutputLogger.log(LogLevel.Error, `No copyright information found for RPGUnit`);
+                        await testOutputLogger.log(LogLevel.Error, `Failed to get installed version of RPGUnit as copyright string format changed.`);
                         return 'NeedsUpdate';
                     }
                 } else {
