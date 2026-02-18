@@ -41,7 +41,7 @@ export class Runner {
     private testCallbacks: TestCallbacks;
     private testLogger: TestLogger;
     private testMetrics: TestMetrics;
-    private mappedCoverageDatasets: MappedCoverageData[];
+    private mappedCoverageDatasets: MappedCoverageData[] | undefined;
 
     constructor(connection: IBMi, testRequest: TestRequest, testCallbacks: TestCallbacks, testLogger: TestLogger) {
         this.connection = connection;
@@ -56,7 +56,6 @@ export class Runner {
             testFiles: { passed: 0, failed: 0, errored: 0, skipped: 0, cancelled: 0 },
             testCases: { passed: 0, failed: 0, errored: 0, skipped: 0, cancelled: 0 }
         };
-        this.mappedCoverageDatasets = [];
     }
 
     getTestMetrics(): TestMetrics {
@@ -203,13 +202,15 @@ export class Runner {
             }
         }
 
-        const mergedCoverageDatasets = this.mergeCoverageDatasets(this.mappedCoverageDatasets);
-        this.testCallbacks.addCoverageDatasets(mergedCoverageDatasets);
+        if (this.mappedCoverageDatasets) {
+            const mergedCoverageDatasets = this.mergeCoverageDatasets(this.mappedCoverageDatasets);
+            this.testCallbacks.addCoverageDatasets(mergedCoverageDatasets);
 
-        const shouldLogCoverage = this.testCallbacks.shouldLogCoverage();
-        if (shouldLogCoverage) {
-            const coverageThresholds = this.testCallbacks.getCoverageThresholds();
-            await this.testLogger.logCoverage(mergedCoverageDatasets, coverageThresholds);
+            const shouldLogCoverage = this.testCallbacks.shouldLogCoverage();
+            if (shouldLogCoverage) {
+                const coverageThresholds = this.testCallbacks.getCoverageThresholds();
+                await this.testLogger.logCoverage(mergedCoverageDatasets, coverageThresholds);
+            }
         }
         await this.testLogger.logMetrics(this.testMetrics);
         await this.testCallbacks.end();
@@ -625,6 +626,10 @@ export class Runner {
             }
 
             if (testSuite.ccLvl) {
+                if (!this.mappedCoverageDatasets) {
+                    this.mappedCoverageDatasets = [];
+                }
+
                 const codeCoverageParser = new CodeCoverageParser(this.connection, this.testCallbacks, this.testLogger, testSuite.ccLvl);
                 const codeCoverage = await codeCoverageParser.getCoverage(coverageParams!.outStmf);
                 if (codeCoverage) {
@@ -781,12 +786,12 @@ export class Runner {
                 const existingLines = existingData.activeLines;
                 const newLines = mappedCoverageData.coverageData.coverage.activeLines;
 
-                for (const [lineStr, covered] of Object.entries(newLines)) {
+                for (const [lineStr, info] of Object.entries(newLines)) {
                     const line = Number(lineStr);
                     if (line in existingLines) {
-                        existingLines[line] = existingLines[line] || covered;
+                        existingLines[line].executed = existingLines[line].executed || info.executed;
                     } else {
-                        existingLines[line] = covered;
+                        existingLines[line] = info;
                     }
                 }
             }

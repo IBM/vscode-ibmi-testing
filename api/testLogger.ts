@@ -273,8 +273,8 @@ export class TestLogger {
             // Calculate line counts
             let coveredLines = 0;
             let uncoveredLines = 0;
-            for (const lineStatus of Object.values(coverageData.activeLines)) {
-                if (lineStatus) {
+            for (const info of Object.values(coverageData.activeLines)) {
+                if (info.executed) {
                     coveredLines++;
                 } else {
                     uncoveredLines++;
@@ -350,5 +350,78 @@ export class TestLogger {
             ...output.split('\n')
         ].join(`\r\n`);
         await this.testResultLogger.append(message);
+
+        for (const coverageData of finalCoverageDatasets) {
+            let parsedCoverageOutput: any;
+            if (coverageData.ccLvl === "*LINE") {
+                const covered: number[] = [];
+                const uncovered: number[] = [];
+
+                for (const [lineStr, info] of Object.entries(coverageData.activeLines)) {
+                    if (info.executed) {
+                        covered.push(Number(lineStr));
+                    } else {
+                        uncovered.push(Number(lineStr));
+                    }
+                }
+
+                parsedCoverageOutput = {
+                    coveredLines: this.compressCoverageRanges(covered),
+                    uncoveredLines: this.compressCoverageRanges(uncovered)
+                };
+            } else {
+                const coveredProcedures: { name: string; line: number }[] = [];
+                const uncoveredProcedures: { name: string; line: number }[] = [];
+
+                for (const [lineStr, info] of Object.entries(coverageData.activeLines)) {
+                    const proc = { name: info.name, line: Number(lineStr) };
+
+                    if (info.executed) {
+                        coveredProcedures.push(proc);
+                    } else {
+                        uncoveredProcedures.push(proc);
+                    }
+                }
+
+                parsedCoverageOutput = {
+                    coveredProcedures,
+                    uncoveredProcedures
+                };
+            }
+
+            await this.testOutputLogger.log(
+                LogLevel.Info,
+                `Code coverage for ${coverageData.uri.fsPath}:\n${JSON.stringify(parsedCoverageOutput, null, 2)}`
+            );
+        }
+    }
+
+    private compressCoverageRanges(lines: number[]): string {
+        if (!lines.length) {
+            return ``;
+        }
+
+        const sorted = [...lines].sort((a, b) => a - b);
+        const ranges: string[] = [];
+
+        let start = sorted[0];
+        let prev = sorted[0];
+
+        for (let i = 1; i < sorted.length; i++) {
+            const current = sorted[i];
+
+            if (current === prev + 1) {
+                prev = current;
+                continue;
+            }
+
+            ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+            start = current;
+            prev = current;
+        }
+
+        ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+
+        return ranges.join(", ");
     }
 }

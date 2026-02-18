@@ -11,8 +11,8 @@ export class IBMiFileCoverage extends FileCoverage {
         super(uri, new TestCoverageCount(0, 0));
         this.isStatementCoverage = mergedCoverageData.ccLvl === '*LINE';
 
-        for (const [line, info] of Object.entries(mergedCoverageData.activeLines)) {
-            const linePosition = new Position(Number(line) - 1, 0);
+        for (const [lineStr, info] of Object.entries(mergedCoverageData.activeLines)) {
+            const linePosition = new Position(Number(lineStr) - 1, 0);
             if (this.isStatementCoverage) {
                 this.lines.push(new StatementCoverage(info.executed, linePosition));
                 this.statementCoverage.covered += info.executed ? 1 : 0;

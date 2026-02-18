@@ -8,13 +8,13 @@ import { CodeCov } from "./components/codeCov";
 import * as tmp from "tmp";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestStubCodeActions } from "./codeActions/testStub";
-import { IBMiTestingApi } from "./types";
+import { IBMiTesting } from "./types";
 
 export let testOutputLogger: TestOutputLogger = new TestOutputLogger();
 export let manager: IBMiTestManager | undefined;
 let userLibraryList: string[] | undefined;
 
-export async function activate(context: ExtensionContext): Promise<IBMiTestingApi> {
+export async function activate(context: ExtensionContext): Promise<IBMiTesting> {
 	console.log('Congratulations, your extension "vscode-ibmi-testing" is now active!');
 	const installedVersion = context.extension.packageJSON.version;
 	await testOutputLogger.log(LogLevel.Info, `IBM i Testing (v${installedVersion}) extension activated!`);
@@ -102,7 +102,7 @@ export async function activate(context: ExtensionContext): Promise<IBMiTestingAp
 	tmp.setGracefulCleanup();
 
 	return {
-		getManager: () => {
+		getTestManager: () => {
 			return manager;
 		}
 	};
