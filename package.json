@@ -249,6 +249,7 @@
     "preinstall": "cd api && npm install && cd .."
   },
   "dependencies": {
+    "ansi-colors": "^4.1.3",
     "compare-versions": "^6.1.1",
     "node-fetch": "^3.3.2",
     "octokit": "^4.1.2",

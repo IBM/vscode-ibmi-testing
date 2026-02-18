@@ -1,5 +1,10 @@
 import { IBMiTestManager } from "./manager";
 
-export interface IBMiTestingApi {
-    getManager: () => IBMiTestManager | undefined;
+export interface TestRunResult {
+    testResultLogs: string[];
+    testOutputLogs: string[];
+}
+
+export interface IBMiTesting {
+    getTestManager: () => IBMiTestManager | undefined;
 }
