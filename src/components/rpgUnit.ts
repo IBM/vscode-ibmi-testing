@@ -37,28 +37,43 @@ export class RPGUnit implements IBMiComponent {
             const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
             if (productLibraryExists) {
                 // Get installed version of RPGUnit
-                const versionCommand = content.toCl(`DSPSRVPGM`, { 'SRVPGM': `${productLibrary}/RUTESTCASE`, 'DETAIL': '*COPYRIGHT' });
-                const versionResult = await connection.runCommand({ command: versionCommand, environment: `ile`, noLibList: true });
+                const copyrightResult = await connection.runSQL(`SELECT COPYRIGHT_STRINGS FROM QSYS2.PROGRAM_INFO WHERE PROGRAM_LIBRARY = '${productLibrary}' AND PROGRAM_NAME = 'RUTESTCASE' AND OBJECT_TYPE = '*SRVPGM'`);
+                if (copyrightResult.length > 0) {
+                    const copyrightStrings = copyrightResult[0].COPYRIGHT_STRINGS;
+                    if (copyrightStrings) {
+                        // Parse the copyright strings
+                        const copyrightJson = JSON.parse(String(copyrightStrings));
+                        const copyrights = copyrightJson.COPYRIGHTS;
+                        
+                        // Get installed version from copyright strings
+                        let installedVersion: string | null = null;
+                        for (const copyright of copyrights) {
+                            const versionMatch = copyright.match(RPGUnit.VERSION_REGEX);
+                            if (versionMatch && versionMatch[0]) {
+                                installedVersion = versionMatch[0].startsWith('v') ? versionMatch[0].substring(1) : versionMatch[0];
+                                break;
+                            }
+                        }
 
-                if (versionResult.code === 0) {
-                    const versionMatch = versionResult.stdout.match(RPGUnit.VERSION_REGEX);
-                    if (versionMatch && versionMatch[0]) {
-                        const installedVersion = versionMatch[0].startsWith('v') ? versionMatch[0].substring(1) : versionMatch[0];
-
-                        // Compare installed version with minimum version
-                        if (await this.compareVersions(installedVersion, RPGUnit.MINIMUM_VERSION) >= 0) {
-                            await testOutputLogger.log(LogLevel.Info, `Installed version of RPGUnit is v${installedVersion}`);
-                            return 'Installed';
+                        if (installedVersion) {
+                            // Compare installed version with minimum version
+                            if (await this.compareVersions(installedVersion, RPGUnit.MINIMUM_VERSION) >= 0) {
+                                await testOutputLogger.log(LogLevel.Info, `Installed version of RPGUnit is v${installedVersion}`);
+                                return 'Installed';
+                            } else {
+                                await testOutputLogger.log(LogLevel.Error, `Installed version of RPGUnit (v${installedVersion}) is lower than minimum version (v${RPGUnit.MINIMUM_VERSION})`);
+                                return 'NeedsUpdate';
+                            }
                         } else {
-                            await testOutputLogger.log(LogLevel.Error, `Installed version of RPGUnit (v${installedVersion}) is lower than minimum version (v${RPGUnit.MINIMUM_VERSION})`);
+                            await testOutputLogger.log(LogLevel.Error, `Failed to parse installed version of RPGUnit`);
                             return 'NeedsUpdate';
                         }
                     } else {
-                        await testOutputLogger.log(LogLevel.Error, `Failed to parse installed version of RPGUnit`);
+                        await testOutputLogger.log(LogLevel.Error, `No copyright information found for RPGUnit`);
                         return 'NeedsUpdate';
                     }
                 } else {
-                    await testOutputLogger.log(LogLevel.Error, `Failed to get installed version of RPGUnit. Error: ${versionResult.stderr}`);
+                    await testOutputLogger.log(LogLevel.Error, `Failed to get installed version of RPGUnit as no copyright strings found.`);
                     return 'NeedsUpdate';
                 }
             } else {
