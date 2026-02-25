@@ -28,7 +28,6 @@ import { exit } from "process";
 import inquirer from "inquirer";
 import pkg from '../package.json';
 import Parser from "vscode-rpgle/language/parser";
-import Cache from "vscode-rpgle/language/models/cache";
 
 interface Options {
     localDirectory?: string;
