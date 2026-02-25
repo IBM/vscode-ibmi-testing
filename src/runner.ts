@@ -15,6 +15,7 @@ import { ApiUtils } from "../api/apiUtils";
 import * as path from "path";
 import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../api/config";
 import Parser from "vscode-rpgle/language/parser";
+import { TestRunResult } from "./types";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
@@ -46,8 +47,23 @@ export class IBMiTestRunner {
             await this.processRequestItems(testRun, testBuckets, requestItem);
         }
 
-        // TODO: Add logging here
-        // await testOutputLogger.log(LogLevel.Info, `${testBucket.length} test item(s) queued: ${testBucket.map((item) => item.item.label).join(', ')}`);
+        // Convert test bucket to logabble format to reduce duplicate information
+        const loggableTestBuckets = testBuckets.map(bucket => ({
+            name: bucket.name,
+            path: bucket.uri.fsPath,
+            testSuites: bucket.testSuites.map(suite => ({
+                name: suite.name,
+                systemName: suite.systemName,
+                path: suite.uri.fsPath,
+                ccLvl: suite.ccLvl,
+                testingConfig: suite.testingConfig,
+                testCases: suite.testCases.map(testCase => ({
+                    name: testCase.name
+                }))
+            }))
+        }));
+        await testOutputLogger.log(LogLevel.Info, `Test buckets: ${JSON.stringify(loggableTestBuckets, null, 2)}`);
+
         return testBuckets;
     }
 
@@ -195,7 +211,7 @@ export class IBMiTestRunner {
         }
     }
 
-    async runHandler() {
+    async runHandler(): Promise<TestRunResult> {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection()!;
         const config = connection.getConfig();
@@ -206,11 +222,12 @@ export class IBMiTestRunner {
         // Create test logger
         const testResultLogger = new TestResultLogger(testRun);
         const testLogger = new TestLogger(testOutputLogger, testResultLogger);
+        testOutputLogger.setStoredLogs({ shouldStore: true, logs: [] });
 
         // Check for cancellation request before checking if RPGUnit is installed
         if (this.token?.isCancellationRequested) {
             testRun.end();
-            return;
+            throw new Error(`Test run was cancelled before RPGUnit installation check.`);
         }
 
         // Check if RPGUnit is installed
@@ -220,7 +237,7 @@ export class IBMiTestRunner {
                 // End test run
                 testRun.end();
                 await testLogger.logComponentError(installation.error);
-                return;
+                throw new Error(`RPGUnit is not installed. Error: ${installation.error}`);
             }
         }
 
@@ -234,7 +251,7 @@ export class IBMiTestRunner {
         // Check for cancellation request before validating library list
         if (this.token?.isCancellationRequested) {
             testRun.end();
-            return;
+            throw new Error(`Test run was cancelled before library list validation.`);
         }
 
         // Validate library list has RPGUNIT and QDEVTOOLS
@@ -464,7 +481,7 @@ export class IBMiTestRunner {
             },
             shouldLogCoverage: (): boolean => {
                 // Not used
-                return false;
+                return true;
             },
             getCoverageThresholds: (): string[] => {
                 // Not used
@@ -481,6 +498,15 @@ export class IBMiTestRunner {
         // Run test buckets
         const runner: Runner = new Runner(connection as any, testRequest, testCallbacks, testLogger);
         await runner.run();
+
+        // Get stored logs
+        const testResultLogs: string[] = testResultLogger.getStoredLogs().logs;
+        const testOutputLogs: string[] = testOutputLogger.getStoredLogs().logs;
+        testOutputLogger.setStoredLogs({ shouldStore: false, logs: [] });
+        return {
+            testResultLogs: testResultLogs,
+            testOutputLogs: testOutputLogs
+        };
     }
 
     private async validateLibraryList(testBuckets: TestBucket[]): Promise<void> {

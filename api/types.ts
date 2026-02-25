@@ -7,6 +7,11 @@ export enum LogLevel {
     Error = 5
 }
 
+export interface LogStorage {
+    shouldStore: boolean,
+    logs: string[]
+}
+
 export interface Logger {
     append: (message: string) => Promise<void>;
     appendWithNotification: (level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]) => Promise<void>;
