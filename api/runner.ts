@@ -405,7 +405,7 @@ export class Runner {
         let compileResult: any;
         try {
             const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
-            compileResult = await this.connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
+            compileResult = await this.connection.runCommand({ command: compileCommand, environment: `ile`, env: env, getSpooledFiles: true } as any);
         } catch (error: any) {
             await this.testLogger.logCompilation(testSuite.name, 'errored', [error.message ? error.message : error]);
             this.testMetrics.compilations.errored++;
@@ -583,7 +583,7 @@ export class Runner {
             let testResult: any;
             try {
                 const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
-                testResult = await this.connection.runCommand({ command: testCommand, environment: `ile`, env: env });
+                testResult = await this.connection.runCommand({ command: testCommand, environment: `ile`, env: env, getSpooledFiles: true } as any);
             } catch (error: any) {
                 const assertionResult: AssertionResult[] = [{
                     outcome: 'error',
