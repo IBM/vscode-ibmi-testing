@@ -7,7 +7,8 @@ import { RPGUnit } from "./components/rpgUnit";
 import { CodeCov } from "./components/codeCov";
 import * as tmp from "tmp";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
-import { TestStubCodeActions } from "./codeActions/testStub";
+import { TestStubGenerator } from "./codeActions/testStubGenerator";
+import { TestStubCodeActions } from "./codeActions";
 import { IBMiTesting } from "./types";
 
 export let testOutputLogger: TestOutputLogger = new TestOutputLogger();
@@ -104,7 +105,8 @@ export async function activate(context: ExtensionContext): Promise<IBMiTesting> 
 	return {
 		getTestManager: () => {
 			return manager;
-		}
+		},
+		testStubGenerator: TestStubGenerator
 	};
 }
 

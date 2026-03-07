@@ -1,3 +1,4 @@
+import { TestStubGenerator } from "./codeActions/testStubGenerator";
 import { IBMiTestManager } from "./manager";
 
 export interface TestRunResult {
@@ -7,4 +8,5 @@ export interface TestRunResult {
 
 export interface IBMiTesting {
     getTestManager: () => IBMiTestManager | undefined;
+    testStubGenerator: typeof TestStubGenerator;
 }
