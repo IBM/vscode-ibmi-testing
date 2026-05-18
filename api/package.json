@@ -51,7 +51,7 @@
     "@types/unzipper": "^0.10.11",
     "@types/xml2js": "^0.4.14",
     "ts-loader": "^9.5.7",
-    "typescript": "^6.0.3",
+    "typescript": "^5.8.2",
     "webpack": "^5.106.2",
     "webpack-cli": "^7.0.2"
   }
