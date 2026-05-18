@@ -49,12 +49,13 @@ jobs:
   cli:
     name: Build CLI
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     environment: COMMON1
 
     strategy:
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
         node-version: [20.x]
 
     steps:
