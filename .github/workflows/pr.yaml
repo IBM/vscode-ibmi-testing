@@ -54,6 +54,7 @@ jobs:
     environment: COMMON1
 
     strategy:
+      max-parallel: 1
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node-version: [20.x]
@@ -103,6 +104,7 @@ jobs:
           IBMI_SSH_PORT: ${{ secrets.IBMI_SSH_PORT }}
 
       - name: Test CLI
+        shell: bash
         working-directory: cli
         run: |
           chmod +x ./dist/index.js
