@@ -256,8 +256,8 @@
     "tmp": "^0.2.3"
   },
   "devDependencies": {
-    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
     "@halcyontech/vscode-ibmi-types": "^2.17",
+    "@types/jest": "^30.0.0",
     "@types/node": "20.x",
     "@types/tmp": "^0.2.6",
     "@types/vscode": "^1.96.0",
@@ -265,8 +265,11 @@
     "@typescript-eslint/parser": "^7.11.0",
     "eslint": "^8.57.0",
     "fork-ts-checker-webpack-plugin": "^9.1.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.10",
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.5",
+    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
     "webpack": "^5.92.1",
     "webpack-cli": "^5.1.4"
   }
