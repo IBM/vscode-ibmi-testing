@@ -328,23 +328,23 @@ export class RPGUnit implements IBMiComponent {
             `Updating ${RPGUnit.ID}` :
             `Installing ${RPGUnit.ID}`;
 
-        // if (installMessage && installQuestion && installButton) {
-        //     // Prompt user to install or update RPGUnit
-        //     window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}\n\n${compatabilityMessage}\n\n${configreProductLibraryMessage}` }, installButton, 'Configure Product Library', 'View Documentation').then(async (value) => {
-        //         if (value === installButton) {
-        //             await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
-        //                 progress.report({ message: progressBarMessage });
-        //                 await componentManager.installComponent(RPGUnit.ID);
-        //             });
-        //         } else if (value === 'Configure Product Library') {
-        //             await commands.executeCommand('workbench.action.openSettings', '@ext:IBM.vscode-ibmi-testing');
-        //         } else if (value === 'View Documentation') {
-        //             await env.openExternal(Uri.parse('https://codefori.github.io/docs/developing/testing/overview/#2-rpgunit'));
-        //         }
-        //     });
-        //     return { status: false, error: installMessage };
-        // } else {
+        if (installMessage && installQuestion && installButton) {
+            // Prompt user to install or update RPGUnit
+            window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}\n\n${compatabilityMessage}\n\n${configreProductLibraryMessage}` }, installButton, 'Configure Product Library', 'View Documentation').then(async (value) => {
+                if (value === installButton) {
+                    await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
+                        progress.report({ message: progressBarMessage });
+                        await componentManager.installComponent(RPGUnit.ID);
+                    });
+                } else if (value === 'Configure Product Library') {
+                    await commands.executeCommand('workbench.action.openSettings', '@ext:IBM.vscode-ibmi-testing');
+                } else if (value === 'View Documentation') {
+                    await env.openExternal(Uri.parse('https://codefori.github.io/docs/developing/testing/overview/#2-rpgunit'));
+                }
+            });
+            return { status: false, error: installMessage };
+        } else {
             return { status: true };
-        // }
+        }
     }
 }
