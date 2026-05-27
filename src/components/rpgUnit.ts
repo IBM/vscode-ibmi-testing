@@ -7,7 +7,7 @@ import { GitHub, Release } from "../github";
 import { commands, env, LogLevel, ProgressLocation, QuickPickItem, QuickPickItemKind, Uri, window } from "vscode";
 import * as tmp from "tmp";
 import * as path from "path";
-import { getInstance } from "../extensions/ibmi";
+import { getInstance, getVSCodeTools } from "../extensions/ibmi";
 import { testOutputLogger } from "../extension";
 
 export class RPGUnit implements IBMiComponent {
@@ -214,7 +214,8 @@ export class RPGUnit implements IBMiComponent {
 
         // Uploading save file to IFS
         const localPath = path.join(localTempDir.name, GitHub.ASSET_NAME);
-        const remoteTempDir = config.tempDir;
+        const vsCodeTools = getVSCodeTools();
+        const remoteTempDir = vsCodeTools.ensureFullPath(config.tempDir, config.homeDirectory);
         const remotePath = path.posix.join(remoteTempDir, GitHub.ASSET_NAME);
         try {
             await testOutputLogger.log(LogLevel.Info, `Uploading ${GitHub.ASSET_NAME} to ${remotePath}`);
@@ -327,23 +328,23 @@ export class RPGUnit implements IBMiComponent {
             `Updating ${RPGUnit.ID}` :
             `Installing ${RPGUnit.ID}`;
 
-        if (installMessage && installQuestion && installButton) {
-            // Prompt user to install or update RPGUnit
-            window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}\n\n${compatabilityMessage}\n\n${configreProductLibraryMessage}` }, installButton, 'Configure Product Library', 'View Documentation').then(async (value) => {
-                if (value === installButton) {
-                    await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
-                        progress.report({ message: progressBarMessage });
-                        await componentManager.installComponent(RPGUnit.ID);
-                    });
-                } else if (value === 'Configure Product Library') {
-                    await commands.executeCommand('workbench.action.openSettings', '@ext:IBM.vscode-ibmi-testing');
-                } else if (value === 'View Documentation') {
-                    await env.openExternal(Uri.parse('https://codefori.github.io/docs/developing/testing/overview/#2-rpgunit'));
-                }
-            });
-            return { status: false, error: installMessage };
-        } else {
+        // if (installMessage && installQuestion && installButton) {
+        //     // Prompt user to install or update RPGUnit
+        //     window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}\n\n${compatabilityMessage}\n\n${configreProductLibraryMessage}` }, installButton, 'Configure Product Library', 'View Documentation').then(async (value) => {
+        //         if (value === installButton) {
+        //             await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
+        //                 progress.report({ message: progressBarMessage });
+        //                 await componentManager.installComponent(RPGUnit.ID);
+        //             });
+        //         } else if (value === 'Configure Product Library') {
+        //             await commands.executeCommand('workbench.action.openSettings', '@ext:IBM.vscode-ibmi-testing');
+        //         } else if (value === 'View Documentation') {
+        //             await env.openExternal(Uri.parse('https://codefori.github.io/docs/developing/testing/overview/#2-rpgunit'));
+        //         }
+        //     });
+        //     return { status: false, error: installMessage };
+        // } else {
             return { status: true };
-        }
+        // }
     }
 }
