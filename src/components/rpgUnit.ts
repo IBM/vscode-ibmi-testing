@@ -1,4 +1,4 @@
-import { ComponentIdentification, ComponentState, IBMiComponent } from "@halcyontech/vscode-ibmi-types/api/components/component";
+import { ComponentIdentification, IBMiComponent, SecureComponentState } from "@halcyontech/vscode-ibmi-types/api/components/component";
 import { Tools } from "@halcyontech/vscode-ibmi-types/api/Tools";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { Configuration, Section } from "../configuration";
@@ -25,10 +25,10 @@ export class RPGUnit implements IBMiComponent {
             name: RPGUnit.ID,
             version: RPGUnit.MINIMUM_VERSION,
             userManaged: true
-        };
+        } as any;
     }
 
-    async getRemoteState(connection: IBMi, installDirectory: string): Promise<ComponentState> {
+    async getRemoteState(connection: IBMi, installDirectory: string): Promise<SecureComponentState> {
         const content = connection.getContent();
 
         try {
@@ -44,7 +44,7 @@ export class RPGUnit implements IBMiComponent {
                         // Parse the copyright strings
                         const copyrightJson = JSON.parse(String(copyrightStrings));
                         const copyrights = copyrightJson.COPYRIGHTS;
-                        
+
                         // Get installed version from copyright strings
                         let installedVersion: string | null = null;
                         for (const copyright of copyrights) {
@@ -59,34 +59,34 @@ export class RPGUnit implements IBMiComponent {
                             // Compare installed version with minimum version
                             if (await this.compareVersions(installedVersion, RPGUnit.MINIMUM_VERSION) >= 0) {
                                 await testOutputLogger.log(LogLevel.Info, `Installed version of RPGUnit is v${installedVersion}`);
-                                return 'Installed';
+                                return { status: `Installed` };
                             } else {
                                 await testOutputLogger.log(LogLevel.Error, `Installed version of RPGUnit (v${installedVersion}) is lower than minimum version (v${RPGUnit.MINIMUM_VERSION})`);
-                                return 'NeedsUpdate';
+                                return { status: `NeedsUpdate` };
                             }
                         } else {
                             await testOutputLogger.log(LogLevel.Error, `Failed to parse installed version of RPGUnit`);
-                            return 'NeedsUpdate';
+                            return { status: `NeedsUpdate` };
                         }
                     } else {
                         await testOutputLogger.log(LogLevel.Error, `Failed to get installed version of RPGUnit as copyright string format changed.`);
-                        return 'NeedsUpdate';
+                        return { status: `NeedsUpdate` };
                     }
                 } else {
                     await testOutputLogger.log(LogLevel.Error, `Failed to get installed version of RPGUnit as no copyright strings found.`);
-                    return 'NeedsUpdate';
+                    return { status: `NeedsUpdate` };
                 }
             } else {
                 await testOutputLogger.log(LogLevel.Error, `Product library ${productLibrary}.LIB does not exist`);
-                return 'NotInstalled';
+                return { status: `NotInstalled` };
             }
         } catch (error) {
             await testOutputLogger.log(LogLevel.Error, `Failed to get remote state of RPGUnit component. Error: ${error}`);
-            return 'Error';
+            return { status: `Error` };
         }
     }
 
-    async update(connection: IBMi, installDirectory: string): Promise<ComponentState> {
+    async update(connection: IBMi, installDirectory: string): Promise<SecureComponentState> {
         const errorButtons = [
             {
                 label: 'Try Again',
@@ -215,7 +215,7 @@ export class RPGUnit implements IBMiComponent {
         // Uploading save file to IFS
         const localPath = path.join(localTempDir.name, GitHub.ASSET_NAME);
         const vsCodeTools = getVSCodeTools();
-        const remoteTempDir = vsCodeTools.ensureFullPath(config.tempDir, config.homeDirectory);
+        const remoteTempDir = vsCodeTools!.ensureFullPath(config.tempDir, config.homeDirectory);
         const remotePath = path.posix.join(remoteTempDir, GitHub.ASSET_NAME);
         try {
             await testOutputLogger.log(LogLevel.Info, `Uploading ${GitHub.ASSET_NAME} to ${remotePath}`);
@@ -271,7 +271,7 @@ export class RPGUnit implements IBMiComponent {
         await connection.runCommand({ command: `rm -rf ${remotePath}` });
 
         const newState = await this.getRemoteState(connection, installDirectory);
-        if (newState === 'Installed') {
+        if (newState.status === 'Installed') {
             await testOutputLogger.appendWithNotification(LogLevel.Info, `RPGUnit ${selectedRelease.release.name} installed successfully into ${productLibrary}.LIB`);
         } else {
             await testOutputLogger.appendWithNotification(LogLevel.Error, `RPGUnit ${selectedRelease.release.name} failed to install into ${productLibrary}.LIB`, undefined, errorButtons);
@@ -309,22 +309,23 @@ export class RPGUnit implements IBMiComponent {
 
         const componentManager = connection.getComponentManager();
         const state = await componentManager.getRemoteState(RPGUnit.ID);
+        const status = state?.status
         const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
-        const title = state === 'NeedsUpdate' ?
+        const title = status === 'NeedsUpdate' ?
             'RPGUnit Update Required' :
             'RPGUnit Installation Required';
-        const installMessage = state === 'NeedsUpdate' ?
+        const installMessage = status === 'NeedsUpdate' ?
             `RPGUnit must be updated to v${RPGUnit.MINIMUM_VERSION} on the IBM i to use v${RPGUnit.EXTENSION_VERSION} of the IBM i Testing extension.` :
-            (state !== 'Installed' ? `RPGUnit must be installed with at least v${RPGUnit.MINIMUM_VERSION} on the IBM i to use v${RPGUnit.EXTENSION_VERSION} of the IBM i Testing extension.` : undefined);
-        const installQuestion = state === 'NeedsUpdate' ?
+            (status !== 'Installed' ? `RPGUnit must be installed with at least v${RPGUnit.MINIMUM_VERSION} on the IBM i to use v${RPGUnit.EXTENSION_VERSION} of the IBM i Testing extension.` : undefined);
+        const installQuestion = status === 'NeedsUpdate' ?
             `Can it be updated in ${productLibrary}.LIB?` :
-            (state !== 'Installed' ? `Can it be installed into ${productLibrary}.LIB?` : undefined);
-        const installButton = state === 'NeedsUpdate' ?
+            (status !== 'Installed' ? `Can it be installed into ${productLibrary}.LIB?` : undefined);
+        const installButton = status === 'NeedsUpdate' ?
             'Update' :
-            (state !== 'Installed' ? 'Install' : undefined);
+            (status !== 'Installed' ? 'Install' : undefined);
         const compatabilityMessage = `It is always recommended to stay current to leverage the latest enhancements. However if you would like to keep the current version of RPGUnit, check the documentation to see what version of the extension is compatible.`;
         const configreProductLibraryMessage = `You can also maintain several different versions of RPGUnit by installing it into a different library. Simply configure the product library in the extension settings and make sure to set your library list accordingly.`;
-        const progressBarMessage = state === 'NeedsUpdate' ?
+        const progressBarMessage = status === 'NeedsUpdate' ?
             `Updating ${RPGUnit.ID}` :
             `Installing ${RPGUnit.ID}`;
 

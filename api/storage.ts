@@ -11,7 +11,7 @@ export namespace IBMiTestStorage {
         // Setup test output directory
         const config = connection.getConfig();
         const vsCodeTools = getVSCodeTools();
-        const tempDir = vsCodeTools.ensureFullPath(config.tempDir, config.homeDirectory);
+        const tempDir = vsCodeTools!.ensureFullPath(config.tempDir, config.homeDirectory);
         const testStorage = [
             `${tempDir}/${TEST_OUTPUT_DIRECTORY}/${RPGUNIT_DIRECTORY}`,
             `${tempDir}/${TEST_OUTPUT_DIRECTORY}/${CODECOV_DIRECTORY}`
@@ -25,7 +25,7 @@ export namespace IBMiTestStorage {
     export function getTestStorage(connection: IBMi, prefix: string): TestStorage {
         const config = connection.getConfig();
         const vsCodeTools = getVSCodeTools();
-        const tempDir = vsCodeTools.ensureFullPath(config.tempDir, config.homeDirectory);
+        const tempDir = vsCodeTools!.ensureFullPath(config.tempDir, config.homeDirectory);
 
         const time = new Date().getTime();
 
