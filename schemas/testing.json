@@ -2,6 +2,44 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "properties": {
+        "testSuites": {
+            "type": "object",
+            "markdownDescription": "Test Suites Configuration\n\nControls which files in this directory or members in this source file are detected as tests.",
+            "default": {
+                "include": [
+                    "**/*.TEST.RPGLE",
+                    "**/*.TEST.SQLRPGLE",
+                    "**/*.TEST.CBLLE",
+                    "**/*.TEST.SQLCBLLE"
+                ],
+                "exclude": []
+            },
+            "properties": {
+                "include": {
+                    "type": "array",
+                    "default": [
+                        "**/*.TEST.RPGLE",
+                        "**/*.TEST.SQLRPGLE",
+                        "**/*.TEST.CBLLE",
+                        "**/*.TEST.SQLCBLLE"
+                    ],
+                    "items": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "markdownDescription": "Include Patterns\n\nGlob patterns that identify test files or members to include.\n\n**Local files default**: `**/*.TEST.RPGLE`, `**/*.TEST.SQLRPGLE`, `**/*.TEST.CBLLE`, `**/*.TEST.SQLCBLLE`\n\n**QSYS members default**: `T*.RPGLE`, `T*.SQLRPGLE`, `T*.CBLLE`, `T*.SQLCBLLE`"
+                },
+                "exclude": {
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "markdownDescription": "Exclude Patterns\n\nGlob patterns that identify files or members to exclude."
+                }
+            }
+        },
         "rpgunit": {
             "type": "object",
             "markdownDescription": "RPGUnit Configuration",
@@ -729,6 +767,15 @@
         {
             "label": "IBM i Testing Configuration",
             "body": {
+                "testSuites": {
+                    "include": [
+                        "**/*.TEST.RPGLE",
+                        "**/*.TEST.SQLRPGLE",
+                        "**/*.TEST.CBLLE",
+                        "**/*.TEST.SQLCBLLE"
+                    ],
+                    "exclude": []
+                },
                 "rpgunit": {
                     "rucrtrpg": {
                         "tgtCcsid": "*JOB",

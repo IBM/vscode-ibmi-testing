@@ -150,12 +150,18 @@ export interface TestMetrics {
 }
 
 export interface TestingConfig {
+    testSuites?: TestSuiteGlobPatterns,
     rpgunit?: {
         rucrtrpg?: RUCRTRPG & { wrapperCmd?: WrapperCmd },
         rucrtcbl?: RUCRTCBL & { wrapperCmd?: WrapperCmd },
         rucalltst?: RUCALLTST & { wrapperCmd?: WrapperCmd }
     },
     codecov?: CODECOV
+}
+
+export interface TestSuiteGlobPatterns {
+    include: string[];
+    exclude: string[];
 }
 
 export interface RUCRTRPG {

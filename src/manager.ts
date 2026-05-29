@@ -378,7 +378,6 @@ export class IBMiTestManager {
         return result;
     }
 
-
     private async loadFileOrMember(uri: Uri, loadTestCases: boolean, isChanged: boolean = false): Promise<void> {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection()!;
