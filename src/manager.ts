@@ -4,7 +4,6 @@ import { IBMiTestRunner } from "./runner";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { getInstance } from "./extensions/ibmi";
 import { ApiUtils } from "../api/apiUtils";
-import { Configuration, Section } from "./configuration";
 import { testOutputLogger } from "./extension";
 import { TestData, TestFileData } from "./testData";
 import { CompileMode } from "../api/types";
@@ -132,14 +131,12 @@ export class IBMiTestManager {
             const libraryList = await ibmi!.getLibraryList(connection);
             libraries = Array.from(new Set([libraryList.currentLibrary, ...libraryList.libraryList]));
         }
-        const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles)
-            .map(file => connection.upperCaseName(file));
         const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
         const qsysExtensions = testSuffixes.qsys.map((suffix) => suffix.slice(1));
 
         // Load tests from library list
         await testOutputLogger.log(LogLevel.Info, `Searching for tests in library list: ${libraries.join('.LIB, ')}.LIB`);
-        const testMembers = await ApiUtils.getMemberList(connection as any, libraries, testSourceFiles, qsysExtensions);
+        const testMembers = await ApiUtils.getMemberList(connection as any, libraries, ['*'], qsysExtensions);
         for (const testMember of testMembers) {
             const memberPath = testMember.asp ?
                 path.posix.join(testMember.asp, testMember.library, testMember.file, `${testMember.name}.${testMember.extension}`) :
@@ -396,16 +393,6 @@ export class IBMiTestManager {
         // Check if the URI ends with any of the uri specific suffixes
         if (!uriSpecificSuffixes.some(suffix => connection.upperCaseName(uri.path).endsWith(suffix))) {
             return;
-        }
-
-        // If the test is a member, check if its source file is in the set of test source files to search in
-        if (uri.scheme === 'member') {
-            const testSourceFiles = Configuration.getOrFallback<string[]>(Section.testSourceFiles)
-                .map(file => connection.upperCaseName(file));
-            const parsedPath = connection.parserMemberPath(uri.path);
-            if (!testSourceFiles.includes(connection.upperCaseName(parsedPath.file))) {
-                return;
-            }
         }
 
         const result = await this.getOrCreateFile(uri);

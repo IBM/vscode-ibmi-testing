@@ -59,20 +59,8 @@
             "default": "RPGUNIT",
             "markdownDescription": "Specifies the name of the RPGUnit product library on the host."
           },
-          "IBM i Testing.testSourceFiles": {
-            "order": 1,
-            "type": "array",
-            "default": [
-              "QTESTSRC"
-            ],
-            "items": {
-              "type": "string",
-              "description": "The name of a source file containing tests."
-            },
-            "markdownDescription": "A set of source files to search for tests in the library list."
-          },
           "IBM i Testing.testStubPreferences": {
-            "order": 2,
+            "order": 1,
             "type": "object",
             "default": {
               "Show Test Stub Preview": true,
@@ -122,7 +110,7 @@
             "markdownDescription": "Preferences for how test stubs should be generated:\n* `Show Test Stub Preview`: Controls whether to show a preview of the test stub before adding it to the file or source member. This refactoring preview can also be used to selectively insert portions of the stub.\n* `Test Source File`: The default source file to generate new test members into.\n* `Test Source Directory`: The default directory to generate new test files into.\n* `Prompt For Test Name`: Controls whether to prompt for the name of the test including where it is located. The default source file is set using the `Test Source File` preference, the default directory is set using the `Test Source Directory` preference, and the test file or member will be named according to the rules described [here](https://codefori.github.io/docs/developing/testing/writing/#test-suites).\n* `Add Control Options and Directives`: Controls whether to add control options (`ctl-opt nomain ccsidcvt(*excp) ccsid(*char : *jobrun);`) and directives (`**free`) for new test files or members.\n* `Add Includes`: Controls whether to generate relevant includes.\n* `Add Prototypes`: Controls whether to generate a prototype for the procedure being tested (if it does not already exist).\n* `Add Stub Comments`: Controls whether to add comments to the test stub to distinguish inputs, actual results, expected results, and assertions."
           },
           "IBM i Testing.libraryListValidation": {
-            "order": 3,
+            "order": 2,
             "type": "object",
             "default": {
               "RPGUNIT": true,
@@ -142,7 +130,7 @@
             "markdownDescription": "Controls whether checks are performed to ensure the required library is found on the library list before executing any tests. If not found, a notification is displayed. For RPGUNIT, note that the specific library which is checked for can be configured using the `IBM i Testing.productLibrary` setting."
           },
           "IBM i Testing.runOrder": {
-            "order": 4,
+            "order": 3,
             "type": "string",
             "default": "*API",
             "enum": [
@@ -156,7 +144,7 @@
             "markdownDescription": "Specifies the order for running the test procedures. Useful to check that there is no dependencies between test procedures."
           },
           "IBM i Testing.libraryList": {
-            "order": 5,
+            "order": 4,
             "type": "string",
             "default": "*CURRENT",
             "enum": [
@@ -170,13 +158,13 @@
             "markdownDescription": "Specifies the library list for executing the specified unit test."
           },
           "IBM i Testing.jobDescription": {
-            "order": 6,
+            "order": 5,
             "type": "string",
             "default": "*DFT",
             "markdownDescription": "Specifies the name of the job description that is used to set the library list, when the `IBM i Testing: Library List` setting is set to `*JOBD`. `*DFT` can be used here to indicate the library of the unit test suite (service program) is searched for job description `RPGUNIT`."
           },
           "IBM i Testing.reportDetail": {
-            "order": 7,
+            "order": 6,
             "type": "string",
             "default": "*BASIC",
             "enum": [
@@ -190,7 +178,7 @@
             "markdownDescription": "Specifies how detailed the test run report should be."
           },
           "IBM i Testing.createReport": {
-            "order": 8,
+            "order": 7,
             "type": "string",
             "default": "*ALLWAYS",
             "enum": [
@@ -206,7 +194,7 @@
             "markdownDescription": "Specifies whether a report is created."
           },
           "IBM i Testing.reclaimResources": {
-            "order": 9,
+            "order": 8,
             "type": "string",
             "default": "*NO",
             "enum": [
@@ -222,7 +210,7 @@
             "markdownDescription": "Specifies when to reclaim resources. Resources, such as open files, can be reclaimed after each test case or at the end of the test suite. This option is useful if the test suite calls OPM programs, which do not set the `*INLR` indicator."
           },
           "IBM i Testing.onFailure": {
-            "order": 10,
+            "order": 9,
             "type": "string",
             "default": "*ABORT",
             "enum": [

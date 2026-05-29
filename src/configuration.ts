@@ -17,11 +17,10 @@ export interface LibraryListValidation {
     "QDEVTOOLS": boolean;
 }
 
-type ValueType = string | string[] | TestStubPreferences | LibraryListValidation;
+type ValueType = string | TestStubPreferences | LibraryListValidation;
 
 export enum Section {
     productLibrary = 'productLibrary',
-    testSourceFiles = 'testSourceFiles',
     testStubPreferences = 'testStubPreferences',
     libraryListValidation = 'libraryListValidation',
     runOrder = 'runOrder',
@@ -35,7 +34,6 @@ export enum Section {
 
 export const defaultConfigurations: { [T in Section]: ValueType } = {
     [Section.productLibrary]: 'RPGUNIT',
-    [Section.testSourceFiles]: ['QTESTSRC'],
     [Section.testStubPreferences]: {
         "Show Test Stub Preview": true,
         "Test Source File": "QTESTSRC",

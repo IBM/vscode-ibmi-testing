@@ -38,11 +38,6 @@ export async function activate(context: ExtensionContext): Promise<IBMiTesting> 
 			await componentManager?.getRemoteState(RPGUnit.ID);
 		}
 
-		if (event.affectsConfiguration(`${Configuration.group}.${Section.testSourceFiles}`)) {
-			if (manager) {
-				await manager.refreshTests();
-			}
-		}
 	});
 	onCodeForIBMiConfigurationChange('connectionSettings', async () => {
 		const connection = ibmi!.getConnection();
