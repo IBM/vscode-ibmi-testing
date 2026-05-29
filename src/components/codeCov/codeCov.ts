@@ -1,7 +1,7 @@
 import { ComponentIdentification, IBMiComponent, SecureComponentState } from "@halcyontech/vscode-ibmi-types/api/components/component";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { LogLevel } from "vscode";
-import { testOutputLogger } from "../extension";
+import { testOutputLogger } from "../../extension";
 
 export class CodeCov implements IBMiComponent {
     static ID: string = "CODECOV";

@@ -3,7 +3,7 @@ import { IBMiTestManager } from "./manager";
 import { getDeployTools, getInstance } from "./extensions/ibmi";
 import { Configuration, LibraryListValidation, Section } from "./configuration";
 import { IBMiFileCoverage } from "./fileCoverage";
-import { RPGUnit } from "./components/rpgUnit";
+import { RPGUnit } from "./components/rpgUnit/rpgUnit";
 import { Runner, TestCallbacks } from "../api/runner";
 import { MergedCoverageData, BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode, AssertionResult } from "../api/types";
 import { TestLogger } from "../api/testLogger";
