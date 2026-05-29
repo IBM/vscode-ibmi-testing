@@ -4,13 +4,13 @@
     "properties": {
         "testSuites": {
             "type": "object",
-            "markdownDescription": "Test Suites Configuration\n\nControls which files in this directory or members in this source file are detected as tests.",
+            "markdownDescription": "Test Suites Configuration\n\nControls which files directly in this directory (or members directly in this source file) are detected as tests.",
             "default": {
                 "include": [
-                    "**/*.TEST.RPGLE",
-                    "**/*.TEST.SQLRPGLE",
-                    "**/*.TEST.CBLLE",
-                    "**/*.TEST.SQLCBLLE"
+                    "*.TEST.RPGLE",
+                    "*.TEST.SQLRPGLE",
+                    "*.TEST.CBLLE",
+                    "*.TEST.SQLCBLLE"
                 ],
                 "exclude": []
             },
@@ -18,16 +18,16 @@
                 "include": {
                     "type": "array",
                     "default": [
-                        "**/*.TEST.RPGLE",
-                        "**/*.TEST.SQLRPGLE",
-                        "**/*.TEST.CBLLE",
-                        "**/*.TEST.SQLCBLLE"
+                        "*.TEST.RPGLE",
+                        "*.TEST.SQLRPGLE",
+                        "*.TEST.CBLLE",
+                        "*.TEST.SQLCBLLE"
                     ],
                     "items": {
                         "type": "string",
                         "default": ""
                     },
-                    "markdownDescription": "Include Patterns\n\nGlob patterns that identify test files or members to include.\n\n**Local files default**: `**/*.TEST.RPGLE`, `**/*.TEST.SQLRPGLE`, `**/*.TEST.CBLLE`, `**/*.TEST.SQLCBLLE`\n\n**QSYS members default**: `T*.RPGLE`, `T*.SQLRPGLE`, `T*.CBLLE`, `T*.SQLCBLLE`"
+                    "markdownDescription": "Include Patterns\n\nWildcard patterns matched against file names directly in this directory to include as a test suite.\n\n**Local files default**: `*.TEST.RPGLE`, `*.TEST.SQLRPGLE`, `*.TEST.CBLLE`, `*.TEST.SQLCBLLE`\n\n**QSYS members default**: `T*.RPGLE`, `T*.SQLRPGLE`, `T*.CBLLE`, `T*.SQLCBLLE`"
                 },
                 "exclude": {
                     "type": "array",
@@ -36,7 +36,7 @@
                         "type": "string",
                         "default": ""
                     },
-                    "markdownDescription": "Exclude Patterns\n\nGlob patterns that identify files or members to exclude."
+                    "markdownDescription": "Exclude Patterns\n\nWildcard patterns matched against file names directly in this directory to exclude as a test suite."
                 }
             }
         },
@@ -769,10 +769,10 @@
             "body": {
                 "testSuites": {
                     "include": [
-                        "**/*.TEST.RPGLE",
-                        "**/*.TEST.SQLRPGLE",
-                        "**/*.TEST.CBLLE",
-                        "**/*.TEST.SQLCBLLE"
+                        "*.TEST.RPGLE",
+                        "*.TEST.SQLRPGLE",
+                        "*.TEST.CBLLE",
+                        "*.TEST.SQLCBLLE"
                     ],
                     "exclude": []
                 },
