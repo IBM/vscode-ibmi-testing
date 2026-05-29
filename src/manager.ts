@@ -1,12 +1,13 @@
-import { CancellationToken, ExtensionContext, LogLevel, RelativePattern, TestController, TestItem, TestRunProfile, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, window, workspace, WorkspaceFolder } from "vscode";
+import { CancellationToken, Disposable, ExtensionContext, LogLevel, RelativePattern, TestController, TestItem, TestRunProfile, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, window, workspace } from "vscode";
 import * as path from "path";
+import * as fs from "fs";
 import { IBMiTestRunner } from "./runner";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { getInstance } from "./extensions/ibmi";
 import { ApiUtils } from "../api/apiUtils";
 import { testOutputLogger } from "./extension";
 import { TestData, TestFileData } from "./testData";
-import { CompileMode } from "../api/types";
+import { CompileMode, TestingConfig, TestSuitePatterns } from "../api/types";
 import { TestRunResult } from "./types";
 
 export class IBMiTestManager {
@@ -14,6 +15,8 @@ export class IBMiTestManager {
     public testMap: WeakMap<TestItem, TestData>;
     public controller: TestController;
     public profiles: TestRunProfile[];
+    /** Maps testing.json directory URI string → per-directory file watchers */
+    private testingJsonWatchers: Map<string, Disposable[]> = new Map();
 
     constructor(context: ExtensionContext) {
         this.context = context;
@@ -84,6 +87,11 @@ export class IBMiTestManager {
     }
 
     async refreshTests(): Promise<void> {
+        // Dispose all per-directory file watchers
+        for (const [dirKey] of this.testingJsonWatchers) {
+            this.disposeTestingJsonWatchers(dirKey);
+        }
+
         // Remove all existing test items
         this.controller.items.forEach((item) => {
             this.controller.items.delete(item.id);
@@ -95,13 +103,16 @@ export class IBMiTestManager {
     }
 
     async loadInitialTests(): Promise<void> {
-        // Load local tests from workspace folders
-        const workspaceTestPatterns = this.getWorkspaceTestPatterns();
-        for await (const workspaceTestPattern of workspaceTestPatterns) {
-            await testOutputLogger.log(LogLevel.Info, `Searching for tests in workspace folder: ${workspaceTestPattern.workspaceFolder.name}`);
-            const fileUris = await workspace.findFiles(workspaceTestPattern.pattern);
-            for (const uri of fileUris) {
-                await this.loadFileOrMember(uri, false);
+        // Load local tests from workspace folders via testing.json discovery
+        const workspaceFoldersList = workspace.workspaceFolders ?? [];
+        for (const workspaceFolder of workspaceFoldersList) {
+            await testOutputLogger.log(LogLevel.Info, `Searching for tests in workspace folder: ${workspaceFolder.name}`);
+            const testingJsonUris = await workspace.findFiles(new RelativePattern(workspaceFolder, '**/testing.json'));
+            for (const testingJsonUri of testingJsonUris) {
+                const dirUri = Uri.joinPath(testingJsonUri, '..');
+                const patterns = await this.readLocalTestingJsonPatterns(dirUri);
+                await testOutputLogger.log(LogLevel.Info, `Found testing.json at ${testingJsonUri.fsPath} with patterns: ${JSON.stringify(patterns)}`);
+                await this.loadLocalTestsForDir(dirUri, patterns);
             }
         }
 
@@ -146,40 +157,154 @@ export class IBMiTestManager {
         }
     }
 
-    private getWorkspaceTestPatterns(): { workspaceFolder: WorkspaceFolder; pattern: RelativePattern; }[] {
-        const workspaceFolders = workspace.workspaceFolders;
-        if (!workspaceFolders) {
-            return [];
+    private async readLocalTestingJsonPatterns(dirUri: Uri): Promise<TestSuitePatterns> {
+        const testingJsonPath = path.join(dirUri.fsPath, 'testing.json');
+        try {
+            const raw = await fs.promises.readFile(testingJsonPath, 'utf-8');
+            const testingConfig = JSON.parse(raw) as TestingConfig;
+            if (testingConfig.testSuites && Array.isArray(testingConfig.testSuites.include)) {
+                return {
+                    include: testingConfig.testSuites.include,
+                    exclude: Array.isArray(testingConfig.testSuites.exclude) ? testingConfig.testSuites.exclude : []
+                };
+            }
+        } catch (error) {
+            // No testing.json or unreadable
         }
 
-        const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
-        const pattern = testSuffixes.ifs.flatMap(suffix => [suffix, suffix.toLowerCase()]).join(',');
+        // Fallback to default
+        return {
+            include: [
+                '*.TEST.RPGLE',
+                '*.TEST.SQLRPGLE',
+                '*.TEST.CBLLE',
+                '*.TEST.SQLCBLLE'
+            ],
+            exclude: []
+        };
+    }
 
-        return workspaceFolders.map((workspaceFolder: WorkspaceFolder) => {
-            return {
-                workspaceFolder,
-                pattern: new RelativePattern(workspaceFolder, `**/*{${pattern}}`)
-            };
-        });
+    private matchesTestSuitePatterns(fileName: string, patterns: TestSuitePatterns): boolean {
+        const included = patterns.include.some(p => this.matchesPattern(fileName, p));
+        if (!included) {
+            return false;
+        }
+
+        const excluded = patterns.exclude.some(p => this.matchesPattern(fileName, p));
+        return !excluded;
+    }
+
+    private matchesPattern(fileName: string, pattern: string): boolean {
+        // *.TEST.RPGLE:
+        // After escape: *\.TEST\.RPGLE
+        // After * → .*: .*\.TEST\.RPGLE
+        // Full regex: ^.*\.TEST\.RPGLE$
+
+        const upperFileName = fileName.toUpperCase();
+        const upperPattern = pattern.toUpperCase();
+        const regex = new RegExp(
+            '^' + upperPattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$'
+        );
+        return regex.test(upperFileName);
+    }
+
+    private async loadLocalTestsForDir(dirUri: Uri, patterns: TestSuitePatterns): Promise<void> {
+        for (const includePattern of patterns.include) {
+            const fileUris = await workspace.findFiles(new RelativePattern(dirUri, includePattern));
+            for (const uri of fileUris) {
+                const fileName = path.basename(uri.fsPath);
+                if (!patterns.exclude.some(p => this.matchesPattern(fileName, p))) {
+                    await this.loadFileOrMember(uri, false);
+                }
+            }
+        }
     }
 
     private startWatchingWorkspace(): void {
-        const workspaceTestPatterns = this.getWorkspaceTestPatterns();
+        const workspaceFolders = workspace.workspaceFolders ?? [];
 
-        for (const workspaceTestPattern of workspaceTestPatterns) {
-            const watcher = workspace.createFileSystemWatcher(workspaceTestPattern.pattern);
-            this.context.subscriptions.push(watcher);
+        for (const workspaceFolder of workspaceFolders) {
+            // Watch for testing.json creation / change / deletion in the workspace
+            const testingJsonWatcher = workspace.createFileSystemWatcher(
+                new RelativePattern(workspaceFolder, '**/testing.json')
+            );
+            this.context.subscriptions.push(testingJsonWatcher);
 
-            watcher.onDidCreate(async (uri: Uri) => {
-                await this.loadFileOrMember(uri, false);
+            testingJsonWatcher.onDidCreate(async (uri: Uri) => {
+                await this.onTestingJsonAdded(uri);
             });
-            // TODO: Handle remote source member changes
-            watcher.onDidChange(async (uri: Uri) => {
-                await this.loadFileOrMember(uri, true, true);
+            testingJsonWatcher.onDidChange(async (uri: Uri) => {
+                await this.onTestingJsonChanged(uri);
             });
-            watcher.onDidDelete(async (uri: Uri) => {
-                await this.deleteTestItem(uri);
+            testingJsonWatcher.onDidDelete(async (uri: Uri) => {
+                await this.onTestingJsonDeleted(uri);
             });
+        }
+    }
+
+    private async onTestingJsonAdded(testingJsonUri: Uri): Promise<void> {
+        const dirUri = Uri.joinPath(testingJsonUri, '..');
+        const dirKey = dirUri.toString();
+        const patterns = await this.readLocalTestingJsonPatterns(dirUri);
+        await testOutputLogger.log(LogLevel.Info, `testing.json added at ${testingJsonUri.fsPath}`);
+
+        // Create per-pattern file watchers for this directory
+        const disposables: Disposable[] = [];
+        for (const includePattern of patterns.include) {
+            const watcher = workspace.createFileSystemWatcher(new RelativePattern(dirUri, includePattern));
+            watcher.onDidCreate(async (uri: Uri) => { await this.loadFileOrMember(uri, false); });
+            watcher.onDidChange(async (uri: Uri) => { await this.loadFileOrMember(uri, true, true); });
+            watcher.onDidDelete(async (uri: Uri) => { await this.deleteTestItem(uri); });
+            disposables.push(watcher);
+        }
+        this.testingJsonWatchers.set(dirKey, disposables);
+
+        // Load any already-existing matching test files
+        await this.loadLocalTestsForDir(dirUri, patterns);
+    }
+
+    private async onTestingJsonChanged(testingJsonUri: Uri): Promise<void> {
+        const dirUri = Uri.joinPath(testingJsonUri, '..');
+        const dirKey = dirUri.toString();
+        await testOutputLogger.log(LogLevel.Info, `testing.json changed at ${testingJsonUri.fsPath}`);
+
+        // Dispose old per-directory watchers
+        this.disposeTestingJsonWatchers(dirKey);
+
+        // Remove all test items from this directory
+        await this.deleteTestItemsForDir(dirUri);
+
+        // Re-add with new patterns
+        await this.onTestingJsonAdded(testingJsonUri);
+    }
+
+    private async onTestingJsonDeleted(testingJsonUri: Uri): Promise<void> {
+        const dirUri = Uri.joinPath(testingJsonUri, '..');
+        const dirKey = dirUri.toString();
+        await testOutputLogger.log(LogLevel.Info, `testing.json deleted at ${testingJsonUri.fsPath}`);
+
+        this.disposeTestingJsonWatchers(dirKey);
+        await this.deleteTestItemsForDir(dirUri);
+    }
+
+    private disposeTestingJsonWatchers(dirKey: string): void {
+        const existing = this.testingJsonWatchers.get(dirKey);
+        if (existing) {
+            existing.forEach(d => d.dispose());
+            this.testingJsonWatchers.delete(dirKey);
+        }
+    }
+
+    /** Remove all file-level test items whose parent directory matches dirUri. */
+    private async deleteTestItemsForDir(dirUri: Uri): Promise<void> {
+        const allItems = this.getFlattenedTestItems();
+        for (const item of allItems) {
+            if (item.uri && item.uri.scheme === 'file') {
+                const itemDir = Uri.joinPath(item.uri, '..');
+                if (itemDir.toString() === dirUri.toString()) {
+                    await this.deleteTestItem(item.uri);
+                }
+            }
         }
     }
 
@@ -338,7 +463,6 @@ export class IBMiTestManager {
 
         // Recursively delete empty parents
         while (parentItem && parentItem.children.size === 0) {
-
             const grandParentItem = parentItem.parent;
             if (!grandParentItem) {
                 // Delete workspace item when no grandparent
@@ -379,19 +503,26 @@ export class IBMiTestManager {
         const ibmi = getInstance();
         const connection = ibmi!.getConnection()!;
 
-        // Get test suffixes based on the URI scheme
-        const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
-        let uriSpecificSuffixes: string[];
         if (uri.scheme === 'file') {
-            uriSpecificSuffixes = testSuffixes.ifs;
+            // For local files, the directory must contain a testing.json and the file must
+            // match its include/exclude patterns
+            const dirUri = Uri.joinPath(uri, '..');
+            const patterns = await this.readLocalTestingJsonPatterns(dirUri);
+            const testingJsonExists = await fs.promises.stat(path.join(dirUri.fsPath, 'testing.json')).then(() => true, () => false);
+            if (!testingJsonExists) {
+                return;
+            }
+            const fileName = path.basename(uri.fsPath);
+            if (!this.matchesTestSuitePatterns(fileName, patterns)) {
+                return;
+            }
         } else if (uri.scheme === 'member') {
-            uriSpecificSuffixes = testSuffixes.qsys;
+            // QSYS suffix check — will be replaced in Sub-Task 6
+            const testSuffixes = ApiUtils.getTestSuffixes({ rpg: true, cobol: true });
+            if (!testSuffixes.qsys.some(suffix => connection.upperCaseName(uri.path).endsWith(suffix))) {
+                return;
+            }
         } else {
-            return;
-        }
-
-        // Check if the URI ends with any of the uri specific suffixes
-        if (!uriSpecificSuffixes.some(suffix => connection.upperCaseName(uri.path).endsWith(suffix))) {
             return;
         }
 
