@@ -156,7 +156,7 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Uploading save file to IFS
-        const vsCodeTools = getVSCodeTools();
+        const vsCodeTools = getVSCodeTools(); // TODO: Replace with connection.getTempDirectory();
         const remoteTempDir = vsCodeTools!.ensureFullPath(config.tempDir, config.homeDirectory);
         const remotePath = path.posix.join(remoteTempDir, LOCAL_SAVE_FILE);
         try {
