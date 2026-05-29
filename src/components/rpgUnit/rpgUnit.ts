@@ -134,7 +134,7 @@ export class RPGUnit implements IBMiComponent {
             );
             if (result === 'Yes') {
                 // Deleting product library
-                const deleteLibCommand = content.toCl(`DLTOBJ`, { 'OBJ': `QSYS/${productLibrary}`, 'OBJTYPE': `*LIB` });
+                const deleteLibCommand = content.toCl(`QSYS/DLTOBJ`, { 'OBJ': `QSYS/${productLibrary}`, 'OBJTYPE': `*LIB` });
                 await testOutputLogger.log(LogLevel.Info, `Deleting product library ${productLibrary}.LIB: ${deleteLibCommand}`);
                 const deleteLibResult = await connection.runCommand({ command: deleteLibCommand, environment: `ile`, noLibList: true });
                 if (deleteLibResult.code !== 0) {
@@ -169,7 +169,7 @@ export class RPGUnit implements IBMiComponent {
 
         // Creating save file in temporary library
         const tempLibrary = connection.upperCaseName(config.tempLibrary);
-        const createSavfCommand = content.toCl(`CRTSAVF`, {
+        const createSavfCommand = content.toCl(`QSYS/CRTSAVF`, {
             'FILE': `${tempLibrary}/RPGUNIT`
         });
         await testOutputLogger.log(LogLevel.Info, `Creating ${GITHUB_SAVE_FILE} in ${tempLibrary}.LIB: ${createSavfCommand}`);
@@ -180,7 +180,7 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Transfer save file to temporary library
-        const transferCommand = content.toCl(`CPYFRMSTMF`, {
+        const transferCommand = content.toCl(`QSYS/CPYFRMSTMF`, {
             'FROMSTMF': remotePath,
             'TOMBR': `\'/QSYS.LIB/${tempLibrary}.LIB/RPGUNIT.FILE\'`,
             'STMFCCSID': 37,
@@ -194,7 +194,7 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Restoring library
-        const restoreCommand = content.toCl(`RSTLIB`, {
+        const restoreCommand = content.toCl(`QSYS/RSTLIB`, {
             'SAVLIB': 'RPGUNIT',
             'DEV': `*SAVF`,
             'SAVF': `${tempLibrary}/RPGUNIT`,
