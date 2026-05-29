@@ -62,7 +62,7 @@ export async function activate(context: ExtensionContext): Promise<IBMiTesting> 
 	});
 
 	// Register components
-	const rpgUnit = new RPGUnit(installedVersion);
+	const rpgUnit = new RPGUnit(context);
 	const codeCov = new CodeCov();
 	const componentRegistry = getComponentRegistry();
 	componentRegistry?.registerComponent(context, rpgUnit);

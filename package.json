@@ -240,14 +240,15 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run package",
+    "vscode:prepublish": "npm run rpgunit && npm run package",
     "compile": "webpack",
     "watch": "webpack --watch",
     "package": "webpack --mode production --devtool hidden-source-map",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
+    "rpgunit": "npx tsx tools/downloadRpgUnit",
     "preinstall": "cd api && npm install && cd ..",
-    "postinstall": "npx tsx tools/downloadRpgUnit"
+    "postinstall": "npm run rpgunit"
   },
   "dependencies": {
     "ansi-colors": "^4.1.3",
