@@ -1,14 +1,11 @@
 import * as fs from 'fs';
 import * as path from "path";
-import lodash from "lodash";
 import { ConfigHandler, Logger, LogLevel, TestingConfig } from "./types";
 import IBMi, { MemberParts } from 'vscode-ibmi/src/api/IBMi';
 
 const TESTING_CONFIG_NAME = 'testing';
 const TESTING_CONFIG_EXT = 'json';
 const TESTING_CONFIG_BASENAME = `${TESTING_CONFIG_NAME}.${TESTING_CONFIG_EXT}`;
-const GLOBAL_CONFIG_DIRECTORY = '.vscode';
-const GLOBAL_CONFIG_SOURCE_FILE = 'VSCODE';
 
 export class LocalConfigHandler implements ConfigHandler {
     private testOutputLogger: Logger;
@@ -29,15 +26,7 @@ export class LocalConfigHandler implements ConfigHandler {
                 await this.testOutputLogger.log(LogLevel.Info, `Found directory testing configuration at ${directoryConfigPath}:\n${JSON.stringify(directoryConfig, null, 2)}`);
             }
 
-            const globalConfigPath = path.join(this.workspaceFolderPath, GLOBAL_CONFIG_DIRECTORY, TESTING_CONFIG_BASENAME);
-            const globalConfig = await this.readConfig(globalConfigPath);
-            if (globalConfig) {
-                await this.testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigPath}:\n${JSON.stringify(globalConfig, null, 2)}`);
-            }
-
-            const mergedConfig = lodash.merge({}, globalConfig, directoryConfig);
-            await this.testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
-            return mergedConfig;
+            return directoryConfig;
         } catch (error: any) {
             await this.testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
             return;
@@ -55,10 +44,8 @@ export class LocalConfigHandler implements ConfigHandler {
                     return configFilePath;
                 }
             } catch {
-                // Testing config not found, continue to check parent directory
+                // No testing.json in the immediate parent directory
             }
-
-            return this.findConfig(parentDirectory);
         }
     }
 
@@ -100,18 +87,10 @@ export class IfsConfigHandler implements ConfigHandler {
             const directoryConfigPath = await this.findConfig(this.ifsPath);
             const directoryConfig = directoryConfigPath ? await this.readConfig(directoryConfigPath) : undefined;
             if (directoryConfigPath && directoryConfig) {
-                await this.testOutputLogger.log(LogLevel.Info, `Found directory testing configuration at ${directoryConfigPath.toString()}:\n${JSON.stringify(directoryConfig, null, 2)}`);
+                await this.testOutputLogger.log(LogLevel.Info, `Found directory testing configuration at ${directoryConfigPath}:\n${JSON.stringify(directoryConfig, null, 2)}`);
             }
 
-            const globalConfigPath = path.posix.join(this.rootIfsPath, GLOBAL_CONFIG_DIRECTORY, TESTING_CONFIG_BASENAME);
-            const globalConfig = await this.readConfig(globalConfigPath);
-            if (globalConfig) {
-                await this.testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigPath.toString()}:\n${JSON.stringify(globalConfig, null, 2)}`);
-            }
-
-            const mergedConfig = lodash.merge({}, globalConfig, directoryConfig);
-            await this.testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
-            return mergedConfig;
+            return directoryConfig;
         } catch (error: any) {
             await this.testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
             return;
@@ -121,19 +100,16 @@ export class IfsConfigHandler implements ConfigHandler {
     private async findConfig(ifsPath: string): Promise<string | undefined> {
         const parentDirectory = path.posix.dirname(ifsPath);
         if (parentDirectory.startsWith(this.rootIfsPath)) {
-            const configFilePath = path.join(parentDirectory, TESTING_CONFIG_BASENAME);
+            const configFilePath = path.posix.join(parentDirectory, TESTING_CONFIG_BASENAME);
 
             try {
                 const exists = await this.connection.getContent().testStreamFile(configFilePath, 'r');
                 if (exists) {
                     return configFilePath;
-
                 }
             } catch {
-                // Testing config not found, continue to check parent directory
+                // No testing.json in the immediate parent directory
             }
-
-            return this.findConfig(parentDirectory);
         }
     }
 
@@ -183,20 +159,7 @@ export class QsysConfigHandler implements ConfigHandler {
                 await this.testOutputLogger.log(LogLevel.Info, `Found source file testing configuration at ${memberConfigPath}:\n${JSON.stringify(memberConfig, null, 2)}`);
             }
 
-            const parsedGlobalPath = parsedMemberPath;
-            parsedGlobalPath.file = GLOBAL_CONFIG_SOURCE_FILE;
-
-            const globalConfigPath = parsedMemberPath.asp ?
-                `/${path.posix.join(parsedMemberPath.asp, parsedMemberPath.library, GLOBAL_CONFIG_SOURCE_FILE, TESTING_CONFIG_BASENAME)}` :
-                `/${path.posix.join(parsedMemberPath.library, GLOBAL_CONFIG_SOURCE_FILE, TESTING_CONFIG_BASENAME)}`;
-            const globalConfig = await this.readConfig(parsedGlobalPath, globalConfigPath);
-            if (globalConfig) {
-                await this.testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigPath}:\n${JSON.stringify(globalConfig, null, 2)}`);
-            }
-
-            const mergedConfig = lodash.merge({}, globalConfig, memberConfig);
-            await this.testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
-            return mergedConfig;
+            return memberConfig;
         } catch (error: any) {
             await this.testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
             return;
