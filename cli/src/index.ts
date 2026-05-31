@@ -11,6 +11,8 @@ import { IfsTestBucketBuilder, LocalTestBucketBuilder, QsysTestBucketBuilder, Te
 import { CodeForIStorage } from "vscode-ibmi/src/api/configuration/storage/CodeForIStorage";
 import { VirtualConfig } from "vscode-ibmi/src/api/configuration/config/VirtualConfig";
 import { extensionComponentRegistry } from "vscode-ibmi/src/api/components/manager";
+import { Mapepire } from "vscode-ibmi/src/api/components/mapepire";
+import { BaseStorage } from "vscode-ibmi/src/api/configuration/storage/BaseStorage";
 import { LocalSSH } from "./localSsh";
 import { ApiUtils } from "../../api/apiUtils";
 import { Option, program } from "commander";
@@ -23,8 +25,6 @@ import { exit } from "process";
 import inquirer from "inquirer";
 import pkg from '../package.json';
 import Parser from "vscode-rpgle/language/parser";
-import { Mapepire } from "vscode-ibmi/src/api/components/mapepire";
-import { BaseStorage } from "vscode-ibmi/src/api/configuration/storage/BaseStorage";
 
 interface Options {
     localDirectory?: string;
