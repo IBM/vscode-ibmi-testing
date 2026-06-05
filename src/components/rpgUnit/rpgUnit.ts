@@ -6,7 +6,7 @@ import { compareVersions } from 'compare-versions';
 import { commands, env, ExtensionContext, LogLevel, ProgressLocation, Uri, window } from "vscode";
 import { existsSync } from "fs";
 import * as path from "path";
-import { getInstance, getVSCodeTools } from "../../extensions/ibmi";
+import { getInstance } from "../../extensions/ibmi";
 import { testOutputLogger } from "../../extension";
 import { LOCAL_SAVE_FILE, OWNER, REPO, GITHUB_SAVE_FILE, SERVER_VERSION_TAG, VERSION } from "./version";
 
@@ -89,6 +89,38 @@ export class RPGUnit implements IBMiComponent {
     }
 
     async update(connection: IBMi, installDirectory: string): Promise<SecureComponentState> {
+        // Get current component state
+        const state = await this.getRemoteState(connection, installDirectory);
+
+        // Prompt user to confirm installation process
+        const content = connection.getContent();
+        const config = connection.getConfig();
+        const tempDir = connection.getTempDirectory();
+        const remotePath = path.posix.join(tempDir, LOCAL_SAVE_FILE);
+        const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
+        const tempLibrary = connection.upperCaseName(config.tempLibrary);
+        const proceed = await window.showInformationMessage(
+            `RPGUnit v${VERSION} Installation`,
+            {
+                modal: true,
+                detail: [
+                    `IBM i Testing v${RPGUnit.EXTENSION_VERSION} is compatible with RPGUnit v${VERSION}. The following steps will be performed to install this version of RPGUnit:`,
+                    ``,
+                    `  1. Locate the bundled save file (${LOCAL_SAVE_FILE}) shipped with the extension.`,
+                    `  2. Delete the existing product library ${productLibrary}.LIB (if present).`,
+                    `  3. Upload the bundled save file ${LOCAL_SAVE_FILE} to the temporary IFS directory (${tempDir}).`,
+                    `  4. Create a save file object (RPGUNIT.FILE) in the temporary library ${tempLibrary}.LIB.`,
+                    `  5. Copy the uploaded save file into the temporary save file object.`,
+                    `  6. Restore the the save file contents into ${productLibrary}.LIB.`,
+                    `  7. Clean up all temporary files.`
+                ].join(`\n`)
+            },
+            `Proceed`
+        );
+        if (proceed !== `Proceed`) {
+            return state;
+        }
+
         const errorButtons = [
             {
                 label: 'Try Again',
@@ -99,12 +131,7 @@ export class RPGUnit implements IBMiComponent {
             }
         ];
 
-        // Get current component state
-        const state = await this.getRemoteState(connection, installDirectory);
-
         testOutputLogger.show();
-        const content = connection.getContent();
-        const config = connection.getConfig();
 
         // Check if bundled save file exists
         await testOutputLogger.log(LogLevel.Info, `Locating bundled ${LOCAL_SAVE_FILE}: ${this.localAssetPath}`);
@@ -122,7 +149,6 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Check if product library exists
-        const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
         const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
         if (productLibraryExists) {
             const result = await window.showInformationMessage('Delete product library',
@@ -156,9 +182,6 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Uploading save file to IFS
-        const vsCodeTools = getVSCodeTools(); // TODO: Replace with connection.getTempDirectory();
-        const remoteTempDir = vsCodeTools!.ensureFullPath(config.tempDir, config.homeDirectory);
-        const remotePath = path.posix.join(remoteTempDir, LOCAL_SAVE_FILE);
         try {
             await testOutputLogger.log(LogLevel.Info, `Uploading ${LOCAL_SAVE_FILE} to ${remotePath}`);
             await content.uploadFiles([{ local: this.localAssetPath, remote: remotePath }]);
@@ -168,7 +191,6 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Creating save file in temporary library
-        const tempLibrary = connection.upperCaseName(config.tempLibrary);
         const createSavfCommand = content.toCl(`QSYS/CRTSAVF`, {
             'FILE': `${tempLibrary}/RPGUNIT`
         });
