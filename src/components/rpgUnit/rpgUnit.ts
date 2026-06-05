@@ -345,10 +345,47 @@ export class RPGUnit implements IBMiComponent {
             return { approved: true };
         }
 
-        // Retrieve object authorities for the product library to inform the user
-        let authoritiesDetail: string[] = [
-            `Object authorities for ${productLibrary}.LIB:`
-        ];
+        // Helper to safely format a date value
+        const safeIsoValue = (date: Date | undefined) => {
+            try {
+                return date ? date.toISOString().slice(0, 19).replace(`T`, ` `) : ``;
+            } catch (error: any) {
+                return `Unknown`;
+            }
+        };
+
+        // Retrieve object statistics for the product library
+        const objectInformation: string[] = [`${productLibrary}.LIB:`];
+        try {
+            const statsRows = await connection.runSQL(`
+                SELECT OBJTEXT as TEXT,
+                       OBJSIZE as SIZE,
+                       OBJOWNER AS OWNER,
+                       OBJDEFINER AS CREATED_BY,
+                       EXTRACT(EPOCH FROM (OBJCREATED)) * 1000 AS CREATED,
+                       EXTRACT(EPOCH FROM (CHANGE_TIMESTAMP)) * 1000 AS CHANGED
+                FROM TABLE (
+                    QSYS2.OBJECT_STATISTICS(
+                        OBJECT_SCHEMA => 'QSYS',
+                        OBJECT_NAME => '${productLibrary}',
+                        OBJTYPELIST => '*LIB'
+                    )
+                )`);
+            if (statsRows.length > 0) {
+                const row = statsRows[0];
+                objectInformation.push(`  • Text: ${row.TEXT ?? ``}`);
+                objectInformation.push(`  • Size: ${row.SIZE ?? ``}`);
+                objectInformation.push(`  • Owner: ${row.OWNER ?? ``}`);
+                objectInformation.push(`  • Created By: ${row.CREATED_BY ?? ``}`);
+                objectInformation.push(`  • Created: ${safeIsoValue(new Date(Number(row.CREATED)))}`);
+                objectInformation.push(`  • Changed: ${safeIsoValue(new Date(Number(row.CHANGED)))}`);
+            }
+        } catch (error: any) {
+            objectInformation.push(`  • Object statistics could not be retrieved.`);
+        }
+
+        // Retrieve authorities for the product library
+        objectInformation.push(`  • Authorities:`);
         try {
             const authRows = await connection.runSQL(`
                 SELECT AUTHORIZATION_NAME,
@@ -359,15 +396,15 @@ export class RPGUnit implements IBMiComponent {
                     AND OBJECT_TYPE = '*LIB'`);
             if (authRows.length > 0) {
                 for (const row of authRows) {
-                    authoritiesDetail.push(`  • ${row.AUTHORIZATION_NAME}: ${row.OBJECT_AUTHORITY}`);
+                    objectInformation.push(`    ◦ ${row.AUTHORIZATION_NAME}: ${row.OBJECT_AUTHORITY}`);
                 }
             } else {
-                authoritiesDetail.push(`No authority information found using QSYS2.OBJECT_PRIVILEGES.`);
+                objectInformation.push(`    ◦ No authority information found.`);
             }
         } catch (error: any) {
-            authoritiesDetail.push(`Failed to retrieve authority information using QSYS2.OBJECT_PRIVILEGES.`);
+            objectInformation.push(`    ◦ Authority information could not be retrieved.`);
         }
-        await testOutputLogger.log(LogLevel.Info, authoritiesDetail.join(`\n`));
+        await testOutputLogger.log(LogLevel.Info, objectInformation.join(`\n`));
 
         // Request user to approve usage of product library which exists on the current IBM i
         const useExisting = await window.showInformationMessage(
@@ -377,7 +414,7 @@ export class RPGUnit implements IBMiComponent {
                 detail: [
                     `RPGUnit v${VERSION} is installed in ${productLibrary}.LIB on the IBM i. Since it is the first time you are using this library via this extension, do you approve the usage of it to compile and run your unit tests? If you do not wish to use this existing library, you can configure a different product library and install your own version of RPGUnit.`,
                     ``,
-                    ...authoritiesDetail,
+                    ...objectInformation,
                 ].join(`\n`)
             },
             `Approve`,
