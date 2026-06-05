@@ -46,6 +46,7 @@
   "devDependencies": {
     "vscode-ibmi": "github:halcyon-tech/vscode-ibmi",
     "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
+    "@octokit/rest": "22.0.1",
     "@types/lodash": "^4.17.16",
     "@types/tmp": "^0.2.6",
     "@types/unzipper": "^0.10.11",
