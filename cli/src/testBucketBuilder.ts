@@ -2,7 +2,7 @@ import IBMi from "vscode-ibmi/src/api/IBMi";
 import { ApiUtils } from "../../api/apiUtils";
 import { CCLVL, LogLevel, TestBucket } from "../../api/types";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
-import Parser from "vscode-rpgle/language/parser";
+import Parser from "vscode-rpgle/language/ile/parser";
 import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../../api/config";
 import { IFSFile } from "vscode-ibmi/src/api/types";
 import * as fs from 'fs';

@@ -259,7 +259,7 @@
   },
   "devDependencies": {
     "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
-    "@halcyontech/vscode-ibmi-types": "^3.0.5",
+    "@halcyontech/vscode-ibmi-types": "^3.0.7",
     "@octokit/rest": "22.0.1",
     "@types/node": "20.x",
     "@types/tmp": "^0.2.6",

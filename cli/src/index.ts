@@ -24,7 +24,7 @@ import os from 'os';
 import { exit } from "process";
 import inquirer from "inquirer";
 import pkg from '../package.json';
-import Parser from "vscode-rpgle/language/parser";
+import Parser from "vscode-rpgle/language/ile/parser";
 
 interface Options {
     localDirectory?: string;

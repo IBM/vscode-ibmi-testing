@@ -14,7 +14,7 @@ import { TestCaseData, TestFileData } from "./testData";
 import { ApiUtils } from "../api/apiUtils";
 import * as path from "path";
 import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../api/config";
-import Parser from "vscode-rpgle/language/parser";
+import Parser from "vscode-rpgle/language/ile/parser";
 import { TestRunResult } from "./types";
 
 export class IBMiTestRunner {
