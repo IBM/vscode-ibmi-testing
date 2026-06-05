@@ -231,13 +231,23 @@ export class IBMiTestRunner {
         }
 
         // Check if RPGUnit is installed
-        const installation = await RPGUnit.checkInstallation();
+        const installation = await RPGUnit.checkIsInstalled();
         if (!installation.status) {
             if (installation.error) {
                 // End test run
-                testRun.end();
                 await testLogger.logComponentError(installation.error);
+                testRun.end();
                 throw new Error(`RPGUnit is not installed. Error: ${installation.error}`);
+            }
+        }
+
+        // Check if the user has approved using the configured product library
+        const approval = await RPGUnit.checkIsApproved(connection);
+        if (!approval.approved) {
+            if (approval.error) {
+                await testLogger.logComponentError(approval.error);
+                testRun.end();
+                throw new Error(`RPGUnit library not approved to be used. Error: ${approval.error}`);
             }
         }
 

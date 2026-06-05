@@ -10,6 +10,7 @@ import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestStubGenerator } from "./codeActions/testStubGenerator";
 import { TestStubCodeActions } from "./codeActions";
 import { IBMiTesting } from "./types";
+import { GlobalState } from "./globalState";
 
 export let testOutputLogger: TestOutputLogger = new TestOutputLogger();
 export let manager: IBMiTestManager | undefined;
@@ -23,6 +24,9 @@ export async function activate(context: ExtensionContext): Promise<IBMiTesting> 
 	// Load Code4i API
 	loadBase();
 	const ibmi = getInstance();
+
+	// Initialize global state
+	GlobalState.initialize(context);
 
 	// Initialize configurations
 	Configuration.initialize();
