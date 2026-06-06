@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        ⭐ Before making a documentation request, please make sure to check whether someone has already opened an issue for it [here](https://github.com/IBM/vscode-ibmi-testing/issues). ⭐
+        ⭐ Before making a documentation request, please make sure to check whether someone has already opened an issue for this [here](https://github.com/IBM/vscode-ibmi-testing/issues). ⭐
   - type: textarea
     id: description
     attributes:
@@ -15,5 +15,7 @@ body:
         Describe the documentation issue or enhancement.
       placeholder: |
         Description
+
+        Tip: You can attach any additional images or log files by clicking this area to highlight it and then dragging files in.
     validations:
       required: false

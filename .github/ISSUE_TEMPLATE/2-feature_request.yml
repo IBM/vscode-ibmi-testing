@@ -6,13 +6,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        ⭐ Before making a feature request, please make sure to check whether someone has already opened an issue for it [here](https://github.com/IBM/vscode-ibmi-testing/issues). ⭐
+        ⭐ Before making a feature request, please make sure to check whether someone has already opened an issue for this [here](https://github.com/IBM/vscode-ibmi-testing/issues). ⭐
   - type: input
     id: vscode-ibmi-testing-version
     attributes:
       label: IBM i Testing Version
       description: |
-        What version of the `IBM i Testing` extension are you using?
+        What version of the `IBM i Testing` extension are you using? This can be obtained from the `Extensions` view.
       placeholder: |
         #.#.#
     validations:
@@ -22,7 +22,7 @@ body:
     attributes:
       label: RPGUnit Version
       description: |
-        What version of the `RPGUnit` library do you have installed on your IBM i?
+        What version of the `RPGUnit` library do you have installed on your IBM i? This can be obtained from the library's text description.
       placeholder: |
         #.#.#
     validations:
@@ -50,5 +50,7 @@ body:
         Describe the feature that you would like to see.
       placeholder: |
         Feature description
+
+        Tip: You can attach any additional images or log files by clicking this area to highlight it and then dragging files in.
     validations:
       required: false

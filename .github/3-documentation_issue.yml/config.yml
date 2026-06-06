@@ -1,8 +1,0 @@
-blank_issues_enabled: true
-contact_links:
-  - name: ✍️ Start a Discussion!
-    url: https://github.com/IBM/vscode-ibmi-testing/discussions
-    about: You can ask for help here.
-  - name: 🙏 Learn How to Contribute!
-    url: https://github.com/IBM/vscode-ibmi-testing/blob/main/CONTRIBUTING.md
-    about: Check out the contributing guidelines.
