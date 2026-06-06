@@ -21,7 +21,7 @@
 
 - [ ] Tested locally
 - [ ] Removed all `console.log` statements
-- [ ] Verified extension types pass (`npm run compile`)
+- [ ] Verified extension types pass (`npm run webpack`)
 - [ ] Verified CLI types pass (`npm run webpack`)
 - [ ] Updated relevant documentation [here](https://github.com/codefori/docs/tree/main/src/content/docs/developing/testing)
 - [ ] Added myself to the contributors' list in [CONTRIBUTING.md](https://github.com/IBM/vscode-ibmi-testing/blob/main/CONTRIBUTING.md#contributors)
