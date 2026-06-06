@@ -6,6 +6,7 @@ export interface TestStubPreferences {
     "Test Source File": string;
     "Test Source Directory": string;
     "Prompt For Test Name": boolean;
+    "Generate Default Test Configuration": boolean;
     "Add Control Options and Directives": boolean;
     "Add Includes": boolean;
     "Add Prototypes": boolean;
@@ -41,6 +42,7 @@ export const defaultConfigurations: { [T in Section]: ValueType } = {
         "Test Source File": "QTESTSRC",
         "Test Source Directory": "qtestsrc",
         "Prompt For Test Name": false,
+        "Generate Default Test Configuration": true,
         "Add Control Options and Directives": true,
         "Add Includes": true,
         "Add Prototypes": true,

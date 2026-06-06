@@ -96,6 +96,7 @@ export namespace TestStubCodeActions {
 
         // Create test file if it does not exist
         try {
+            await workspace.fs.stat(testFileLocation.testFileUri);
             testDocument = await workspace.openTextDocument(testFileLocation.testFileUri);
         } catch (error) {
             testStubEdit.createFile(
@@ -109,6 +110,34 @@ export namespace TestStubCodeActions {
                     iconPath: new ThemeIcon('file')
                 }
             );
+        }
+
+        let testConfig: { uri: Uri, content: string } | undefined;
+        if (testStubPreferences["Generate Default Test Configuration"]) {
+            testConfig = await TestStubGenerator.generateTestConfig(document.uri, testFileLocation.testFileUri, connection);
+            if (testConfig) {
+                testStubEdit.createFile(
+                    testConfig.uri,
+                    {
+                        ignoreIfExists: true
+                    },
+                    {
+                        label: `Create 'testing.json'`,
+                        needsConfirmation: testStubPreferences["Show Test Stub Preview"],
+                        iconPath: new ThemeIcon('settings-gear')
+                    }
+                );
+                testStubEdit.insert(
+                    testConfig.uri,
+                    new Position(0, 0),
+                    testConfig.content,
+                    {
+                        label: `Add default testing configuration`,
+                        needsConfirmation: testStubPreferences["Show Test Stub Preview"],
+                        iconPath: new ThemeIcon('settings-gear')
+                    }
+                );
+            }
         }
 
         const text = testDocument ? testDocument.getText() : '';
@@ -331,15 +360,23 @@ export namespace TestStubCodeActions {
         const isApplied = await workspace.applyEdit(testStubEdit);
         if (isApplied) {
             return await window.withProgress({ location: ProgressLocation.Window }, async () => {
+                // Open the newly created test configuration
+                if (testConfig) {
+                    const testConfigDocument = await workspace.openTextDocument(testConfig.uri);
+                    if (testConfigDocument.isDirty) {
+                        await testConfigDocument.save();
+                    }
+                    await window.showTextDocument(testConfigDocument, { preview: false });
+                }
+
+                // Open the generated test
                 if (!testDocument) {
                     testDocument = await workspace.openTextDocument(testFileLocation.testFileUri);
                 }
-
                 if (testDocument.isDirty) {
                     await testDocument.save();
                 }
-
-                await window.showTextDocument(testDocument);
+                await window.showTextDocument(testDocument, { preview: false });
 
                 if (document.uri.scheme === 'member') {
                     commands.executeCommand("code-for-ibmi.refreshObjectBrowser");

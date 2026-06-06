@@ -35,9 +35,11 @@ export class LocalConfigHandler implements ConfigHandler {
                 await this.testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigPath}:\n${JSON.stringify(globalConfig, null, 2)}`);
             }
 
-            const mergedConfig = lodash.merge({}, globalConfig, directoryConfig);
-            await this.testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
-            return mergedConfig;
+            if (globalConfig || directoryConfig) {
+                const mergedConfig = lodash.merge({}, globalConfig, directoryConfig);
+                await this.testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
+                return mergedConfig;
+            }
         } catch (error: any) {
             await this.testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
             return;
@@ -109,9 +111,11 @@ export class IfsConfigHandler implements ConfigHandler {
                 await this.testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigPath.toString()}:\n${JSON.stringify(globalConfig, null, 2)}`);
             }
 
-            const mergedConfig = lodash.merge({}, globalConfig, directoryConfig);
-            await this.testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
-            return mergedConfig;
+            if (globalConfig || directoryConfig) {
+                const mergedConfig = lodash.merge({}, globalConfig, directoryConfig);
+                await this.testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
+                return mergedConfig;
+            }
         } catch (error: any) {
             await this.testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
             return;
@@ -194,9 +198,11 @@ export class QsysConfigHandler implements ConfigHandler {
                 await this.testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigPath}:\n${JSON.stringify(globalConfig, null, 2)}`);
             }
 
-            const mergedConfig = lodash.merge({}, globalConfig, memberConfig);
-            await this.testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
-            return mergedConfig;
+            if (globalConfig || memberConfig) {
+                const mergedConfig = lodash.merge({}, globalConfig, memberConfig);
+                await this.testOutputLogger.log(LogLevel.Info, `Merged testing configuration:\n${JSON.stringify(mergedConfig, null, 2)}`);
+                return mergedConfig;
+            }
         } catch (error: any) {
             await this.testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to retrieve testing configuration`, error);
             return;

@@ -5,7 +5,9 @@ import { getInstance } from "../extensions/ibmi";
 import { LspUtils, RpgleTypeDetail, RpgleVariableType } from "./lspUtils";
 import * as path from "path";
 import { ApiUtils } from "../../api/apiUtils";
+import { LocalConfigHandler, QsysConfigHandler } from "../../api/config";
 import { Configuration, Section, TestStubPreferences } from "../configuration";
+import { testOutputLogger } from "../extension";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 
 export interface TestCaseSpec {
@@ -78,6 +80,69 @@ export namespace TestStubGenerator {
             testFileParentName,
             testFileUri
         };
+    }
+
+    export async function generateTestConfig(uri: Uri, testFileUri: Uri, connection?: IBMi): Promise<{ uri: Uri, content: string } | undefined> {
+        const defaultTestConfig = {
+            "rpgunit": {
+                "rucrtrpg": {
+                    "tgtCcsid": "*JOB",
+                    "dbgView": "*SOURCE",
+                    "rpgPpOpt": "*LVL2",
+                    "cOption": [
+                        "*EVENTF"
+                    ]
+                },
+                "rucalltst": {
+                    "order": "*API",
+                    "libl": "*CURRENT",
+                    "jobD": "*DFT",
+                    "detail": "*BASIC",
+                    "output": "*ALLWAYS",
+                    "rclRsc": "*NO",
+                    "onFailure": "*ABORT"
+                }
+            },
+            "codecov": {
+                "module": []
+            }
+        };
+
+        if (uri.scheme === 'file') {
+            const workspaceFolder = workspace.getWorkspaceFolder(uri);
+            if (!workspaceFolder) {
+                return;
+            }
+
+            const configHandler = new LocalConfigHandler(testOutputLogger, workspaceFolder.uri.fsPath, testFileUri.fsPath);
+            const existingConfig = await configHandler.getConfig();
+            if (existingConfig) {
+                return;
+            }
+
+            const configPath = path.join(testFileUri.fsPath, '..', 'testing.json');
+
+            return {
+                uri: Uri.file(configPath),
+                content: JSON.stringify(defaultTestConfig, null, 4)
+            };
+        } else if (uri.scheme === 'member' && connection) {
+            const configHandler = new QsysConfigHandler(connection as any, testOutputLogger, testFileUri.path);
+            const existingConfig = await configHandler.getConfig();
+            if (existingConfig) {
+                return;
+            }
+
+            const parsedTestPath = connection.parserMemberPath(testFileUri.path);
+            const configPath = parsedTestPath.asp ?
+                path.posix.join(parsedTestPath.asp, parsedTestPath.library, parsedTestPath.file, 'testing.json') :
+                path.posix.join(parsedTestPath.library, parsedTestPath.file, 'testing.json');
+
+            return {
+                uri: Uri.from({ scheme: 'member', path: `/${configPath}` }),
+                content: JSON.stringify(defaultTestConfig, null, 4)
+            };
+        }
     }
 
     async function promptUserForTestName(testFileParentName: string, testFileName: string, isLocal: boolean): Promise<{ testFileParentName: string, testFileName: string } | undefined> {
