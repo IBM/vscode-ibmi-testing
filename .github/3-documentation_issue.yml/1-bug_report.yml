@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        ⭐ Before reporting a new issue, please make sure to look if someone has already reported it [here](https://github.com/IBM/vscode-ibmi-testing/issues). ⭐
+        ⭐ Before reporting a new issue, please make sure to first check the `IBM i Testing` output channel as described [here](https://codefori.github.io/docs/developing/testing/troubleshooting/#extension-logs) for any informative logs that may help you diagnose the issue. Make sure to also check if someone has already reported it [here](https://github.com/IBM/vscode-ibmi-testing/issues). ⭐
   - type: input
     id: vscode-ibmi-testing-version
     attributes:
