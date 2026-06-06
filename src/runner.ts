@@ -3,7 +3,7 @@ import { IBMiTestManager } from "./manager";
 import { getDeployTools, getInstance } from "./extensions/ibmi";
 import { Configuration, LibraryListValidation, Section } from "./configuration";
 import { IBMiFileCoverage } from "./fileCoverage";
-import { RPGUnit } from "./components/rpgUnit";
+import { RPGUnit } from "./components/rpgUnit/rpgUnit";
 import { Runner, TestCallbacks } from "../api/runner";
 import { MergedCoverageData, BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode, AssertionResult } from "../api/types";
 import { TestLogger } from "../api/testLogger";
@@ -14,7 +14,7 @@ import { TestCaseData, TestFileData } from "./testData";
 import { ApiUtils } from "../api/apiUtils";
 import * as path from "path";
 import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../api/config";
-import Parser from "vscode-rpgle/language/parser";
+import Parser from "vscode-rpgle/language/ile/parser";
 import { TestRunResult } from "./types";
 
 export class IBMiTestRunner {
@@ -231,13 +231,23 @@ export class IBMiTestRunner {
         }
 
         // Check if RPGUnit is installed
-        const installation = await RPGUnit.checkInstallation();
+        const installation = await RPGUnit.checkIsInstalled();
         if (!installation.status) {
             if (installation.error) {
                 // End test run
-                testRun.end();
                 await testLogger.logComponentError(installation.error);
+                testRun.end();
                 throw new Error(`RPGUnit is not installed. Error: ${installation.error}`);
+            }
+        }
+
+        // Check if the user has approved using the configured product library
+        const approval = await RPGUnit.checkIsApproved(connection);
+        if (!approval.approved) {
+            if (approval.error) {
+                await testLogger.logComponentError(approval.error);
+                testRun.end();
+                throw new Error(`RPGUnit library not approved to be used. Error: ${approval.error}`);
             }
         }
 

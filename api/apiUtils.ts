@@ -164,11 +164,11 @@ export namespace ApiUtils {
     export async function getMemberList(connection: IBMi, libraries: string[], sourceFiles: string[], extensions: string[]): Promise<IBMiMember[]> {
         const statement =
             `WITH MEMBERS AS (
-                        SELECT RTRIM(CAST(a.SYSTEM_TABLE_SCHEMA AS CHAR(10) FOR BIT DATA)) AS LIBRARY,
+                        SELECT RTRIM(CAST(a.SYSTEM_TABLE_SCHEMA AS CHAR(10))) AS LIBRARY,
                             a.IASP_NUMBER AS ASP,
-                            RTRIM(CAST(a.SYSTEM_TABLE_NAME AS CHAR(10) FOR BIT DATA)) AS SOURCE_FILE,
-                            RTRIM(CAST(b.SYSTEM_TABLE_MEMBER AS CHAR(10) FOR BIT DATA)) AS NAME,
-                            COALESCE(RTRIM(CAST(b.SOURCE_TYPE AS VARCHAR(10) FOR BIT DATA)), '') AS TYPE
+                            RTRIM(CAST(a.SYSTEM_TABLE_NAME AS CHAR(10))) AS SOURCE_FILE,
+                            RTRIM(CAST(b.SYSTEM_TABLE_MEMBER AS CHAR(10))) AS NAME,
+                            COALESCE(RTRIM(CAST(b.SOURCE_TYPE AS VARCHAR(10))), '') AS TYPE
                             FROM QSYS2.SYSTABLES AS a
                                 JOIN QSYS2.SYSPARTITIONSTAT AS b
                                     ON (b.SYSTEM_TABLE_SCHEMA, b.SYSTEM_TABLE_NAME) = (a.SYSTEM_TABLE_SCHEMA, a.SYSTEM_TABLE_NAME)

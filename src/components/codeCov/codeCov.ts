@@ -1,7 +1,7 @@
-import { ComponentIdentification, ComponentState, IBMiComponent } from "@halcyontech/vscode-ibmi-types/api/components/component";
+import { ComponentIdentification, IBMiComponent, SecureComponentState } from "@halcyontech/vscode-ibmi-types/api/components/component";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { LogLevel } from "vscode";
-import { testOutputLogger } from "../extension";
+import { testOutputLogger } from "../../extension";
 
 export class CodeCov implements IBMiComponent {
     static ID: string = "CODECOV";
@@ -11,10 +11,10 @@ export class CodeCov implements IBMiComponent {
         return {
             name: CodeCov.ID,
             version: CodeCov.MINIMUM_VERSION
-        };
+        } as any;
     }
 
-    async getRemoteState(connection: IBMi, installDirectory: string): Promise<ComponentState> {
+    async getRemoteState(connection: IBMi, installDirectory: string): Promise<SecureComponentState> {
         const content = connection.getContent();
 
         try {
@@ -23,18 +23,18 @@ export class CodeCov implements IBMiComponent {
             const command = 'CODECOV';
             const commandExists = await content.checkObject({ library: library, name: command, type: '*CMD' });
             if (commandExists) {
-                return "Installed";
+                return { status: `Installed` };
             } else {
                 await testOutputLogger.log(LogLevel.Error, `${command} command not found in ${library}.LIB`);
-                return 'NotInstalled';
+                return { status: `NotInstalled` };
             }
         } catch (error) {
             await testOutputLogger.log(LogLevel.Error, `Failed to get remote state of CODECOV component. Error: ${error}`);
-            return 'Error';
+            return { status: `Error` };
         }
     }
 
-    update(connection: IBMi, installDirectory: string): Promise<ComponentState> {
+    update(connection: IBMi, installDirectory: string): Promise<SecureComponentState> {
         return this.getRemoteState(connection, installDirectory);
     }
 }

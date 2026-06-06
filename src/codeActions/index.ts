@@ -69,7 +69,7 @@ export namespace TestStubCodeActions {
             // Create test source file if it does not exist
             if (!sourceFileExists) {
                 const createFile = await connection.runCommand({
-                    command: `CRTSRCPF FILE(${parsedPath.library}/${testFileLocation.testFileParentName}) RCDLEN(112)`,
+                    command: `QSYS/CRTSRCPF FILE(${parsedPath.library}/${testFileLocation.testFileParentName}) RCDLEN(112)`,
                     noLibList: true
                 });
                 if (createFile.code !== 0) {

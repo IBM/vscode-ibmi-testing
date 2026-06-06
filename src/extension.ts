@@ -3,13 +3,14 @@ import { IBMiTestManager } from "./manager";
 import { getComponentRegistry, getInstance, loadBase } from "./extensions/ibmi";
 import { Configuration, Section } from "./configuration";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
-import { RPGUnit } from "./components/rpgUnit";
-import { CodeCov } from "./components/codeCov";
+import { RPGUnit } from "./components/rpgUnit/rpgUnit";
+import { CodeCov } from "./components/codeCov/codeCov";
 import * as tmp from "tmp";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestStubGenerator } from "./codeActions/testStubGenerator";
 import { TestStubCodeActions } from "./codeActions";
 import { IBMiTesting } from "./types";
+import { GlobalState } from "./globalState";
 
 export let testOutputLogger: TestOutputLogger = new TestOutputLogger();
 export let manager: IBMiTestManager | undefined;
@@ -23,6 +24,9 @@ export async function activate(context: ExtensionContext): Promise<IBMiTesting> 
 	// Load Code4i API
 	loadBase();
 	const ibmi = getInstance();
+
+	// Initialize global state
+	GlobalState.initialize(context);
 
 	// Initialize configurations
 	Configuration.initialize();
@@ -62,7 +66,7 @@ export async function activate(context: ExtensionContext): Promise<IBMiTesting> 
 	});
 
 	// Register components
-	const rpgUnit = new RPGUnit(installedVersion);
+	const rpgUnit = new RPGUnit(context);
 	const codeCov = new CodeCov();
 	const componentRegistry = getComponentRegistry();
 	componentRegistry?.registerComponent(context, rpgUnit);

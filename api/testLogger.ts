@@ -14,6 +14,7 @@ export class TestLogger {
 
     async logComponentError(error: string) {
         await this.testResultLogger.append(c.red(error));
+        await this.testOutputLogger.log(LogLevel.Error, error);
     }
 
     async logRunTimeWarning(error: string) {

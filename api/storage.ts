@@ -8,10 +8,10 @@ export namespace IBMiTestStorage {
 
     export async function setupTestStorage(connection: IBMi): Promise<void> {
         // Setup test output directory
-        const config = connection.getConfig();
+        const tempDir = connection.getTempDirectory();
         const testStorage = [
-            `${config.tempDir}/${TEST_OUTPUT_DIRECTORY}/${RPGUNIT_DIRECTORY}`,
-            `${config.tempDir}/${TEST_OUTPUT_DIRECTORY}/${CODECOV_DIRECTORY}`
+            `${tempDir}/${TEST_OUTPUT_DIRECTORY}/${RPGUNIT_DIRECTORY}`,
+            `${tempDir}/${TEST_OUTPUT_DIRECTORY}/${CODECOV_DIRECTORY}`
         ];
         for (const storage of testStorage) {
             await connection.sendCommand({ command: `mkdir -p ${storage}` });
@@ -20,13 +20,12 @@ export namespace IBMiTestStorage {
     }
 
     export function getTestStorage(connection: IBMi, prefix: string): TestStorage {
-        const config = connection.getConfig();
-
+        const tempDir = connection.getTempDirectory();
         const time = new Date().getTime();
 
         return {
-            RPGUNIT: `${config.tempDir}/${TEST_OUTPUT_DIRECTORY}/${RPGUNIT_DIRECTORY}/${prefix}-%F.%T.<MSECONDS>.xml`,
-            CODECOV: `${config.tempDir}/${TEST_OUTPUT_DIRECTORY}/${CODECOV_DIRECTORY}/${prefix}_${time}.cczip`
+            RPGUNIT: `${tempDir}/${TEST_OUTPUT_DIRECTORY}/${RPGUNIT_DIRECTORY}/${prefix}-%F.%T.<MSECONDS>.xml`,
+            CODECOV: `${tempDir}/${TEST_OUTPUT_DIRECTORY}/${CODECOV_DIRECTORY}/${prefix}_${time}.cczip`
         };
     }
 }
