@@ -1,0 +1,15 @@
+name: 📖 Documentation Issue
+description: Share a documentation issue or enhancement.
+labels:
+  - 'documentation'
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: |
+        Describe the documentation issue or enhancement.
+      placeholder: |
+        Description
+    validations:
+      required: false
