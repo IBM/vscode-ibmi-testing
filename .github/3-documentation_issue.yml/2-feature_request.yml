@@ -3,6 +3,10 @@ description: Suggest an idea for this project.
 labels:
   - 'enhancement'
 body:
+  - type: markdown
+    attributes:
+      value: |
+        ⭐ Before making a feature request, please make sure to check whether someone has already opened an issue for it [here](https://github.com/IBM/vscode-ibmi-testing/issues). ⭐
   - type: input
     id: vscode-ibmi-testing-version
     attributes:
