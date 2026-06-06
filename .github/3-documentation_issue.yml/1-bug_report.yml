@@ -1,0 +1,63 @@
+name: 🚨 Bug Report
+description: Report a bug or issue.
+labels:
+  - 'bug'
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⭐ Before reporting a bug, please make sure to first check the `IBM i Testing` output channel as described [here](https://codefori.github.io/docs/developing/testing/troubleshooting/#extension-logs) for any informative logs that may help you diagnose the issue. Make sure to also check whether someone has already opened an issue for it [here](https://github.com/IBM/vscode-ibmi-testing/issues). ⭐
+  - type: input
+    id: vscode-ibmi-testing-version
+    attributes:
+      label: IBM i Testing Version
+      description: |
+        What version of the `IBM i Testing` extension are you using?
+      placeholder: |
+        #.#.#
+    validations:
+      required: false
+  - type: input
+    id: rpgunit-version
+    attributes:
+      label: RPGUnit Version
+      description: |
+        What version of the `RPGUnit` library do you have installed on your IBM i?
+      placeholder: |
+        #.#.#
+    validations:
+      required: false
+  - type: dropdown
+    id: ibm-i-os-version
+    attributes:
+      label: IBM i OS Version
+      description: |
+        What version of IBM i are you running?
+      options:
+        - 7.6
+        - 7.5
+        - 7.4
+        - 7.3
+        - Older
+      default: 0
+    validations:
+      required: false
+  - type: upload
+    id: vscode-ibmi-testing-log
+    attributes:
+      label: Upload logs
+      description: If applicable, upload a text file with the contents of the `IBM i Testing` output channel as described [here](https://codefori.github.io/docs/developing/testing/troubleshooting/#extension-logs).
+    validations:
+      required: false
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug Description
+      description: |
+        Describe the bug you encountered and share all steps to reproduce it.
+
+        Tip: You can attach any additional images or log files by clicking this area to highlight it and then dragging files in.
+      placeholder: |
+        Bug description
+    validations:
+      required: false
