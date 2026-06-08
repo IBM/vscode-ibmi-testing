@@ -601,7 +601,9 @@ export class Runner {
 
             let hitRunTimeError: boolean = false;
             let resolvedXmlStmf: string = testParams.xmlStmf;
-            if (testResult.stdout.length > 0) {
+            const hasStdOut = testResult.stdout.length > 0;
+            const hasStdErr = testResult.stderr.length > 0;
+            if (hasStdOut) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Info, `${testSuite.name} execution output:\n${testResult.stdout}`);
                 const lines = testResult.stdout.split('\n');
                 for (const line of lines) {
@@ -613,16 +615,32 @@ export class Runner {
                 }
 
                 const match = testResult.stdout.match(/XML file\s*:\s*([\s\S]*?)XML type\s*:/);
-                if (match && match.length >= 1) {
+                if (match && match.length >= 2) {
                     resolvedXmlStmf = match[1]
                         .split(/\r?\n/)
                         .map((line: string) => line.trim().slice(1, -1))
                         .filter((line: string) => line.length > 0)
                         .join('');
+                } else {
+                    await this.testLogger.testOutputLogger.log(LogLevel.Warning, `Failed to extract resolved XML file from standard output`);
                 }
+            } else {
+                await this.testLogger.testOutputLogger.log(LogLevel.Warning, `${testSuite.name} execution output:\nNone`);
             }
-            if (testResult.stderr.length > 0) {
+            
+            if (hasStdErr) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Error, `${testSuite.name} execution error(s):\n${testResult.stderr}`);
+
+                if (!hasStdOut) {
+                    const match = testResult.stderr.match(/Created XML file\s*\([^)]*\)\s*:\s*(.+)$/m);
+                    if (match && match.length >= 2) {
+                        resolvedXmlStmf = match[1];
+                    } else {
+                        await this.testLogger.testOutputLogger.log(LogLevel.Warning, `Failed to extract resolved XML file from standard error`);
+                    }
+                }
+            } else {
+                await this.testLogger.testOutputLogger.log(LogLevel.Warning, `${testSuite.name} execution error(s):\nNone`);
             }
 
             if (testSuite.ccLvl) {
@@ -692,10 +710,14 @@ export class Runner {
                 const xmlAsJs = xmljs.xml2js(xmlStmfContent, { compact: false, alwaysChildren: true });
                 testCaseResults = XMLParser.parseTestResults(xmlAsJs, testSuite.uri.scheme === 'file' || testSuite.uri.scheme === 'streamfile');
             } catch (error: any) {
+                const message = (error.code && error.code === 2 && error.message && error.message === `No such file`) ?
+                    `${error.message} (${resolvedXmlStmf})` :
+                    (error.message ? error.message : error);
+
                 for (const testCase of testSuite.testCases) {
                     const assertionResult: AssertionResult[] = [{
                         outcome: 'error',
-                        message: error.message ? error.message : error
+                        message: message
                     }];
                     await this.testLogger.logTestCaseErrored(testCase.name, 0);
                     await this.testCallbacks.errored(testCase.uri, assertionResult);
