@@ -721,6 +721,32 @@
                         "default": ""
                     },
                     "markdownDescription": "Exclude\n\nObjects to exclude"
+                },
+                "wrapperCmd": {
+                    "type": "object",
+                    "markdownDescription": "Wrapper Command\n\nSpecifies a custom command to wrap the `CODECOV` command.",
+                    "default": {
+                        "cmd": "",
+                        "params": {}
+                    },
+                    "properties": {
+                        "cmd": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Command\n\nSpecifies the custom command."
+                        },
+                        "params": {
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": [
+                                    "string",
+                                    "number"
+                                ]
+                            },
+                            "markdownDescription": "Parameters\n\nSpecifies the parameters for the custom command."
+                        }
+                    }
                 }
             }
         }
