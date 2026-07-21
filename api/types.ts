@@ -155,7 +155,7 @@ export interface TestingConfig {
         rucrtcbl?: RUCRTCBL & { wrapperCmd?: WrapperCmd },
         rucalltst?: RUCALLTST & { wrapperCmd?: WrapperCmd }
     },
-    codecov?: CODECOV
+    codecov?: CODECOV & { wrapperCmd?: WrapperCmd }
 }
 
 export interface RUCRTRPG {

@@ -522,8 +522,8 @@ export class Runner {
             // Merge base execution params (ie. from VS Code settings) and execution params from config file
             const baseExecutionParams = this.testCallbacks.getBaseExecutionParams(qualifiedTstPgm, xmlStmf, testCase?.name);
             const rucalltst = testSuite.testingConfig?.rpgunit?.rucalltst;
-            const wrapperCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.wrapperCmd;
-            if (wrapperCmd) {
+            const rucalltstWrapperCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.wrapperCmd;
+            if (rucalltstWrapperCmd) {
                 delete rucalltst?.wrapperCmd;
             }
             const testParams: RUCALLTST = {
@@ -550,15 +550,16 @@ export class Runner {
             let testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
 
             // Wrap call tests command if a wrapper command is specified
-            if (wrapperCmd && wrapperCmd.cmd) {
-                const cmd = `${wrapperCmd.cmd}(${testCommand})`;
-                const params = wrapperCmd.params || {};
+            if (rucalltstWrapperCmd && rucalltstWrapperCmd.cmd) {
+                const cmd = `${rucalltstWrapperCmd.cmd}(${testCommand})`;
+                const params = rucalltstWrapperCmd.params || {};
                 testCommand = content.toCl(cmd, params);
             }
 
             // Build CODECOV command if code coverage is enabled
             let coverageParams: CODECOV | undefined;
             if (testSuite.ccLvl) {
+                const codecovWrapperCmd = testSuite.testingConfig?.codecov?.wrapperCmd;
                 coverageParams = {
                     cmd: testCommand,
                     module: [],
@@ -576,7 +577,16 @@ export class Runner {
                 coverageParams.module = coverageParams.module.map((m: string) => `(${m})`);
 
                 const flattenedCoverageParams = ApiUtils.flattenCommandParams(coverageParams);
-                testCommand = `QDEVTOOLS/CODECOV CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
+                const codecovCommand = `QDEVTOOLS/CODECOV CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
+
+                // Wrap code coverage command if a wrapper command is specified
+                if (codecovWrapperCmd && codecovWrapperCmd.cmd) {
+                    const cmd = `${codecovWrapperCmd.cmd}(${codecovCommand})`;
+                    const params = codecovWrapperCmd.params || {};
+                    testCommand = content.toCl(cmd, params);
+                } else {
+                    testCommand = codecovCommand;
+                }
             }
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Running ${testSuite.name}: ${testCommand}`);
 
