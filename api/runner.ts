@@ -579,7 +579,7 @@ export class Runner {
                 const flattenedCoverageParams = ApiUtils.flattenCommandParams(coverageParams);
                 const codecovCommand = `QDEVTOOLS/CODECOV CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
 
-                // Wrap CODECOV command if a wrapper command is specified
+                // Wrap code coverage command if a wrapper command is specified
                 if (codecovWrapperCmd && codecovWrapperCmd.cmd) {
                     const cmd = `${codecovWrapperCmd.cmd}(${codecovCommand})`;
                     const params = codecovWrapperCmd.params || {};
