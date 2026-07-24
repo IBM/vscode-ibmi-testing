@@ -5,6 +5,9 @@ import { Mapepire } from "vscode-ibmi/src/api/components/mapepire";
 import { CodeForIStorage } from "vscode-ibmi/src/api/configuration/storage/CodeForIStorage";
 import { JsonConfig, JsonStorage } from "./json";
 import { TestEnv } from "./env";
+import path from "path";
+import { readdirSync } from "fs";
+
 
 const testStorage = new JsonStorage();
 const testConfig = new JsonConfig();
@@ -44,7 +47,12 @@ export async function createConnection(reloadSettings?: boolean) {
   }
 
   // Setup components
-  const mapepire = new Mapepire(__dirname); // TODO: FIX
+  const mapepireDistDir = path.join(__dirname, `..`, `..`, `node_modules`, `vscode-ibmi`, `dist`);
+  const mapepireJarFileName = readdirSync(mapepireDistDir).find(file => /^mapepire-server-.+\.jar$/.test(file));
+  if (!mapepireJarFileName) {
+    throw new Error(`Failed to locate Mapepire Server JAR file in ${mapepireDistDir}`);
+  }
+  const mapepire = new Mapepire(mapepireDistDir);
   const testingId = `testing`;
   extensionComponentRegistry.registerComponent(testingId, mapepire);
 

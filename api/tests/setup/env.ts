@@ -90,7 +90,7 @@ export namespace TestEnv {
     export function logEnvironmentVariables() {
         const envVars = getEnvironmentVariables();
 
-        console.log(`IBM i connection:`);
+        console.log(`IBM i Connection:`);
         console.log(`  Host: ${envVars.VITE_IBMI_HOST}`);
         console.log(`  User: ${envVars.VITE_IBMI_USER}`);
         console.log(`  SSH Port: ${envVars.VITE_IBMI_SSH_PORT}`);
