@@ -16,7 +16,6 @@ export default defineConfig(({ mode }) => {
         exclude: [
           'api/tests/setup'
         ],
-        reporter: ['text', 'json', 'json-summary', 'lcov'],
         reportOnFailure: true
       }
     }

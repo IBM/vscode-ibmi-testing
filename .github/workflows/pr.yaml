@@ -6,8 +6,8 @@ on:
   pull_request:
 
 jobs:
-  api-run-test-with-coverage:
-    name: Run API Tests with Coverage
+  api:
+    name: Test API
 
     runs-on: ubuntu-latest
 
@@ -16,11 +16,6 @@ jobs:
     strategy:
       matrix:
         node-version: [20.x]
-        include:
-          - branch: main
-            artifact: main
-          - branch: ${{ github.head_ref }}
-            artifact: pull-request
 
     steps:
       - name: Checkout
@@ -35,7 +30,7 @@ jobs:
         working-directory: api
         run:  npm install
 
-      - name: Run API Tests with Coverage
+      - name: Run API Tests With Coverage
         working-directory: api
         run: npm run coverage
         env:
@@ -44,51 +39,13 @@ jobs:
           VITE_IBMI_PASSWORD: ${{ secrets.IBMI_PASSWORD }}
           VITE_IBMI_SSH_PORT: ${{ secrets.IBMI_SSH_PORT }}
 
-      - name: Copy Thresholds Config
-        working-directory: api
-        run: cp vitest.thresholds.js coverage/
-
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v3
         with:
-          name: coverage-${{ matrix.artifact }}
-          path: api/coverage/
-  api-report-coverage:
-    name: Report API Test Coverage
-
-    needs: api-run-test-with-coverage
-
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      pull-requests: write
-
-    steps:
-      - name: Download PR Coverage
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-pull-request
-          path: pr-coverage
-
-      - name: Download main Coverage
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-main
-          path: main-coverage
-
-      - name: Report coverage
-        if: always()
-        uses: davelosert/vitest-coverage-report-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          json-summary-path: pr-coverage/coverage-summary.json
-          json-summary-compare-path: main-coverage/coverage-summary.json
-          json-final-path: pr-coverage/coverage-final.json
-          vite-config-path: pr-coverage/vitest.thresholds.js
-          comment-on: pr
-  build-extension:
+          name: vscode-ibmi-testing-pr-coverage
+          path: api/coverage
+          if-no-files-found: error
+  extension:
     name: Build Extension
 
     runs-on: ubuntu-latest
@@ -124,7 +81,7 @@ jobs:
           name: vscode-ibmi-testing-pr-build
           path: ./*.vsix
           if-no-files-found: error
-  build-cli:
+  cli:
     name: Build CLI
 
     runs-on: ubuntu-latest
