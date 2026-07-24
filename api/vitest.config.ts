@@ -13,7 +13,11 @@ export default defineConfig(({ mode }) => {
         include: [
           '**/*.ts'
         ],
-        reporter: process.env.GITHUB_ACTIONS === 'true' ? ['text', 'github-actions'] : ['text']
+        exclude: [
+          'api/tests/setup'
+        ],
+        reporter: ['text', 'json', 'json-summary', 'lcov'],
+        reportOnFailure: true
       }
     }
   };
