@@ -478,7 +478,7 @@ function main() {
 }
 
 class VirtualStorage extends BaseStorage {
-  constructor() {
-    super(new Map<string, any>());
-  }
+    constructor() {
+        super(new Map<string, any>());
+    }
 }

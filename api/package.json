@@ -31,6 +31,8 @@
   "scripts": {
     "webpack:dev": "webpack --mode none --config ./webpack.config.js",
     "webpack": "webpack --mode production --config ./webpack.config.js",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "local": "npm run webpack:dev && npm i -g",
     "deploy": "npm run webpack && npm i && npm publish --access public"
   },
@@ -44,15 +46,18 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "vscode-ibmi": "github:halcyon-tech/vscode-ibmi",
-    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
     "@octokit/rest": "22.0.1",
     "@types/lodash": "^4.17.24",
     "@types/tmp": "^0.2.6",
     "@types/unzipper": "^0.10.11",
     "@types/xml2js": "^0.4.14",
+    "@vitest/coverage-v8": "^4.1.10",
     "ts-loader": "^9.5.7",
     "typescript": "^5.8.2",
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10",
+    "vscode-ibmi": "github:halcyon-tech/vscode-ibmi",
+    "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
     "webpack": "^5.106.2",
     "webpack-cli": "^7.0.2"
   }

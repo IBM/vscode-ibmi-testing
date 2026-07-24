@@ -1,5 +1,7 @@
 node_modules
 dist
-.DS_Store
-.itest
+api/coverage
 *.vsix
+.*
+!.env.sample
+!.github/
