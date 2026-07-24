@@ -29,6 +29,8 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    environment: COMMON1
+
     strategy:
       matrix:
         node-version: [24.x]
@@ -45,6 +47,10 @@ jobs:
           node-version: ${{ matrix.node-version }}
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Install API Dependencies
+        working-directory: api
+        run: npm install
+
       - name: Install Extension Dependencies
         run: |
           npm install
@@ -52,23 +58,28 @@ jobs:
 
       - name: Install CLI Dependencies
         working-directory: cli
-        run: |
-          npm run install:api
-          npm install
+        run: npm install
+
+      - name: Test API
+        working-directory: api
+        run: npm run test
+        env:
+          VITE_IBMI_HOST: ${{ secrets.IBMI_HOST }}
+          VITE_IBMI_USER: ${{ secrets.IBMI_USER }}
+          VITE_IBMI_PASSWORD: ${{ secrets.IBMI_PASSWORD }}
+          VITE_IBMI_SSH_PORT: ${{ secrets.IBMI_SSH_PORT }}
 
       - name: Build Extension
         run: vsce package
 
       - name: Build CLI
         working-directory: cli
-        run: |
-          npm run webpack
+        run: npm run webpack
 
       - name: Dry Run CLI Publish
         if: github.event_name == 'release' || inputs.publish_npm == true
         working-directory: cli
-        run: |
-          npm publish --dry-run
+        run: npm publish --dry-run
 
       - name: Publish to Open VSX
         if: github.event_name == 'release' || inputs.publish_openvsx == true

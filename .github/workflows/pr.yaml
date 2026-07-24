@@ -6,6 +6,45 @@ on:
   pull_request:
 
 jobs:
+  api:
+    name: Test API
+
+    runs-on: ubuntu-latest
+
+    environment: COMMON1
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install API Dependencies
+        working-directory: api
+        run:  npm install
+
+      - name: Run API Tests With Coverage
+        working-directory: api
+        run: npm run coverage
+        env:
+          VITE_IBMI_HOST: ${{ secrets.IBMI_HOST }}
+          VITE_IBMI_USER: ${{ secrets.IBMI_USER }}
+          VITE_IBMI_PASSWORD: ${{ secrets.IBMI_PASSWORD }}
+          VITE_IBMI_SSH_PORT: ${{ secrets.IBMI_SSH_PORT }}
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-ibmi-testing-pr-coverage
+          path: api/coverage
+          if-no-files-found: error
   extension:
     name: Build Extension
 
@@ -78,8 +117,7 @@ jobs:
           npm publish --dry-run
     
       - name: Install CLI Tools
-        run: |
-          npm i -g @ibm/ibmi-ci
+        run: npm i -g @ibm/ibmi-ci
         
       - name: Build Sample Project
         working-directory: examples/ibmi-company_system
