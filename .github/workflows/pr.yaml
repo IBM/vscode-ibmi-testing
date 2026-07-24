@@ -40,7 +40,7 @@ jobs:
           VITE_IBMI_SSH_PORT: ${{ secrets.IBMI_SSH_PORT }}
 
       - name: Upload Coverage Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vscode-ibmi-testing-pr-coverage
           path: api/coverage
