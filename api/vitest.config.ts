@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
         include: [
           '**/*.ts'
         ],
-        reporter: ['text']
+        reporter: process.env.GITHUB_ACTIONS === 'true' ? ['text', 'github-actions'] : ['text']
       }
     }
   };
