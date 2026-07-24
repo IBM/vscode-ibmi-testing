@@ -91,21 +91,21 @@ export namespace TestEnv {
         const envVars = getEnvironmentVariables();
 
         console.log(`IBM i Connection:`);
-        console.log(`  Host: ${envVars.VITE_IBMI_HOST}`);
-        console.log(`  User: ${envVars.VITE_IBMI_USER}`);
-        console.log(`  SSH Port: ${envVars.VITE_IBMI_SSH_PORT}`);
+        console.log(` ◦ Host: ${envVars.VITE_IBMI_HOST}`);
+        console.log(` ◦ User: ${envVars.VITE_IBMI_USER}`);
+        console.log(` ◦ SSH Port: ${envVars.VITE_IBMI_SSH_PORT}`);
 
         console.log(`Authentication:`);
-        console.log(`  Password: ${envVars.VITE_IBMI_PASSWORD ? `Configured` : `-`}`);
-        console.log(`  Private Key: ${envVars.VITE_IBMI_PRIVATE_KEY_PATH ? `Configured` : `-`}`);
-        console.log(`  Passphrase: ${envVars.VITE_IBMI_PASSPHRASE ? `Configured` : `-`}`);
-        console.log(`  SSH Agent: ${envVars.VITE_IBMI_USE_SSH_AGENT ? `Enabled` : `-`}`);
+        console.log(` ◦ Password: ${envVars.VITE_IBMI_PASSWORD ? `Configured` : `-`}`);
+        console.log(` ◦ Private Key: ${envVars.VITE_IBMI_PRIVATE_KEY_PATH ? `Configured` : `-`}`);
+        console.log(` ◦ Passphrase: ${envVars.VITE_IBMI_PASSPHRASE ? `Configured` : `-`}`);
+        console.log(` ◦ SSH Agent: ${envVars.VITE_IBMI_USE_SSH_AGENT ? `Enabled` : `-`}`);
         
         console.log(`Connection Settings:`);
-        console.log(`  Temporary Library: ${envVars.VITE_IBMI_TEMP_LIB}`);
-        console.log(`  IASP: ${envVars.VITE_IBMI_IASP ?? `-`}`);
+        console.log(` ◦ Temporary Library: ${envVars.VITE_IBMI_TEMP_LIB}`);
+        console.log(` ◦ IASP: ${envVars.VITE_IBMI_IASP ?? `-`}`);
         
         console.log(`Test Settings:`);
-        console.log(`  Connection Timeout: ${envVars.VITE_CONNECTION_TIMEOUT} ms`);
+        console.log(` ◦ Connection Timeout: ${envVars.VITE_CONNECTION_TIMEOUT} ms`);
     }
 }
