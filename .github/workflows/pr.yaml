@@ -11,6 +11,8 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    environment: COMMON1
+
     strategy:
       matrix:
         node-version: [20.x]
@@ -31,6 +33,11 @@ jobs:
       - name: Run API Tests
         working-directory: api
         run: npm run test
+        env:
+          VITE_IBMI_HOST: ${{ secrets.IBMI_HOST }}
+          VITE_IBMI_USER: ${{ secrets.IBMI_USER }}
+          VITE_IBMI_PASSWORD: ${{ secrets.IBMI_PASSWORD }}
+          VITE_IBMI_SSH_PORT: ${{ secrets.IBMI_SSH_PORT }}
   extension:
     name: Build Extension
 

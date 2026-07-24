@@ -29,6 +29,8 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    environment: COMMON1
+
     strategy:
       matrix:
         node-version: [24.x]
@@ -61,6 +63,11 @@ jobs:
       - name: Test API
         working-directory: api
         run: npm run test
+        env:
+          VITE_IBMI_HOST: ${{ secrets.IBMI_HOST }}
+          VITE_IBMI_USER: ${{ secrets.IBMI_USER }}
+          VITE_IBMI_PASSWORD: ${{ secrets.IBMI_PASSWORD }}
+          VITE_IBMI_SSH_PORT: ${{ secrets.IBMI_SSH_PORT }}
 
       - name: Build Extension
         run: vsce package
