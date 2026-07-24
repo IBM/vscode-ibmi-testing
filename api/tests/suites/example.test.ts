@@ -18,7 +18,7 @@ describe('Sample suite', () => {
 
   test('Sample test', () => {
     console.log(connection.currentHost);
-    expect(2+3).toBe(6)
+    expect(2+3).toBe(5)
   })
 
   test('XMLParser returns empty array for no testcases', () => {
