@@ -65,8 +65,32 @@
                             "markdownDescription": "Source stream file\n\nSpecifies the path name of the stream file containing the source code to be compiled. By default, this will be set to `&FULLPATH` for local files. The following variables can be used:\n\n•`&OPENLIB`: Library name where the test source member lives\n\n•`&OPENSPF`: Source file name where the test source member lives\n\n•`&OPENMBR`: Name of the test source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the test file\n\n•`&SHORTNAME`: Shortened name of the test file\n\n•`&FULLPATH`: Full path of the file on the remote system"
                         },
                         "text": {
-                            "type": "string",
-                            "default": "",
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "*SRCMBRTXT",
+                                        "*BLANK",
+                                        "*DEFAULT"
+                                    ],
+                                    "enumDescriptions": [
+                                        "The text of the source member is used.",
+                                        "No text appears.",
+                                        "The description is set to 'RPGUnit - Test Case'."
+                                    ]
+                                },
+                                {
+                                    "type": "string",
+                                    "defaultSnippets": [
+                                        {
+                                            "label": "Custom Text Description",
+                                            "description": "Text that briefly describes the function of the RPGUnit test suite. The text can be a maximum of 50 characters and must be enclosed in apostrophes. When the description does not start with 'RPGUnit', it is changed to do so.",
+                                            "body": "$0"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "default": "*SRCMBRTXT",
                             "markdownDescription": "Text description\n\nAllows you to enter text that briefly describes the RPGUnit test case and its function."
                         },
                         "cOption": {
@@ -144,25 +168,80 @@
                         },
                         "define": {
                             "type": "array",
-                            "default": [],
+                            "default": [
+                                "*NONE"
+                            ],
                             "items": {
-                                "type": "string",
-                                "default": ""
+                                "anyOf": [
+                                    {
+                                        "type": "string",
+                                        "enum": [
+                                            "*NONE"
+                                        ],
+                                        "enumDescriptions": [
+                                            "No condition names are defined. This is the default."
+                                        ]
+                                    },
+                                    {
+                                        "type": "string",
+                                        "defaultSnippets": [
+                                            {
+                                                "label": "Name",
+                                                "description": "Up to 32 condition names can be specified. Each name can be up to 50 characters long. The condition names will be considered to be defined at the start of compilation.",
+                                                "body": "$0"
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "default": "*NONE"
                             },
                             "markdownDescription": "Define condition names\n\nSpecifies condition names that are defined before the compilation begins. Using the parameter `DEFINE(condition-name)` is equivalent to coding the `/DEFINE` condition-name directive on the first line of the source file."
                         },
                         "dltSplf": {
                             "type": "string",
-                            "default": "",
+                            "default": "*NO",
                             "enum": [
                                 "*YES",
                                 "*NO"
                             ],
+                            "enumDescriptions": [
+                                "Compile listings are deleted on success.",
+                                "Compile listings are not deleted."
+                            ],
                             "markdownDescription": "Delete spooled files\n\nSpecifies if all spooled files (compile listing) created by the object creations commands are deleted on success."
                         },
-                        "actGrp": {
+                        "dltMod": {
                             "type": "string",
-                            "default": "",
+                            "default": "*YES",
+                            "enum": [
+                                "*YES",
+                                "*NO"
+                            ],
+                            "enumDescriptions": [
+                                "Modules are deleted on success.",
+                                "Modules are not deleted."
+                            ],
+                            "markdownDescription": "Delete modules\n\nSpecifies if all modules created by the object creations commands are deleted on success."
+                        },
+                        "actGrp": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "*CALLER"
+                                    ]
+                                },
+                                {
+                                    "type": "string",
+                                    "defaultSnippets": [
+                                        {
+                                            "label": "Name",
+                                            "body": "$0"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "default": "*CALLER",
                             "markdownDescription": "Activation group\n\nRefer to the `ACTGRP` parameter in `CRTSRVPGM` command help."
                         },
                         "module": {
@@ -187,7 +266,9 @@
                         },
                         "pOption": {
                             "type": "array",
-                            "default": [],
+                            "default": [
+                                "*SYSVAL"
+                            ],
                             "items": {
                                 "type": "string",
                                 "default": "",
@@ -222,16 +303,55 @@
                             "markdownDescription": "Pre-Compiler COMPILEOPT\n\nRefer to the `COMPILEOPT` parameter in `CRTSQLRPGI` command help."
                         },
                         "tgtRls": {
-                            "type": "string",
-                            "default": "",
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "*CURRENT",
+                                        "*PRV"
+                                    ]
+                                },
+                                {
+                                    "type": "string",
+                                    "defaultSnippets": [
+                                        {
+                                            "label": "Name",
+                                            "body": "$0"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "default": "*CURRENT",
                             "markdownDescription": "Target release\n\nRefer to the `TGTRLS` parameter in `CRTSRVPGM` command help."
                         },
                         "incDir": {
                             "type": "array",
-                            "default": [],
+                            "default": [
+                                "*NONE"
+                            ],
                             "items": {
-                                "type": "string",
-                                "default": ""
+                                "anyOf": [
+                                    {
+                                        "type": "string",
+                                        "enum": [
+                                            "*NONE"
+                                        ],
+                                        "enumDescriptions": [
+                                            "No user directories are searched for copy files. By default, the source directory will still be searched."
+                                        ]
+                                    },
+                                    {
+                                        "type": "string",
+                                        "defaultSnippets": [
+                                            {
+                                                "label": "Directory",
+                                                "description": "Specify up to 32 directories in which to search for copy files. In addition to the specified directories, the source directory is also searched for copy files.",
+                                                "body": "$0"
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "default": "*NONE"
                             },
                             "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
                         },
@@ -242,6 +362,10 @@
                                     "enum": [
                                         "*SRC",
                                         "*JOB"
+                                    ],
+                                    "enumDescriptions": [
+                                        "The source is read in the CCSID of the primary source file, or if the file is an IFS file with an ASCII CCSID, the EBCDIC CCSID related to the ASCII CCSID. This is the default.",
+                                        "The source is read in the job CCSID. If the job CCSID is 65535, the source is read in the default CCSID of the job."
                                     ]
                                 },
                                 {
@@ -311,9 +435,33 @@
                             "markdownDescription": "Source stream file\n\nSpecifies the path name of the stream file containing the source code to be compiled. By default, this will be set to `&FULLPATH` for local files. The following variables can be used:\n\n•`&OPENLIB`: Library name where the test source member lives\n\n•`&OPENSPF`: Source file name where the test source member lives\n\n•`&OPENMBR`: Name of the test source member\n\n•`&CURLIB`: Current library\n\n•`&NAME`: Name of the test file\n\n•`&SHORTNAME`: Shortened name of the test file\n\n•`&FULLPATH`: Full path of the file on the remote system"
                         },
                         "text": {
-                            "type": "string",
-                            "default": "",
-                            "markdownDescription": "Text description\n\nAllows you to enter text that briefly describes the RPGUnit test case and its function."
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "*SRCMBRTXT",
+                                        "*BLANK",
+                                        "*DEFAULT"
+                                    ],
+                                    "enumDescriptions": [
+                                        "The text of the source member is used.",
+                                        "No text appears.",
+                                        "The description is set to 'RPGUnit - Test Case'."
+                                    ]
+                                },
+                                {
+                                    "type": "string",
+                                    "defaultSnippets": [
+                                        {
+                                            "label": "Custom Text Description",
+                                            "description": "Text that briefly describes the function of the RPGUnit test suite. The text can be a maximum of 50 characters and must be enclosed in apostrophes. When the description does not start with 'RPGUnit', it is changed to do so.",
+                                            "body": "$0"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "default": "*SRCMBRTXT",
+                            "markdownDescription": "Text description\n\nAllows you to enter text that briefly describes the RPGUnit test case and its function.\n\nSpecial values:\n\n•`*SRCMBRTXT`: The text of the source member is used as the object text.\n\n•`*BLANK`: No text is used.\n\n•`*DEFAULT`: The default text is used."
                         },
                         "cOption": {
                             "type": "array",
@@ -427,10 +575,32 @@
                         },
                         "define": {
                             "type": "array",
-                            "default": [],
+                            "default": [
+                                "*NONE"
+                            ],
                             "items": {
-                                "type": "string",
-                                "default": ""
+                                "anyOf": [
+                                    {
+                                        "type": "string",
+                                        "enum": [
+                                            "*NONE"
+                                        ],
+                                        "enumDescriptions": [
+                                            "No condition names are defined. This is the default."
+                                        ]
+                                    },
+                                    {
+                                        "type": "string",
+                                        "defaultSnippets": [
+                                            {
+                                                "label": "Name",
+                                                "description": "Up to 32 condition names can be specified. Each name can be up to 50 characters long. The condition names will be considered to be defined at the start of compilation.",
+                                                "body": "$0"
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "default": "*NONE"
                             },
                             "markdownDescription": "Define condition names\n\nSpecifies condition names that are defined before the compilation begins. Using the parameter `DEFINE(condition-name)` is equivalent to coding the `/DEFINE` condition-name directive on the first line of the source file."
                         },
@@ -441,11 +611,44 @@
                                 "*YES",
                                 "*NO"
                             ],
+                            "enumDescriptions": [
+                                "Compile listings are deleted on success.",
+                                "Compile listings are not deleted."
+                            ],
                             "markdownDescription": "Delete spooled files\n\nSpecifies if all spooled files (compile listing) created by the object creations commands are deleted on success."
                         },
-                        "actGrp": {
+                        "dltMod": {
                             "type": "string",
-                            "default": "",
+                            "default": "*YES",
+                            "enum": [
+                                "*YES",
+                                "*NO"
+                            ],
+                            "enumDescriptions": [
+                                "Modules are deleted on success.",
+                                "Modules are not deleted."
+                            ],
+                            "markdownDescription": "Delete modules\n\nSpecifies if all modules created by the object creations commands are deleted on success."
+                        },
+                        "actGrp": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "*CALLER"
+                                    ]
+                                },
+                                {
+                                    "type": "string",
+                                    "defaultSnippets": [
+                                        {
+                                            "label": "Name",
+                                            "body": "$0"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "default": "*CALLER",
                             "markdownDescription": "Activation group\n\nRefer to the `ACTGRP` parameter in `CRTSRVPGM` command help."
                         },
                         "module": {
@@ -459,7 +662,9 @@
                         },
                         "pOption": {
                             "type": "array",
-                            "default": [],
+                            "default": [
+                                "*SYSVAL"
+                            ],
                             "items": {
                                 "type": "string",
                                 "default": "",
@@ -500,16 +705,55 @@
                             "markdownDescription": "Pre-Compiler COMPILEOPT\n\nRefer to the `COMPILEOPT` parameter in `CRTSQLCBLI` command help."
                         },
                         "tgtRls": {
-                            "type": "string",
-                            "default": "",
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "*CURRENT",
+                                        "*PRV"
+                                    ]
+                                },
+                                {
+                                    "type": "string",
+                                    "defaultSnippets": [
+                                        {
+                                            "label": "Name",
+                                            "body": "$0"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "default": "*CURRENT",
                             "markdownDescription": "Target release\n\nRefer to the `TGTRLS` parameter in `CRTSRVPGM` command help."
                         },
                         "incDir": {
                             "type": "array",
-                            "default": [],
+                            "default": [
+                                "*NONE"
+                            ],
                             "items": {
-                                "type": "string",
-                                "default": ""
+                                "anyOf": [
+                                    {
+                                        "type": "string",
+                                        "enum": [
+                                            "*NONE"
+                                        ],
+                                        "enumDescriptions": [
+                                            "No user directories are searched for copy files. By default, the source directory will still be searched."
+                                        ]
+                                    },
+                                    {
+                                        "type": "string",
+                                        "defaultSnippets": [
+                                            {
+                                                "label": "Directory",
+                                                "description": "Specify up to 32 directories in which to search for copy files. In addition to the specified directories, the source directory is also searched for copy files.",
+                                                "body": "$0"
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "default": "*NONE"
                             },
                             "markdownDescription": "Include Directory\n\nSpecifies one or more directories to add to the search path used by the compiler to find copy files. The compiler will search the directories specified here if the copy files in the source program can not be resolved."
                         },
@@ -520,6 +764,10 @@
                                     "enum": [
                                         "*SRC",
                                         "*JOB"
+                                    ],
+                                    "enumDescriptions": [
+                                        "The source is read in the CCSID of the primary source file, or if the file is an IFS file with an ASCII CCSID, the EBCDIC CCSID related to the ASCII CCSID. This is the default.",
+                                        "The source is read in the job CCSID. If the job CCSID is 65535, the source is read in the default CCSID of the job."
                                     ]
                                 },
                                 {
@@ -589,16 +837,30 @@
                             "markdownDescription": "Run Order\n\nSpecifies the order for running the test procedures. Useful to check that there is no dependencies between test procedures."
                         },
                         "libl": {
-                            "type": "string",
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "*CURRENT",
+                                        "*JOBD"
+                                    ],
+                                    "enumDescriptions": [
+                                        "The current library list is used to execute the unit test suite.",
+                                        "The initial library list part of the specified job description is used to execute the unit test suite."
+                                    ]
+                                },
+                                {
+                                    "type": "string",
+                                    "defaultSnippets": [
+                                        {
+                                            "label": "Name",
+                                            "description": "Specify the names of the libraries to be added to user portion of the library list for the current thread.",
+                                            "body": "$0"
+                                        }
+                                    ]
+                                }
+                            ],
                             "default": "*CURRENT",
-                            "enum": [
-                                "*CURRENT",
-                                "*JOBD"
-                            ],
-                            "enumDescriptions": [
-                                "The current library list is used to execute the unit test suite.",
-                                "The initial library list part of the specified job description is used to execute the unit test suite."
-                            ],
                             "markdownDescription": "Library List\n\nSpecifies the library list for executing the specified unit test."
                         },
                         "jobD": {
