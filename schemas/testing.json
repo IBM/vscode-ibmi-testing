@@ -160,6 +160,15 @@
                             ],
                             "markdownDescription": "Delete spooled files\n\nSpecifies if all spooled files (compile listing) created by the object creations commands are deleted on success."
                         },
+                        "dltMod": {
+                            "type": "string",
+                            "default": "*YES",
+                            "enum": [
+                                "*YES",
+                                "*NO"
+                            ],
+                            "markdownDescription": "Delete modules\n\nSpecifies if all modules created by the object creations commands are deleted on success."
+                        },
                         "actGrp": {
                             "type": "string",
                             "default": "",
@@ -442,6 +451,15 @@
                                 "*NO"
                             ],
                             "markdownDescription": "Delete spooled files\n\nSpecifies if all spooled files (compile listing) created by the object creations commands are deleted on success."
+                        },
+                        "dltMod": {
+                            "type": "string",
+                            "default": "*YES",
+                            "enum": [
+                                "*YES",
+                                "*NO"
+                            ],
+                            "markdownDescription": "Delete modules\n\nSpecifies if all modules created by the object creations commands are deleted on success."
                         },
                         "actGrp": {
                             "type": "string",
