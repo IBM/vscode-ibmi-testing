@@ -71,6 +71,15 @@ jobs:
           cd cli
           npm install
 
+      - name: Update Version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9]/-/g')
+          HASH=$(git rev-parse --short HEAD)
+          NEW_VERSION="${CURRENT_VERSION}-${SAFE_BRANCH}-${HASH}"
+          npm version "${NEW_VERSION}" --no-git-tag-version
+
       - name: Build Extension
         run: |
           vsce package
