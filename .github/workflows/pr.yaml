@@ -71,17 +71,18 @@ jobs:
           cd cli
           npm install
 
-      - name: Build Extension
+      - name: Update Version
         run: |
-          vsce package
-
-      - name: Rename VSIX
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9]/-/g')
           HASH=$(git rev-parse --short HEAD)
-          mv "vscode-ibmi-testing-${VERSION}.vsix" "vscode-ibmi-testing-${VERSION}-${SAFE_BRANCH}-${HASH}.vsix"
+          NEW_VERSION="${CURRENT_VERSION}-${SAFE_BRANCH}-${HASH}"
+          npm version "${NEW_VERSION}" --no-git-tag-version
+
+      - name: Build Extension
+        run: |
+          vsce package
 
       - name: Upload VSIX
         uses: actions/upload-artifact@v4
