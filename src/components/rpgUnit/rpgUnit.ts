@@ -40,43 +40,59 @@ export class RPGUnit implements IBMiComponent {
             const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
             if (productLibraryExists) {
                 // Get installed version of RPGUnit
-                const copyrightResult = await connection.runSQL(`SELECT COPYRIGHT_STRINGS FROM QSYS2.PROGRAM_INFO WHERE PROGRAM_LIBRARY = '${productLibrary}' AND PROGRAM_NAME = 'RUTESTCASE' AND OBJECT_TYPE = '*SRVPGM'`);
-                if (copyrightResult.length > 0) {
-                    const copyrightStrings = copyrightResult[0].COPYRIGHT_STRINGS;
-                    if (copyrightStrings) {
-                        // Parse the copyright strings
-                        const copyrightJson = JSON.parse(String(copyrightStrings));
-                        const copyrights = copyrightJson.COPYRIGHTS;
+                let installedVersion: string | undefined;
 
-                        // Get installed version from copyright strings
-                        let installedVersion: string | null = null;
-                        for (const copyright of copyrights) {
-                            const versionMatch = copyright.match(RPGUnit.VERSION_REGEX);
+                try {
+                    const copyrightResult = await connection.runSQL(`SELECT COPYRIGHT_STRINGS FROM QSYS2.PROGRAM_INFO WHERE PROGRAM_LIBRARY = '${productLibrary}' AND PROGRAM_NAME = 'RUTESTCASE' AND OBJECT_TYPE = '*SRVPGM'`);
+                    if (copyrightResult.length > 0) {
+                        const copyrightStrings = copyrightResult[0].COPYRIGHT_STRINGS;
+                        if (copyrightStrings) {
+                            // Parse the copyright strings
+                            const copyrightJson = JSON.parse(String(copyrightStrings));
+                            const copyrights = copyrightJson.COPYRIGHTS;
+
+                            // Get installed version from copyright strings
+                            for (const copyright of copyrights) {
+                                const versionMatch = copyright.match(RPGUnit.VERSION_REGEX);
+                                if (versionMatch && versionMatch[0]) {
+                                    installedVersion = versionMatch[0].startsWith('v') ? versionMatch[0].substring(1) : versionMatch[0];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } catch (error: any) {
+                    if (error.message.endsWith('42703, -206')) {
+                        // [SQL0206] Column or global variable COPYRIGHT_STRINGS not found., 42703, -206
+                        await testOutputLogger.log(LogLevel.Warning, `Failed to extract version from copyright strings (${error}). Falling back to extracting version from library text description.`);
+
+                        const libraryInfo = await connection.runSQL(`SELECT OBJTEXT FROM TABLE(QSYS2.OBJECT_STATISTICS(OBJECT_SCHEMA => 'QSYS', OBJTYPELIST => '*LIB', OBJECT_NAME => '${productLibrary}'))`);
+                        if (libraryInfo.length > 0 && libraryInfo[0].OBJTEXT) {
+                            // Parse the library text description
+                            const libraryText = String(libraryInfo[0].OBJTEXT);
+
+                            // Get installed version from library text description
+                            const versionMatch = libraryText.match(RPGUnit.VERSION_REGEX);
                             if (versionMatch && versionMatch[0]) {
                                 installedVersion = versionMatch[0].startsWith('v') ? versionMatch[0].substring(1) : versionMatch[0];
-                                break;
                             }
-                        }
-
-                        if (installedVersion) {
-                            // Compare installed version with minimum version
-                            if (await this.compareVersions(installedVersion, VERSION) >= 0) {
-                                await testOutputLogger.log(LogLevel.Info, `Installed version of RPGUnit is v${installedVersion}`);
-                                return { status: `Installed` };
-                            } else {
-                                await testOutputLogger.log(LogLevel.Error, `Installed version of RPGUnit (v${installedVersion}) is lower than minimum version (v${VERSION})`);
-                                return { status: `NeedsUpdate` };
-                            }
-                        } else {
-                            await testOutputLogger.log(LogLevel.Error, `Failed to parse installed version of RPGUnit`);
-                            return { status: `NeedsUpdate` };
                         }
                     } else {
-                        await testOutputLogger.log(LogLevel.Error, `Failed to get installed version of RPGUnit as copyright string format changed.`);
+                        throw error;
+                    }
+                }
+
+                if (installedVersion) {
+                    // Compare installed version with minimum version
+                    if (await this.compareVersions(installedVersion, VERSION) >= 0) {
+                        await testOutputLogger.log(LogLevel.Info, `Installed version of RPGUnit is v${installedVersion}`);
+                        return { status: `Installed` };
+                    } else {
+                        await testOutputLogger.log(LogLevel.Error, `Installed version of RPGUnit (v${installedVersion}) is lower than minimum version (v${VERSION})`);
                         return { status: `NeedsUpdate` };
                     }
                 } else {
-                    await testOutputLogger.log(LogLevel.Error, `Failed to get installed version of RPGUnit as no copyright strings found.`);
+                    await testOutputLogger.log(LogLevel.Error, `Failed to parse installed version of RPGUnit`);
                     return { status: `NeedsUpdate` };
                 }
             } else {
