@@ -1,5 +1,5 @@
 
-import { MergedCoverageData, BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, MappedCoverageData, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestSuite, WrapperCmd, TestOutcome, AssertionResult } from "./types";
+import { MergedCoverageData, BasicUri, CODECOV, CommandOverrides, CompilationStatus, DeploymentStatus, Env, LogLevel, MappedCoverageData, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestSuite, WrapperCmd, TestOutcome, AssertionResult } from "./types";
 import { TestLogger } from "./testLogger";
 import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
 import IBMi from "vscode-ibmi/src/api/IBMi";
@@ -298,14 +298,17 @@ export class Runner {
             return 'errored';
         }
 
+        let proxyCmd: string | undefined;
         let wrapperCmd: WrapperCmd | undefined;
 
         const isRPGLE = ApiUtils.isRPGLE(testSuitePath);
         if (isRPGLE) {
             const rucrtrpg = testSuite.testingConfig?.rpgunit?.rucrtrpg;
+            proxyCmd = testSuite.testingConfig?.rpgunit?.rucrtrpg?.proxyCmd;
             wrapperCmd = testSuite.testingConfig?.rpgunit?.rucrtrpg?.wrapperCmd;
-            if (wrapperCmd) {
-                delete rucrtrpg?.wrapperCmd;
+            if (rucrtrpg) {
+                delete (rucrtrpg as CommandOverrides).proxyCmd;
+                delete (rucrtrpg as CommandOverrides).wrapperCmd;
             }
 
             compileParams = {
@@ -318,9 +321,11 @@ export class Runner {
             }
         } else {
             const rucrtcbl = testSuite.testingConfig?.rpgunit?.rucrtcbl;
+            proxyCmd = testSuite.testingConfig?.rpgunit?.rucrtcbl?.proxyCmd;
             wrapperCmd = testSuite.testingConfig?.rpgunit?.rucrtcbl?.wrapperCmd;
-            if (wrapperCmd) {
-                delete rucrtcbl?.wrapperCmd;
+            if (rucrtcbl) {
+                delete (rucrtcbl as CommandOverrides).proxyCmd;
+                delete (rucrtcbl as CommandOverrides).wrapperCmd;
             }
 
             compileParams = {
@@ -392,7 +397,8 @@ export class Runner {
         // Build compile command
         const productLibrary = this.testCallbacks.getProductLibrary();
         const languageSpecificCommand = isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
-        let compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, flattenedCompileParams as any);
+        const compileCommandName = proxyCmd || `${productLibrary}/${languageSpecificCommand}`;
+        let compileCommand = content.toCl(compileCommandName, flattenedCompileParams as any);
 
         // Wrap compile command if a wrapper command is specified
         if (wrapperCmd && wrapperCmd.cmd) {
@@ -522,9 +528,11 @@ export class Runner {
             // Merge base execution params (ie. from VS Code settings) and execution params from config file
             const baseExecutionParams = this.testCallbacks.getBaseExecutionParams(qualifiedTstPgm, xmlStmf, testCase?.name);
             const rucalltst = testSuite.testingConfig?.rpgunit?.rucalltst;
+            const rucalltstProxyCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.proxyCmd;
             const rucalltstWrapperCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.wrapperCmd;
-            if (rucalltstWrapperCmd) {
-                delete rucalltst?.wrapperCmd;
+            if (rucalltst) {
+                delete (rucalltst as CommandOverrides).proxyCmd;
+                delete (rucalltst as CommandOverrides).wrapperCmd;
             }
             const testParams: RUCALLTST = {
                 ...baseExecutionParams,
@@ -547,7 +555,8 @@ export class Runner {
 
             // Build call tests command
             const productLibrary = this.testCallbacks.getProductLibrary();
-            let testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
+            const testCommandName = rucalltstProxyCmd || `${productLibrary}/RUCALLTST`;
+            let testCommand = content.toCl(testCommandName, testParams as any);
 
             // Wrap call tests command if a wrapper command is specified
             if (rucalltstWrapperCmd && rucalltstWrapperCmd.cmd) {
@@ -559,6 +568,7 @@ export class Runner {
             // Build CODECOV command if code coverage is enabled
             let coverageParams: CODECOV | undefined;
             if (testSuite.ccLvl) {
+                const codecovProxyCmd = testSuite.testingConfig?.codecov?.proxyCmd;
                 const codecovWrapperCmd = testSuite.testingConfig?.codecov?.wrapperCmd;
                 coverageParams = {
                     cmd: testCommand,
@@ -577,7 +587,8 @@ export class Runner {
                 coverageParams.module = coverageParams.module.map((m: string) => `(${m})`);
 
                 const flattenedCoverageParams = ApiUtils.flattenCommandParams(coverageParams);
-                const codecovCommand = `QDEVTOOLS/CODECOV CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
+                const codecovCommandName = codecovProxyCmd || `QDEVTOOLS/CODECOV`;
+                const codecovCommand = `${codecovCommandName} CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
 
                 // Wrap code coverage command if a wrapper command is specified
                 if (codecovWrapperCmd && codecovWrapperCmd.cmd) {

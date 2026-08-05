@@ -151,11 +151,16 @@ export interface TestMetrics {
 
 export interface TestingConfig {
     rpgunit?: {
-        rucrtrpg?: RUCRTRPG & { wrapperCmd?: WrapperCmd },
-        rucrtcbl?: RUCRTCBL & { wrapperCmd?: WrapperCmd },
-        rucalltst?: RUCALLTST & { wrapperCmd?: WrapperCmd }
+        rucrtrpg?: RUCRTRPG & CommandOverrides,
+        rucrtcbl?: RUCRTCBL & CommandOverrides,
+        rucalltst?: RUCALLTST & CommandOverrides
     },
-    codecov?: CODECOV & { wrapperCmd?: WrapperCmd }
+    codecov?: CODECOV & CommandOverrides
+}
+
+export interface CommandOverrides {
+    proxyCmd?: string,
+    wrapperCmd?: WrapperCmd
 }
 
 export interface RUCRTRPG {

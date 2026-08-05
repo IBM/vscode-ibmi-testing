@@ -375,6 +375,11 @@
                             "default": "*JOB",
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
                         },
+                        "proxyCmd": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Proxy Command\n\nSpecifies a command to substitute the `RUCRTRPG` command."
+                        },
                         "wrapperCmd": {
                             "type": "object",
                             "markdownDescription": "Wrapper Command\n\nSpecifies a custom command to wrap the `RUCRTRPG` command.",
@@ -777,6 +782,11 @@
                             "default": "*JOB",
                             "markdownDescription": "Target CCSID\n\nSpecifies the CCSID that the compiler uses to read the source files."
                         },
+                        "proxyCmd": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Proxy Command\n\nSpecifies a command to substitute the `RUCRTCBL` command."
+                        },
                         "wrapperCmd": {
                             "type": "object",
                             "markdownDescription": "Wrapper Command\n\nSpecifies a custom command to wrap the `RUCRTCBL` command.",
@@ -924,6 +934,11 @@
                             ],
                             "markdownDescription": "On Failure\n\nSpecifies test execution behavior after a failing assertion."
                         },
+                        "proxyCmd": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Proxy Command\n\nSpecifies a command to substitute the `RUCALLTST` command."
+                        },
                         "wrapperCmd": {
                             "type": "object",
                             "markdownDescription": "Wrapper Command\n\nSpecifies a custom command to wrap the `RUCALLTST` command.",
@@ -983,6 +998,11 @@
                         "default": ""
                     },
                     "markdownDescription": "Exclude\n\nObjects to exclude"
+                },
+                "proxyCmd": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Proxy Command\n\nSpecifies a command to substitute the `CODECOV` command."
                 },
                 "wrapperCmd": {
                     "type": "object",
