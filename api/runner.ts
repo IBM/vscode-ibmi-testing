@@ -574,9 +574,7 @@ export class Runner {
                     cmd: testCommand,
                     module: [],
                     ccLvl: testSuite.ccLvl,
-                    ccView: testSuite.testingConfig?.codecov?.ccView,
                     outStmf: testStorage.CODECOV,
-                    testId: testSuite.testingConfig?.codecov?.testId,
                 };
 
                 // Add the service program under test and modules from the testing config
@@ -588,7 +586,15 @@ export class Runner {
 
                 const flattenedCoverageParams = ApiUtils.flattenCommandParams(coverageParams);
                 const codecovCommandName = codecovProxyCmd || `QDEVTOOLS/CODECOV`;
-                const codecovCommand = `${codecovCommandName} CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
+                let codecovCommand = `${codecovCommandName} CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
+
+                // Append extra params from the codecov config (anything beyond the fields already in the hand-rolled command)
+                const knownCodecovKeys = new Set<string>([...Object.keys(flattenedCoverageParams), `proxyCmd`, `wrapperCmd`]);
+                const extraCodecovParams = Object.fromEntries(
+                    Object.entries(testSuite.testingConfig?.codecov || {}).filter(([key]) => !knownCodecovKeys.has(key))
+                );
+                const flattenedExtraCodecovParams = ApiUtils.flattenCommandParams(extraCodecovParams);
+                codecovCommand = content.toCl(codecovCommand, flattenedExtraCodecovParams);
 
                 // Wrap code coverage command if a wrapper command is specified
                 if (codecovWrapperCmd && codecovWrapperCmd.cmd) {
