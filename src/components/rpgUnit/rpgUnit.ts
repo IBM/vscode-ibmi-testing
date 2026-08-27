@@ -10,7 +10,7 @@ import * as path from "path";
 import * as os from "os";
 import { getInstance } from "../../extensions/ibmi";
 import { testOutputLogger } from "../../extension";
-import { LOCAL_SAVE_FILE, OWNER, REPO, GITHUB_SAVE_FILE, SERVER_VERSION_TAG, VERSION } from "./version";
+import { LOCAL_SAVE_FILE, GITHUB_SAVE_FILE, VERSION } from "./version";
 import { GlobalState } from "../../globalState";
 import { GitHub, Release } from "./github";
 
@@ -126,41 +126,41 @@ export class RPGUnit implements IBMiComponent {
         const bundledQuickPickItem: QuickPickItem = {
             label: `$(package) v${VERSION}`,
             description: `Recommended`,
-            detail: `Install the minimum compatible version using a bundled save file`
+            detail: `Install the minimum compatible version using a save file bundled in the extension`
         };
 
-        // Fetch GitHub releases and filter for compatible versions
-        const releasesResponse = await GitHub.getReleases();
-        const supportedReleases: Release[] = [];
+        // Fetch GitHub releases
+        const [releasesResponse, latestReleaseResponse] = await Promise.all([
+            GitHub.getReleases(),
+            GitHub.getLatestRelease()
+        ]);
+
+        // Create quick pick items for compatible GitHub releases
+        const githubReleaseItems: (QuickPickItem & { release: Release })[] = [];
         if (releasesResponse.error) {
             await testOutputLogger.log(LogLevel.Error, `Failed to retrieve GitHub releases: ${releasesResponse.error}`);
         } else {
             for await (const release of releasesResponse.data) {
                 let version = release.name || release.tag_name;
                 version = version.startsWith('v') ? version.substring(1) : version;
-                const isValid = (release.draft === false) &&
-                    (release.assets.some(asset => asset.name === GITHUB_SAVE_FILE)) &&
+                const isValid = (release.assets.some(asset => asset.name === GITHUB_SAVE_FILE)) &&
                     (await this.compareVersions(version, VERSION)) >= 0;
                 if (isValid) {
-                    supportedReleases.push(release);
+                    const publishedAt = release.published_at ? new Date(release.published_at).toLocaleString() : ``;
+                    const description = [
+                        publishedAt,
+                        (release.prerelease ? `(Pre-release)` : ``),
+                        (latestReleaseResponse.data?.id && release.id === latestReleaseResponse.data?.id ? `(Latest)` : ``),
+                        (release.draft ? `- Draft` : ``),
+                    ].filter(Boolean).join(` `);
+                    githubReleaseItems.push({
+                        label: `$(github) ${version}`,
+                        description,
+                        release
+                    });
                 }
             }
         }
-
-        // Create quick pick items for compatible GitHub releases
-        const githubReleaseItems: (QuickPickItem & { release: Release })[] = supportedReleases.map(release => {
-            const version = release?.name || release?.tag_name;
-            const publishedAt = release.published_at ? new Date(release.published_at).toLocaleString() : undefined;
-            const preRelease = release.prerelease ? ` (Pre-release)` : ``;
-            const description = publishedAt
-                ? (preRelease ? `${publishedAt}${preRelease}` : publishedAt)
-                : (preRelease || ``);
-            return {
-                label: `$(github) ${version}`,
-                description,
-                release
-            };
-        });
 
         // Prompt user for installation source
         const selectedSource = await window.showQuickPick(

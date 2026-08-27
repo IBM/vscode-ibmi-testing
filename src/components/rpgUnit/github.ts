@@ -37,6 +37,30 @@ export namespace GitHub {
         return releases;
     }
 
+    export async function getLatestRelease(): Promise<Response<Release>> {
+        const result: Response<Release> = {
+            data: undefined!
+        };
+
+        try {
+            const octokit = new Octokit();
+            const response = await octokit.rest.repos.getLatestRelease({
+                owner: OWNER,
+                repo: REPO
+            });
+
+            if (response.status === 200) {
+                result.data = response.data;
+            } else {
+                result.error = response.status;
+            }
+        } catch (error: any) {
+            result.error = error.message ? error.message : error;
+        }
+
+        return result;
+    }
+
     export async function downloadReleaseAsset(asset: ReleaseAsset, downloadDirectory: string): Promise<Response<boolean>> {
         const isDownloaded: Response<boolean> = {
             data: false
