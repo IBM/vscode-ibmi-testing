@@ -3,13 +3,16 @@ import { Tools } from "@halcyontech/vscode-ibmi-types/api/Tools";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { Configuration, Section } from "../../configuration";
 import { compareVersions } from 'compare-versions';
-import { commands, env, ExtensionContext, LogLevel, ProgressLocation, Uri, window } from "vscode";
+import { commands, env, ExtensionContext, LogLevel, ProgressLocation, QuickPickItem, QuickPickItemKind, Uri, window } from "vscode";
 import { existsSync } from "fs";
+import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 import { getInstance } from "../../extensions/ibmi";
 import { testOutputLogger } from "../../extension";
 import { LOCAL_SAVE_FILE, OWNER, REPO, GITHUB_SAVE_FILE, SERVER_VERSION_TAG, VERSION } from "./version";
 import { GlobalState } from "../../globalState";
+import { GitHub, Release } from "./github";
 
 export class RPGUnit implements IBMiComponent {
     static readonly ID: string = "RPGUnit";
@@ -106,39 +109,6 @@ export class RPGUnit implements IBMiComponent {
     }
 
     async update(connection: IBMi, installDirectory: string): Promise<SecureComponentState> {
-        // Get current component state
-        const state = await this.getRemoteState(connection, installDirectory);
-
-        // Prompt user to confirm installation process
-        const content = connection.getContent();
-        const config = connection.getConfig();
-        const tempDir = connection.getTempDirectory();
-        const remotePath = path.posix.join(tempDir, LOCAL_SAVE_FILE);
-        const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
-        const tempLibrary = connection.upperCaseName(config.tempLibrary);
-        const extensionVersion = RPGUnit.context.extension.packageJSON.version;
-        const proceed = await window.showInformationMessage(
-            `RPGUnit Installation`,
-            {
-                modal: true,
-                detail: [
-                    `IBM i Testing v${extensionVersion} is compatible with RPGUnit v${VERSION}. The following steps will be performed to install this version of RPGUnit:`,
-                    ``,
-                    `  1. Locate the bundled save file (${LOCAL_SAVE_FILE}) shipped with the extension.`,
-                    `  2. Delete the existing product library ${productLibrary}.LIB (if present).`,
-                    `  3. Upload the bundled save file (${LOCAL_SAVE_FILE}) to a temporary IFS directory (${tempDir}).`,
-                    `  4. Create a save file object (RPGUNIT.FILE) in the temporary library (${tempLibrary}.LIB).`,
-                    `  5. Copy the uploaded save file into the save file object.`,
-                    `  6. Restore the save file contents into ${productLibrary}.LIB.`,
-                    `  7. Delete all temporary files and objects.`
-                ].join(`\n`)
-            },
-            `Proceed`
-        );
-        if (proceed !== `Proceed`) {
-            return state;
-        }
-
         const errorButtons = [
             {
                 label: 'Try Again',
@@ -149,22 +119,161 @@ export class RPGUnit implements IBMiComponent {
             }
         ];
 
-        testOutputLogger.show();
+        // Get current component state
+        const state = await this.getRemoteState(connection, installDirectory);
 
-        // Check if bundled save file exists
-        await testOutputLogger.log(LogLevel.Info, `Locating bundled ${LOCAL_SAVE_FILE}: ${this.localAssetPath}`);
-        if (!existsSync(this.localAssetPath)) {
-            await testOutputLogger.appendWithNotification(LogLevel.Error, `Bundled save file not found at ${this.localAssetPath}. Navigate to the GitHub releases page and install it manually.`, undefined, [
-                ...errorButtons,
-                {
-                    label: 'View GitHub Release',
-                    func: async () => {
-                        await env.openExternal(Uri.parse(`https://github.com/${OWNER}/${REPO}/releases/tag/${SERVER_VERSION_TAG}`));
-                    }
+        // Create quick pick item for bundled save file
+        const bundledQuickPickItem: QuickPickItem = {
+            label: `$(package) v${VERSION}`,
+            description: `Recommended`,
+            detail: `Install the minimum compatible version using a bundled save file`
+        };
+
+        // Fetch GitHub releases and filter for compatible versions
+        const releasesResponse = await GitHub.getReleases();
+        const supportedReleases: Release[] = [];
+        if (releasesResponse.error) {
+            await testOutputLogger.log(LogLevel.Error, `Failed to retrieve GitHub releases: ${releasesResponse.error}`);
+        } else {
+            for await (const release of releasesResponse.data) {
+                let version = release.name || release.tag_name;
+                version = version.startsWith('v') ? version.substring(1) : version;
+                const isValid = (release.draft === false) &&
+                    (release.assets.some(asset => asset.name === GITHUB_SAVE_FILE)) &&
+                    (await this.compareVersions(version, VERSION)) >= 0;
+                if (isValid) {
+                    supportedReleases.push(release);
                 }
-            ]);
+            }
+        }
+
+        // Create quick pick items for compatible GitHub releases
+        const githubReleaseItems: (QuickPickItem & { release: Release })[] = supportedReleases.map(release => {
+            const version = release?.name || release?.tag_name;
+            const publishedAt = release.published_at ? new Date(release.published_at).toLocaleString() : undefined;
+            const preRelease = release.prerelease ? ` (Pre-release)` : ``;
+            const description = publishedAt
+                ? (preRelease ? `${publishedAt}${preRelease}` : publishedAt)
+                : (preRelease || ``);
+            return {
+                label: `$(github) ${version}`,
+                description,
+                release
+            };
+        });
+
+        // Prompt user for installation source
+        const selectedSource = await window.showQuickPick(
+            [
+                { label: `Bundled Save File`, kind: QuickPickItemKind.Separator },
+                bundledQuickPickItem,
+                { label: `GitHub Releases`, kind: QuickPickItemKind.Separator },
+                ...githubReleaseItems
+            ],
+            {
+                placeHolder: `Installation Source`,
+                prompt: `Select where you would like the RPGUnit save file to be retrieved from.`,
+                ignoreFocusOut: true
+            }
+        );
+        if (!selectedSource) {
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Installation aborted as installation source was not selected`, undefined, errorButtons);
             return state;
         }
+
+        const content = connection.getContent();
+        const config = connection.getConfig();
+        const tempDir = connection.getTempDirectory();
+        const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
+        const tempLibrary = connection.upperCaseName(config.tempLibrary);
+        const extensionVersion = RPGUnit.context.extension.packageJSON.version;
+
+        let localAssetPath: string;
+        let saveFileName: string;
+
+        const isGitHubRelease = selectedSource !== bundledQuickPickItem;
+        if (!isGitHubRelease) {
+            // Prompt user to confirm bundled installation process
+            const proceed = await window.showInformationMessage(
+                `RPGUnit Installation via Bundled Save File`,
+                {
+                    modal: true,
+                    detail: [
+                        `IBM i Testing v${extensionVersion} is compatible with RPGUnit v${VERSION}. The following steps will be performed to install this version of RPGUnit:`,
+                        ``,
+                        `  1. Locate the bundled save file (${LOCAL_SAVE_FILE}) shipped with the extension.`,
+                        `  2. Delete the existing product library ${productLibrary}.LIB (if present).`,
+                        `  3. Upload the bundled save file (${LOCAL_SAVE_FILE}) to a temporary IFS directory (${tempDir}).`,
+                        `  4. Create a save file object (RPGUNIT.FILE) in the temporary library (${tempLibrary}.LIB).`,
+                        `  5. Copy the uploaded save file into the save file object.`,
+                        `  6. Restore the save file contents into ${productLibrary}.LIB.`,
+                        `  7. Delete all temporary files and objects.`
+                    ].join(`\n`)
+                },
+                `Proceed`
+            );
+            if (proceed !== `Proceed`) {
+                await testOutputLogger.appendWithNotification(LogLevel.Error, `Installation aborted as permission was not granted to proceed with RPGUnit installation via bundled save file`, undefined, errorButtons);
+                return state;
+            }
+
+            testOutputLogger.show();
+
+            // Check if bundled save file exists
+            await testOutputLogger.log(LogLevel.Info, `Locating bundled ${LOCAL_SAVE_FILE}: ${this.localAssetPath}`);
+            if (!existsSync(this.localAssetPath)) {
+                await testOutputLogger.appendWithNotification(LogLevel.Error, `Bundled save file not found at ${this.localAssetPath}`, undefined, [
+                    ...errorButtons
+                ]);
+                return state;
+            }
+
+            localAssetPath = this.localAssetPath;
+            saveFileName = LOCAL_SAVE_FILE;
+        } else {
+            // Prompt user to confirm GitHub installation process
+            const selectedRelease = (selectedSource as QuickPickItem & { release: Release }).release;
+            const releaseVersion = selectedRelease?.name || selectedRelease?.tag_name;
+            const releaseAsset = selectedRelease?.assets.find(asset => asset.name === GITHUB_SAVE_FILE)!;
+            const proceed = await window.showInformationMessage(
+                `RPGUnit Installation via GitHub Release`,
+                {
+                    modal: true,
+                    detail: [
+                        `The following steps will be performed to install RPGUnit ${releaseVersion} from GitHub:`,
+                        ``,
+                        `  1. Download the save file (${releaseAsset.name}) from the GitHub release.`,
+                        `  2. Delete the existing product library ${productLibrary}.LIB (if present).`,
+                        `  3. Upload the downloaded save file (${releaseAsset.name}) to a temporary IFS directory (${tempDir}).`,
+                        `  4. Create a save file object (RPGUNIT.FILE) in the temporary library (${tempLibrary}.LIB).`,
+                        `  5. Copy the uploaded save file into the save file object.`,
+                        `  6. Restore the save file contents into ${productLibrary}.LIB.`,
+                        `  7. Delete all temporary files and objects.`
+                    ].join(`\n`)
+                },
+                `Proceed`
+            );
+            if (proceed !== `Proceed`) {
+                await testOutputLogger.appendWithNotification(LogLevel.Error, `Installation aborted as permission was not granted to proceed with RPGUnit installation via GitHub release`, undefined, errorButtons);
+                return state;
+            }
+
+            testOutputLogger.show();
+
+            // Download the release asset to a local temp directory
+            const downloadDir = os.tmpdir();
+            await testOutputLogger.log(LogLevel.Info, `Downloading ${releaseAsset.name} from GitHub release ${releaseVersion} to ${downloadDir}`);
+            const downloadResult = await GitHub.downloadReleaseAsset(releaseAsset, downloadDir);
+            if (!downloadResult.data) {
+                await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to download ${releaseAsset.name} from GitHub`, downloadResult.error, errorButtons);
+                return state;
+            }
+
+            localAssetPath = path.join(downloadDir, releaseAsset.name);
+            saveFileName = releaseAsset.name;
+        }
+
+        const remotePath = path.posix.join(tempDir, saveFileName);
 
         // Check if product library exists
         const productLibraryExists = await content.checkObject({ library: 'QSYS', name: productLibrary, type: '*LIB' });
@@ -201,10 +310,10 @@ export class RPGUnit implements IBMiComponent {
 
         // Uploading save file to IFS
         try {
-            await testOutputLogger.log(LogLevel.Info, `Uploading ${LOCAL_SAVE_FILE} to ${remotePath}`);
-            await content.uploadFiles([{ local: this.localAssetPath, remote: remotePath }]);
+            await testOutputLogger.log(LogLevel.Info, `Uploading ${saveFileName} to ${remotePath}`);
+            await content.uploadFiles([{ local: localAssetPath, remote: remotePath }]);
         } catch (error: any) {
-            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to upload ${LOCAL_SAVE_FILE}`, error, errorButtons);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to upload ${saveFileName}`, error, errorButtons);
             return state;
         }
 
@@ -226,10 +335,10 @@ export class RPGUnit implements IBMiComponent {
             'STMFCCSID': 37,
             'MBROPT': `*REPLACE`
         });
-        await testOutputLogger.log(LogLevel.Info, `Transferring ${LOCAL_SAVE_FILE} to ${tempLibrary}.LIB: ${transferCommand}`);
+        await testOutputLogger.log(LogLevel.Info, `Transferring ${saveFileName} to ${tempLibrary}.LIB: ${transferCommand}`);
         const transferResult = await connection.runCommand({ command: transferCommand, environment: `ile`, noLibList: true });
         if (transferResult.code !== 0) {
-            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to transfer ${LOCAL_SAVE_FILE}`, transferResult.stderr, errorButtons);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to transfer ${saveFileName}`, transferResult.stderr, errorButtons);
             return state;
         }
 
@@ -247,9 +356,19 @@ export class RPGUnit implements IBMiComponent {
             return state;
         }
 
-        // Deleting temporary file
+        // Deleting locally downloaded save file (GitHub release installation only)
+        if (isGitHubRelease) {
+            try {
+                await testOutputLogger.log(LogLevel.Info, `Deleting locally downloaded save file: ${localAssetPath}`);
+                await fs.promises.unlink(localAssetPath);
+            } catch (error: any) {
+                await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to delete locally downloaded save file: ${localAssetPath}`, error);
+            }
+        }
+
+        // Deleting temporary file in the IFS
         try {
-            await testOutputLogger.log(LogLevel.Info, `Deleting ${remotePath}`);
+            await testOutputLogger.log(LogLevel.Info, `Deleting temporary file in the IFS: ${remotePath}`);
             await connection.runCommand({ command: `rm -rf ${remotePath}` });
         } catch (error: any) {
             await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to delete ${remotePath}`, error);
