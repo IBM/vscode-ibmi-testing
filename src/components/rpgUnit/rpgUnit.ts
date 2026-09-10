@@ -405,15 +405,19 @@ export class RPGUnit implements IBMiComponent {
 
     async compareVersions(v1: string, v2: string): Promise<number> {
         function normalize(v: string) {
-            // Remove prefix
-            v = v.replace('v', '');
+            // Remove version prefix
+            if (v.startsWith('v')) {
+                v = v.slice(1)
+            }
 
             // Remove production suffix
-            v = v.replace('.r', '');
+            if (v.endsWith('.v') || v.endsWith('.r')) {
+                v = v.slice(0, -2);
+            }
 
             // Convert beta suffix
             if (!v.includes('-beta.')) {
-                v = v.includes('.b') ? v.replace('.b', '-beta.') : v.includes('b') ? v.replace('b', '-beta.') : v;
+                v = v.includes('.b') ? v.replace('.b', '-beta.') : (v.includes('b') ? v.replace('b', '-beta.') : v);
             }
 
             return v;
