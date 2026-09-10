@@ -387,6 +387,15 @@ export class RPGUnit implements IBMiComponent {
         // Get new component state
         const newState = await this.getRemoteState(connection, installDirectory);
         if (newState.status === 'Installed') {
+            // Approve usage of library if not already approved
+            const state = GlobalState.get();
+            const host = connection.currentHost;
+            const approvedLibraries = state.approvedLibraries[host] ?? [];
+            if (!approvedLibraries.includes(productLibrary)) {
+                await GlobalState.set({ ...state, approvedLibraries: { ...state.approvedLibraries, [host]: [...approvedLibraries, productLibrary] } });
+                await testOutputLogger.log(LogLevel.Info, `${productLibrary}.LIB approved for usage.`);
+            }
+
             await testOutputLogger.appendWithNotification(LogLevel.Info, `RPGUnit v${VERSION} installed successfully into ${productLibrary}.LIB`);
         } else {
             await testOutputLogger.appendWithNotification(LogLevel.Error, `RPGUnit v${VERSION} failed to install into ${productLibrary}.LIB`, undefined, errorButtons);
