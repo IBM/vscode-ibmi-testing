@@ -16,7 +16,7 @@ import { GitHub, Release } from "./github";
 
 export class RPGUnit implements IBMiComponent {
     static readonly ID: string = "RPGUnit";
-    static readonly VERSION_REGEX = 'v\\d+(\\.\\d+){2}(\\.b\\d{1,3}|\\.r)?';
+    static readonly VERSION_REGEX = 'v\\d+(\\.\\d+){2}(\\.b\\d{1,3}|\\.r|\\.v)?';
     static context: ExtensionContext;
 
     private readonly localAssetPath: string;
