@@ -302,6 +302,16 @@
                             "default": "",
                             "markdownDescription": "Pre-Compiler COMPILEOPT\n\nRefer to the `COMPILEOPT` parameter in `CRTSQLRPGI` command help."
                         },
+                        "cmpparm": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Additional compiler parameters\n\nSpecifies any additional compiler parameters for producing the command for compiling the module."
+                        },
+                        "lnkparm": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Additional linker parameters\n\nSpecifies any additional linker parameters for producing the command for linking the unit test service program."
+                        },
                         "tgtRls": {
                             "anyOf": [
                                 {
@@ -708,6 +718,16 @@
                             "type": "string",
                             "default": "",
                             "markdownDescription": "Pre-Compiler COMPILEOPT\n\nRefer to the `COMPILEOPT` parameter in `CRTSQLCBLI` command help."
+                        },
+                        "cmpparm": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Additional compiler parameters\n\nSpecifies any additional compiler parameters for producing the command for compiling the module."
+                        },
+                        "lnkparm": {
+                            "type": "string",
+                            "default": "",
+                            "markdownDescription": "Additional linker parameters\n\nSpecifies any additional linker parameters for producing the command for linking the unit test service program."
                         },
                         "tgtRls": {
                             "anyOf": [

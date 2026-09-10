@@ -391,6 +391,14 @@ export class Runner {
         // Wrap all include directories in quotes
         compileParams.incDir = compileParams.incDir.map((dir) => `'${dir}'`);
 
+        // Wrap additional compiler and linker parameters in quotes
+        if(compileParams.cmpparm) {
+            compileParams.cmpparm = `'${compileParams.cmpparm}'`
+        }
+        if(compileParams.lnkparm) {
+            compileParams.lnkparm = `'${compileParams.lnkparm}'`
+        }
+
         // Flatten compile parameters and convert to strings
         const flattenedCompileParams = ApiUtils.flattenCommandParams(compileParams);
 
