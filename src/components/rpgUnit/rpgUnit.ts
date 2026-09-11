@@ -16,7 +16,7 @@ import { GitHub, Release } from "./github";
 
 export class RPGUnit implements IBMiComponent {
     static readonly ID: string = "RPGUnit";
-    static readonly VERSION_REGEX = 'v\\d+(\\.\\d+){2}(\\.b\\d{1,3}|\\.r)?';
+    static readonly VERSION_REGEX = 'v\\d+(\\.\\d+){2}(\\.b\\d{1,3}|\\.r|\\.v)?';
     static context: ExtensionContext;
 
     private readonly localAssetPath: string;
@@ -387,6 +387,15 @@ export class RPGUnit implements IBMiComponent {
         // Get new component state
         const newState = await this.getRemoteState(connection, installDirectory);
         if (newState.status === 'Installed') {
+            // Approve usage of library if not already approved
+            const state = GlobalState.get();
+            const host = connection.currentHost;
+            const approvedLibraries = state.approvedLibraries[host] ?? [];
+            if (!approvedLibraries.includes(productLibrary)) {
+                await GlobalState.set({ ...state, approvedLibraries: { ...state.approvedLibraries, [host]: [...approvedLibraries, productLibrary] } });
+                await testOutputLogger.log(LogLevel.Info, `${productLibrary}.LIB approved for usage.`);
+            }
+
             await testOutputLogger.appendWithNotification(LogLevel.Info, `RPGUnit v${VERSION} installed successfully into ${productLibrary}.LIB`);
         } else {
             await testOutputLogger.appendWithNotification(LogLevel.Error, `RPGUnit v${VERSION} failed to install into ${productLibrary}.LIB`, undefined, errorButtons);
@@ -396,15 +405,19 @@ export class RPGUnit implements IBMiComponent {
 
     async compareVersions(v1: string, v2: string): Promise<number> {
         function normalize(v: string) {
-            // Remove prefix
-            v = v.replace('v', '');
+            // Remove version prefix
+            if (v.startsWith('v')) {
+                v = v.slice(1)
+            }
 
             // Remove production suffix
-            v = v.replace('.r', '');
+            if (v.endsWith('.v') || v.endsWith('.r')) {
+                v = v.slice(0, -2);
+            }
 
             // Convert beta suffix
             if (!v.includes('-beta.')) {
-                v = v.includes('.b') ? v.replace('.b', '-beta.') : v.includes('b') ? v.replace('b', '-beta.') : v;
+                v = v.includes('.b') ? v.replace('.b', '-beta.') : (v.includes('b') ? v.replace('b', '-beta.') : v);
             }
 
             return v;

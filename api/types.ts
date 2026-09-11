@@ -182,6 +182,8 @@ export interface RUCRTRPG {
     rpgPpOpt?: string,
     pOption?: string[],
     compileOpt?: string,
+    cmpparm?: string,
+    lnkparm?: string,
     tgtRls?: string
     incDir?: string[],
     tgtCcsid?: string | number
@@ -205,6 +207,8 @@ export interface RUCRTCBL {
     module?: string[],
     pOption?: string[],
     compileOpt?: string,
+    cmpparm?: string,
+    lnkparm?: string,
     tgtRls?: string
     incDir?: string[],
     tgtCcsid?: number
