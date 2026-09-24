@@ -1,16 +1,15 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
-import { disposeConnection, createConnection } from '../setup/connection';
+import { disposeConnection, envVars, newConnection } from '../setup/connection';
 import IBMi from 'vscode-ibmi/src/api/IBMi';
 import { TestEnv } from '../setup/env';
 import { XMLParser } from '../../xmlParser';
 
 describe('Sample suite', () => {
-  const envVars = TestEnv.getEnvironmentVariables();
   let connection: IBMi
 
   beforeAll(async () => {
-    connection = await createConnection();
-  }, envVars.VITE_CONNECTION_TIMEOUT)
+    connection = await newConnection();
+  }, envVars.VITE_CONNECTION_TIMEOUT);
 
   afterAll(async () => {
     await disposeConnection(connection);
