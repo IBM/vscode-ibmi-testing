@@ -8,13 +8,12 @@ import { TestEnv } from "./env";
 import path from "path";
 import { readdirSync } from "fs";
 
-
+export const envVars = TestEnv.getEnvironmentVariables();
 const testStorage = new JsonStorage();
 const testConfig = new JsonConfig();
 
-export async function createConnection(reloadSettings?: boolean) {
+export async function newConnection(reloadSettings?: boolean) {
   // Setup credentials
-  const envVars = TestEnv.getEnvironmentVariables();
   const credentials: ConnectionData = {
     name: `${envVars.VITE_IBMI_USER}@${envVars.VITE_IBMI_HOST}`,
     host: envVars.VITE_IBMI_HOST,

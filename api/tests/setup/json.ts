@@ -37,6 +37,10 @@ export class JsonStorage extends BaseStorage {
   public save() {
     this.config.save();
   }
+
+  public matchesConnection(connectionName: string): boolean {
+    return this.config.has(`serverSettingsCache_${connectionName}`);
+  }
 }
 
 export class JsonConfig extends Config {
@@ -53,5 +57,10 @@ export class JsonConfig extends Config {
 
   public save() {
     this.config.save();
+  }
+
+  public matchesConnection(connectionName: string): boolean {
+    const settings = this.config.get(`connectionSettings`);
+    return Array.isArray(settings) && settings.some((s: any) => s.name === connectionName);
   }
 }
