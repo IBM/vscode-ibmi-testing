@@ -1,13 +1,13 @@
 import { Uri, window, workspace } from "vscode";
 import Declaration from "vscode-rpgle/language/models/declaration";
 import Cache from "vscode-rpgle/language/models/cache";
-import { getInstance } from "../extensions/ibmi";
-import { LspUtils, RpgleTypeDetail, RpgleVariableType } from "./lspUtils";
+import { getInstance } from "../../extensions/ibmi";
+import { RpgLspUtils, RpgleTypeDetail, RpgleVariableType } from "./rpgLspUtils";
 import * as path from "path";
-import { ApiUtils } from "../../api/apiUtils";
-import { LocalConfigHandler, QsysConfigHandler } from "../../api/config";
-import { Configuration, Section, TestStubPreferences } from "../configuration";
-import { testOutputLogger } from "../extension";
+import { ApiUtils } from "../../../api/apiUtils";
+import { LocalConfigHandler, QsysConfigHandler } from "../../../api/config";
+import { Configuration, Section, TestStubPreferences } from "../../configuration";
+import { testOutputLogger } from "../../extension";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 
 export interface TestCaseSpec {
@@ -16,7 +16,7 @@ export interface TestCaseSpec {
     testCase: { name: string, text: string[] };
 }
 
-export namespace TestStubGenerator {
+export namespace RpgTestStubGenerator {
     export async function generateTestStubLocation(uri: Uri, connection?: IBMi, forcePreferences?: Partial<TestStubPreferences>) {
         // Get test stub generation preferences
         const testStubPreferences = {
@@ -190,7 +190,7 @@ export namespace TestStubGenerator {
         const inputInits: string[] = [];
         const inputIncludes: { name: string, text: string }[] = [];
         for (const subItem of procedure.subItems) {
-            const subItemType = LspUtils.resolveType(docs, subItem);
+            const subItemType = RpgLspUtils.resolveType(docs, subItem);
 
             const subItemDec = getDeclaration(subItemType, `${subItem.name}`);
             inputDecs.push(...subItemDec);
@@ -203,7 +203,7 @@ export namespace TestStubGenerator {
         }
 
         // Get return
-        const resolvedType = LspUtils.resolveType(docs, procedure);
+        const resolvedType = RpgLspUtils.resolveType(docs, procedure);
         const actualDec = getDeclaration(resolvedType, 'actual');
         const expectedDec = getDeclaration(resolvedType, 'expected');
         const expectedInits = getInitializations(docs, resolvedType, 'expected');
@@ -273,7 +273,7 @@ export namespace TestStubGenerator {
                 inits.push(`${name} = ${defaultValue};`);
             } else if (detail.reference) {
                 for (const subItem of detail.reference.subItems) {
-                    const subItemType = LspUtils.resolveType(docs, subItem);
+                    const subItemType = RpgLspUtils.resolveType(docs, subItem);
                     const subItemInits = subItemType ?
                         getInitializations(docs, subItemType, `${name}.${subItem.name}`) : [];
                     inits.push(...subItemInits);
@@ -286,7 +286,7 @@ export namespace TestStubGenerator {
 
     async function getPrototype(procedure: Declaration): Promise<{ prototype?: { name: string, text: string[] }, prototypeInclude: { name: string, text: string }[] }> {
         for (const reference of procedure.references) {
-            const docs = await LspUtils.getDocs(Uri.parse(reference.uri));
+            const docs = await RpgLspUtils.getDocs(Uri.parse(reference.uri));
             if (docs) {
                 const prototype = docs.procedures.find(proc => proc.prototype && proc.prototype && proc.name === procedure.name);
                 if (prototype) {
@@ -302,8 +302,8 @@ export namespace TestStubGenerator {
             prototype: {
                 name: procedure.name,
                 text: [
-                    `dcl-pr ${procedure.name} ${LspUtils.prettyKeywords(procedure.keyword, true)} extproc('${procedure.name.toLocaleUpperCase()}');`,
-                    ...procedure.subItems.map(s => `  ${s.name} ${LspUtils.prettyKeywords(s.keyword, true)};`),
+                    `dcl-pr ${procedure.name} ${RpgLspUtils.prettyKeywords(procedure.keyword, true)} extproc('${procedure.name.toLocaleUpperCase()}');`,
+                    ...procedure.subItems.map(s => `  ${s.name} ${RpgLspUtils.prettyKeywords(s.keyword, true)};`),
                     `end-pr;`
                 ]
             },
@@ -351,14 +351,14 @@ export namespace TestStubGenerator {
             if (detail.type) {
                 const assertion = getAssertion(detail.type.name);
                 const fieldName = actual.split(`.`).pop();
-                if (assertion === `assert`) {
+                if (assertion === `assertEqual`) {
                     assertions.push(`${assertion}(${expected} = ${actual}${fieldName ? ` : '${fieldName}'` : ``});`);
                 } else {
                     assertions.push(`${assertion}(${expected} : ${actual}${fieldName ? ` : '${fieldName}'` : ``});`);
                 }
             } else if (detail.reference) {
                 for (const subItem of detail.reference.subItems) {
-                    const subItemType = LspUtils.resolveType(docs, subItem);
+                    const subItemType = RpgLspUtils.resolveType(docs, subItem);
                     const subItemAssertions = subItemType ?
                         getAssertions(docs, subItemType, `${expected}.${subItem.name}`, `${actual}.${subItem.name}`) : [];
                     assertions.push(...subItemAssertions);
@@ -421,7 +421,7 @@ export namespace TestStubGenerator {
             case `timestamp`:
             case `pointer`:
             default:
-                return `assert`;
+                return `assertEqual`;
         }
     }
 

@@ -265,6 +265,7 @@
   },
   "devDependencies": {
     "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
+    "vscode-db2i": "github:halcyon-tech/vscode-db2i",
     "@halcyontech/vscode-ibmi-types": "^3.0.7",
     "@octokit/rest": "22.0.1",
     "@types/node": "22.x",

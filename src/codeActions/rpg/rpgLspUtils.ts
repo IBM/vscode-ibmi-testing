@@ -10,7 +10,7 @@ export interface RpgleTypeDetail {
     reference?: Declaration;
 }
 
-export namespace LspUtils {
+export namespace RpgLspUtils {
     export async function getDocs(uri: Uri): Promise<Cache | undefined> {
         return await commands.executeCommand('vscode-rpgle.server.getCache', uri);
     }

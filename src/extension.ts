@@ -1,4 +1,4 @@
-import { commands, ConfigurationChangeEvent, ExtensionContext, LogLevel, TestRunRequest, Uri, window, workspace } from "vscode";
+import { ConfigurationChangeEvent, ExtensionContext, LogLevel, workspace } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { getComponentRegistry, getInstance, loadBase } from "./extensions/ibmi";
 import { Configuration, Section } from "./configuration";
@@ -7,10 +7,12 @@ import { RPGUnit } from "./components/rpgUnit/rpgUnit";
 import { CodeCov } from "./components/codeCov/codeCov";
 import * as tmp from "tmp";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
-import { TestStubGenerator } from "./codeActions/testStubGenerator";
-import { TestStubCodeActions } from "./codeActions";
+import { RpgTestStubGenerator } from "./codeActions/rpg/rpgTestStubGenerator";
+import { RpgTestStub } from "./codeActions/rpg/rpgTestStub";
 import { IBMiTesting } from "./types";
 import { GlobalState } from "./globalState";
+import { SqlTestStubGenerator } from "./codeActions/sql/sqlTestStubGenerator";
+import { SqlTestStub } from "./codeActions/sql/sqlTestStub";
 
 export let testOutputLogger: TestOutputLogger = new TestOutputLogger();
 export let manager: IBMiTestManager | undefined;
@@ -103,14 +105,16 @@ export async function activate(context: ExtensionContext): Promise<IBMiTesting> 
 	});
 
 	// Miscellaneous setup
-	TestStubCodeActions.registerTestStubCodeActions(context);
+	RpgTestStub.registerCodeActions(context);
+	SqlTestStub.registerCodeActions(context);
 	tmp.setGracefulCleanup();
 
 	return {
 		getTestManager: () => {
 			return manager;
 		},
-		testStubGenerator: TestStubGenerator
+		rpgTestStubGenerator: RpgTestStubGenerator,
+		sqlTestStubGenerator: SqlTestStubGenerator
 	};
 }
 
