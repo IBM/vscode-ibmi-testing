@@ -20,7 +20,6 @@ import { getInstance } from "../../extensions/ibmi";
 import { SqlTestStubGenerator, FunctionType, RoutineSignature, RoutineType, SysRoutineRow } from "./sqlTestStubGenerator";
 import { RpgLspUtils } from "../rpg/rpgLspUtils";
 import { Configuration, Section, TestStubPreferences } from "../../configuration";
-import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 
 export namespace SqlTestStub {
     export function registerCodeActions(context: ExtensionContext) {
@@ -30,10 +29,8 @@ export namespace SqlTestStub {
                     async provideCodeActions(document, range) {
                         const codeActions: CodeAction[] = [];
 
-                        const ibmi = getInstance();
-                        const connection = ibmi?.getConnection();
-                        if (connection && document) {
-                            const sqlCodeActions = await getCodeActions(connection, document, range);
+                        if (document) {
+                            const sqlCodeActions = await getCodeActions(document, range);
                             if (sqlCodeActions) {
                                 codeActions.push(...sqlCodeActions);
                             }
@@ -47,7 +44,7 @@ export namespace SqlTestStub {
         );
     }
 
-    async function getCodeActions(connection: IBMi, document: TextDocument, range: Range): Promise<CodeAction[] | undefined> {
+    async function getCodeActions(document: TextDocument, range: Range): Promise<CodeAction[] | undefined> {
         const codeActions: CodeAction[] = [];
 
         const documentText = document.getText();
@@ -88,14 +85,21 @@ export namespace SqlTestStub {
         testCaseAction.command = {
             title,
             command: `vscode-ibmi-testing.sqlGenerateTestStub`,
-            arguments: [connection, document, schema, name, createType]
+            arguments: [document, schema, name, createType]
         };
         codeActions.push(testCaseAction);
 
         return codeActions;
     }
 
-    async function generateTestStub(connection: IBMi, document: TextDocument, schema: string | undefined, name: string, routineType: RoutineType, forcePreferences?: Partial<TestStubPreferences>): Promise<Uri | undefined> {
+    async function generateTestStub(document: TextDocument, schema: string | undefined, name: string, routineType: RoutineType, forcePreferences?: Partial<TestStubPreferences>): Promise<Uri | undefined> {
+        const ibmi = getInstance();
+        const connection = ibmi?.getConnection();
+        if (!connection) {
+            window.showErrorMessage(`You must be connected to an IBM i.`);
+            return;
+        }
+
         // Get test stub generation preferences
         const testStubPreferences = {
             ...Configuration.getOrFallback<TestStubPreferences>(Section.testStubPreferences),
