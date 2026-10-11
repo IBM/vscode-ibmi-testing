@@ -283,7 +283,7 @@ export namespace SqlTestStubGenerator {
         }
     }
 
-    export function generateTestCaseSpec(schema: string, name: string, routineType: RoutineType, routineSignature: RoutineSignature, functionType?: FunctionType, addStubComments?: boolean): SqlTestCaseSpec {
+    export function generateTestCaseSpec(schema: string, name: string, routineType: RoutineType, routineSignature: RoutineSignature, functionType: FunctionType | undefined, existingCursors: string[], addStubComments: boolean): SqlTestCaseSpec {
         const safeName = name.replace(/[^a-zA-Z0-9_]/g, '_').toLocaleLowerCase();
 
         let dataStructure: { name: string; text: string[] } | undefined;
@@ -291,7 +291,7 @@ export namespace SqlTestStubGenerator {
         if (routineType === `FUNCTION` && functionType === `SCALAR`) {
             text = buildScalarFunctionStub(schema, name, safeName, routineSignature, addStubComments);
         } else if (routineType === `FUNCTION` && functionType === `TABLE`) {
-            const result = buildTableFunctionStub(schema, name, safeName, routineSignature, addStubComments);
+            const result = buildTableFunctionStub(schema, name, safeName, routineSignature, existingCursors, addStubComments);
             dataStructure = result.dataStructure;
             text = result.text;
         } else if (routineType === `PROCEDURE`) {
@@ -304,7 +304,7 @@ export namespace SqlTestStubGenerator {
         };
     }
 
-    function buildScalarFunctionStub(schema: string, name: string, safeName: string, routineSignature: RoutineSignature, addStubComments?: boolean): string[] {
+    function buildScalarFunctionStub(schema: string, name: string, safeName: string, routineSignature: RoutineSignature, addStubComments: boolean): string[] {
         const qualifiedName = `${schema}.${name}`;
 
         // Return
@@ -364,7 +364,7 @@ export namespace SqlTestStubGenerator {
         ];
     }
 
-    function buildTableFunctionStub(schema: string, name: string, safeName: string, routineSignature: RoutineSignature, addStubComments?: boolean): { dataStructure: { name: string; text: string[] }; text: string[] } {
+    function buildTableFunctionStub(schema: string, name: string, safeName: string, routineSignature: RoutineSignature, existingCursors: string[], addStubComments: boolean): { dataStructure: { name: string; text: string[] }; text: string[] } {
         const qualifiedName = `${schema}.${name}`;
 
         // Row data structure fields
@@ -394,6 +394,14 @@ export namespace SqlTestStubGenerator {
             const detail = sqlDataTypeToRpgDetail(col);
             return `  expected(1).${colName} = ${detail.defaultValue};`;
         });
+
+        // Cursor for embedded SQL
+        const uppercasedExistingCursors = new Set(existingCursors.map(c => c.toUpperCase()));
+        let cursorIndex = 1;
+        while (uppercasedExistingCursors.has(`C${cursorIndex}`)) {
+            cursorIndex++;
+        }
+        const cursorName = `C${cursorIndex}`;
 
         // Select columns for embedded SQL
         const selectCols = routineSignature.returns.map(col => {
@@ -428,28 +436,28 @@ export namespace SqlTestStubGenerator {
                 `  dcl-pi *n extproc(*dclcase) end-pi;`,
                 ``,
                 ...paramDecls,
-                `  dcl-ds actual    likeds(row_t) dim(1) inz(*likeds);`,
-                `  dcl-ds expected  likeds(row_t) dim(1) inz(*likeds);`,
+                `  dcl-ds actual likeds(row_t) dim(1) inz(*likeds);`,
+                `  dcl-ds expected likeds(row_t) dim(1) inz(*likeds);`,
                 ``,
                 ...(addStubComments ? [`  // Input`] : []),
                 ...paramInits,
                 ``,
                 ...(addStubComments ? [`  // Actual results`] : []),
                 `  exec sql`,
-                `    DECLARE C1 CURSOR FOR`,
+                `    DECLARE ${cursorName} CURSOR FOR`,
                 `      SELECT ${selectCols}`,
                 `        FROM TABLE(${qualifiedName}(${paramHostVars})) AS T;`,
                 ``,
-                `  exec sql OPEN C1;`,
+                `  exec sql OPEN ${cursorName};`,
                 ``,
                 `  exec sql`,
-                `    FETCH C1 FOR 1 ROWS INTO :actual;`,
+                `    FETCH ${cursorName} FOR 1 ROWS INTO :actual;`,
                 ``,
                 `  if (SQLCODE <> 0);`,
                 `    fail('Failed to fetch using ${qualifiedName}. SQLCODE: ' + %char(SQLCODE));`,
                 `  endif;`,
                 ``,
-                `  exec sql CLOSE C1;`,
+                `  exec sql CLOSE ${cursorName};`,
                 ``,
                 ...(addStubComments ? [`  // Expected results`] : []),
                 ...expectedInits,
@@ -461,7 +469,7 @@ export namespace SqlTestStubGenerator {
         };
     }
 
-    function buildProcedureStub(schema: string, name: string, safeName: string, routineSignature: RoutineSignature, addStubComments?: boolean): string[] {
+    function buildProcedureStub(schema: string, name: string, safeName: string, routineSignature: RoutineSignature, addStubComments: boolean): string[] {
         const qualifiedName = `${schema}.${name}`;
 
         const inParams = routineSignature.parms.filter(p => p.PARAMETER_MODE === `IN` || p.PARAMETER_MODE === `INOUT`);

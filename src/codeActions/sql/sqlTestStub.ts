@@ -250,9 +250,6 @@ export namespace SqlTestStub {
             }
         }
 
-        // Generate test case spec
-        const spec = SqlTestStubGenerator.generateTestCaseSpec(schema, name, routineType, routineSignature, functionType);
-
         // Build test stub edit and insert code in appropriate places
         const testStubEdit = new WorkspaceEdit();
         const testDocs = await RpgLspUtils.getDocs(testFileLocation.testFileUri);
@@ -305,7 +302,14 @@ export namespace SqlTestStub {
             }
         }
 
+        // Get existing cursors
         const text = testDocument ? testDocument.getText() : '';
+        const CURSOR_DECLARE_REGEX = /declare\s+(\w+)\s+cursor\b/gi;
+        const existingCursors = [...text.matchAll(CURSOR_DECLARE_REGEX)].map(m => m[1]);
+
+        // Generate test case spec
+        const spec = SqlTestStubGenerator.generateTestCaseSpec(schema, name, routineType, routineSignature, functionType, existingCursors, testStubPreferences["Add Stub Comments"]);
+
         const lastLine = testDocument ? testDocument.lineCount - 1 : 0;
         const lastLineLen = testDocument ? testDocument.lineAt(lastLine).text.length : 0;
         function lineAt(line: number): string {
