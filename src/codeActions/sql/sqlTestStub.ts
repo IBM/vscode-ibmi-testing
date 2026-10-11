@@ -302,13 +302,15 @@ export namespace SqlTestStub {
             }
         }
 
-        // Get existing cursors
-        const text = testDocument ? testDocument.getText() : '';
+
+        // Extract existing procedures and cursor names so generated names are unique
+        const existingProcedures = testDocs?.procedures.map(p => p.name) ?? [];
         const CURSOR_DECLARE_REGEX = /declare\s+(\w+)\s+cursor\b/gi;
+        const text = testDocument ? testDocument.getText() : '';
         const existingCursors = [...text.matchAll(CURSOR_DECLARE_REGEX)].map(m => m[1]);
 
         // Generate test case spec
-        const spec = SqlTestStubGenerator.generateTestCaseSpec(schema, name, routineType, routineSignature, functionType, existingCursors, testStubPreferences["Add Stub Comments"]);
+        const spec = SqlTestStubGenerator.generateTestCaseSpec(schema, name, routineType, routineSignature, functionType, existingProcedures, existingCursors, testStubPreferences["Add Stub Comments"], testStubPreferences["Qualify SQL Function And Procedure Calls"]);
 
         const lastLine = testDocument ? testDocument.lineCount - 1 : 0;
         const lastLineLen = testDocument ? testDocument.lineAt(lastLine).text.length : 0;
@@ -444,8 +446,6 @@ export namespace SqlTestStub {
         let testCaseInsertLine = lastLine;
         let testCaseInsertCharacter = lastLineLen;
 
-        const baseProcName = `test_${spec.testCase.name.replace(/[^a-zA-Z0-9_]/g, '_').toLocaleLowerCase()}`;
-        let finalProcName = baseProcName;
         if (testDocs) {
             try {
                 if (testDocs.procedures.length > 0) {
@@ -454,23 +454,10 @@ export namespace SqlTestStub {
                     testCaseInsertLine = Math.max(...existingProcOrProto.map(proc => proc.range.end!));
                     testCaseInsertCharacter = lineAt(testCaseInsertLine).length;
                 }
-
-                // Rename if a proc with the same name already exists by appending _1, _2, _3, ...
-                const existingProcNames = new Set(testDocs.procedures.map(proc => proc.name.toLocaleLowerCase()));
-                if (existingProcNames.has(baseProcName.toLocaleLowerCase())) {
-                    let suffix = 1;
-                    while (existingProcNames.has(`${baseProcName}_${suffix}`.toLocaleLowerCase())) {
-                        suffix++;
-                    }
-                    finalProcName = `${baseProcName}_${suffix}`;
-                }
             } catch (error) { }
         }
 
-        const testCaseLines = spec.testCase.text.map(line =>
-            line === `dcl-proc ${baseProcName} export;` ? `dcl-proc ${finalProcName} export;` : line
-        );
-        const testCaseText = `\n\n${testCaseLines.join('\n')}`;
+        const testCaseText = `\n\n${spec.testCase.text.join('\n')}`;
 
         testStubEdit.insert(
             testFileLocation.testFileUri,

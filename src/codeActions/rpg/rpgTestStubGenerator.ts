@@ -1,4 +1,4 @@
-import { Uri, window, workspace } from "vscode";
+import { QuickInputButton, QuickInputButtonLocation, QuickInputButtons, ThemeColor, ThemeIcon, Uri, window, workspace } from "vscode";
 import Declaration from "vscode-rpgle/language/models/declaration";
 import Cache from "vscode-rpgle/language/models/cache";
 import { getInstance } from "../../extensions/ibmi";
@@ -10,10 +10,16 @@ import { Configuration, Section, TestStubPreferences } from "../../configuration
 import { testOutputLogger } from "../../extension";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 
-export interface TestCaseSpec {
+export interface RpgTestCaseSpec {
     includes: { name: string, text: string }[];
     prototype: { name: string, text: string[] } | undefined;
     testCase: { name: string, text: string[] };
+}
+
+export interface RpgTestCaseSpecResult {
+    spec: RpgTestCaseSpec;
+    promptForInputValue: boolean;
+    promptForExpectedValue: boolean;
 }
 
 export namespace RpgTestStubGenerator {
@@ -181,13 +187,23 @@ export namespace RpgTestStubGenerator {
         };
     }
 
-    export async function generateTestCaseSpec(docs: Cache, procedure: Declaration, addStubComments: boolean): Promise<TestCaseSpec> {
+    export async function generateTestCaseSpec(docs: Cache, procedure: Declaration, existingProcedures: string[], addStubComments: boolean, promptForInputValue: boolean, promptForExpectedValue: boolean): Promise<RpgTestCaseSpecResult> {
+        // Get unique procedure name
+        const baseProcedureName = `test_${procedure.name}`;
+        let procedureName = baseProcedureName;
+        const uppercasedExistingProcedures = new Set(existingProcedures.map(p => p.toLocaleUpperCase()));
+        let procSuffix = 1;
+        while (uppercasedExistingProcedures.has(procedureName.toLocaleUpperCase())) {
+            procedureName = `${baseProcedureName}_${procSuffix}`;
+            procSuffix++;
+        }
+
         // Get prototype
         const { prototype, prototypeInclude } = await getPrototype(procedure);
 
         // Get inputs
         const inputDecs: string[] = [];
-        const inputInits: string[] = [];
+        let inputInits: string[] = [];
         const inputIncludes: { name: string, text: string }[] = [];
         for (const subItem of procedure.subItems) {
             const subItemType = RpgLspUtils.resolveType(docs, subItem);
@@ -206,8 +222,35 @@ export namespace RpgTestStubGenerator {
         const resolvedType = RpgLspUtils.resolveType(docs, procedure);
         const actualDec = getDeclaration(resolvedType, 'actual');
         const expectedDec = getDeclaration(resolvedType, 'expected');
-        const expectedInits = getInitializations(docs, resolvedType, 'expected');
+        let expectedInits = getInitializations(docs, resolvedType, 'expected');
         const returnIncludes = getIncludes(resolvedType);
+
+        // Prompt for input values
+        let skipExpected = false;
+        if (promptForInputValue && inputInits.length > 0) {
+            const prompted = await promptForValues(inputInits, procedure.name, `Input`, false);
+            if (prompted === undefined) {
+                // User disabled prompting for input — caller will update the preference
+                promptForInputValue = false;
+                skipExpected = true;
+            } else {
+                inputInits = prompted.values;
+
+                // If the user cancelled or skipped remaining during input, skip expected too
+                skipExpected = prompted.skipped;
+            }
+        }
+
+        // Prompt for expected values
+        if (!skipExpected && promptForExpectedValue && expectedInits.length > 0) {
+            const prompted = await promptForValues(expectedInits, procedure.name, `Expected`, true);
+            if (prompted === undefined) {
+                // User disabled prompting for expected — caller will update the preference
+                promptForExpectedValue = false;
+            } else {
+                expectedInits = prompted.values;
+            }
+        }
 
         // Get unique includes
         const rpgUnitInclude = `qinclude,TESTCASE`;
@@ -219,9 +262,9 @@ export namespace RpgTestStubGenerator {
         const assertions = getAssertions(docs, resolvedType, 'expected', 'actual');
 
         const testCase = {
-            name: procedure.name,
+            name: procedureName,
             text: [
-                `dcl-proc test_${procedure.name} export;`,
+                `dcl-proc ${procedureName} export;`,
                 `  dcl-pi *n extproc(*dclcase) end-pi;`,
                 ``,
                 ...inputDecs.map(dec => `  ${dec}`),
@@ -244,10 +287,126 @@ export namespace RpgTestStubGenerator {
         };
 
         return {
-            includes,
-            prototype,
-            testCase
+            spec: {
+                includes,
+                prototype,
+                testCase
+            },
+            promptForInputValue,
+            promptForExpectedValue
         };
+    }
+
+    /**
+     * Walks the user through a list of initialisation lines one at a time using
+     * a custom InputBox that has Back, Next, Reset, Skip Remaining and Disable buttons.
+     *
+     * Return values:
+     * - `{ values, skipped: false }` — Completed normally
+     * - `{ values, skipped: true }` — Cancelled or skip remaining pressed
+     * - `undefined` — Disable pressed
+     */
+    async function promptForValues(inits: string[], procedureName: string, kind: 'Input' | 'Expected', isExpected: boolean): Promise<{ values: string[], skipped: boolean } | undefined> {
+        const results = [...inits];
+        let index = 0;
+
+        const backButton = QuickInputButtons.Back;
+        const defaultColor = new ThemeColor('icon.foreground');
+        const nextButton: QuickInputButton = {
+            location: QuickInputButtonLocation.Inline,
+            iconPath: new ThemeIcon('arrow-right', defaultColor),
+            tooltip: 'Next Value'
+        };
+        const resetButton: QuickInputButton = {
+            location: QuickInputButtonLocation.Inline,
+            iconPath: new ThemeIcon('discard', defaultColor),
+            tooltip: 'Reset Value to Default'
+        };
+        const skipRemainingButton: QuickInputButton = {
+            location: QuickInputButtonLocation.Title,
+            iconPath: new ThemeIcon('debug-step-over', defaultColor),
+            tooltip: 'Skip Remaining Values'
+        };
+        const disableButton: QuickInputButton = {
+            location: QuickInputButtonLocation.Title,
+            iconPath: new ThemeIcon('circle-slash', defaultColor),
+            tooltip: isExpected ? 'Disable Prompting For Expected Values' : 'Disable Prompting For Input Values'
+        };
+
+        while (index < results.length) {
+            const current = results[index];
+
+            // Lines are always generated as `name = value;` so split on the first `=`
+            const equalIndex = current.indexOf('=');
+            const varName = current.slice(0, equalIndex).trim();
+            const varValueWithSemiColon = current.slice(equalIndex + 1).trim();
+            const varValue = varValueWithSemiColon.endsWith(';') ? varValueWithSemiColon.slice(0, -1) : varValueWithSemiColon;
+
+            const result = await new Promise<string | 'back' | 'next' | 'skipRemaining' | 'disable' | undefined>(resolve => {
+                const basePrompt = isExpected
+                    ? `Enter the expected value which ${varName} should be initialized to:`
+                    : `Enter the input value which ${varName} should be initialized to:`;
+
+                const inputBox = window.createInputBox();
+                inputBox.title = `${procedureName} — ${kind} values (${index + 1}/${results.length})`;
+                inputBox.placeholder = `${kind} value`;
+                inputBox.prompt = `${basePrompt} ${varName} = ${varValue};`;
+                inputBox.value = varValue;
+                inputBox.buttons = index > 0
+                    ? [backButton, nextButton, resetButton, skipRemainingButton, disableButton]
+                    : [nextButton, resetButton, skipRemainingButton, disableButton];
+                inputBox.ignoreFocusOut = true;
+
+                inputBox.onDidChangeValue(value => {
+                    inputBox.prompt = `${basePrompt} ${varName} = ${value};`;
+                });
+
+                inputBox.onDidAccept(() => {
+                    resolve(inputBox.value);
+                    inputBox.dispose();
+                });
+
+                inputBox.onDidTriggerButton((button: QuickInputButton) => {
+                    if (button === backButton) {
+                        resolve('back'); inputBox.dispose();
+                    } else if (button === nextButton) {
+                        resolve(inputBox.value); inputBox.dispose();
+                    } else if (button === resetButton) {
+                        inputBox.value = varValue;
+                        inputBox.prompt = `${basePrompt} (${varName} = ${varValue};)`;
+                    } else if (button === skipRemainingButton) {
+                        resolve('skipRemaining'); inputBox.dispose();
+                    } else if (button === disableButton) {
+                        resolve('disable'); inputBox.dispose();
+                    }
+                });
+
+                inputBox.onDidHide(() => {
+                    resolve(undefined);
+                    inputBox.dispose();
+                });
+
+                inputBox.show();
+            });
+
+            if (result === undefined) {
+                // Cancelled — leave remaining inits as defaults and skip expected
+                return { values: results, skipped: true };
+            } else if (result === 'disable') {
+                return undefined;
+            } else if (result === 'back') {
+                index = Math.max(0, index - 1);
+            } else if (result === 'skipRemaining') {
+                // Leave all remaining at their defaults and skip expected
+                return { values: results, skipped: true };
+            } else {
+                // Next button or press enter — save the typed value and advance
+                results[index] = `${varName} = ${result};`;
+                index++;
+            }
+        }
+
+        return { values: results, skipped: false };
     }
 
     function getDeclaration(detail: RpgleTypeDetail, name: string): string[] {

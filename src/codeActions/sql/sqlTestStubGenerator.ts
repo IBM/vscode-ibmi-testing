@@ -283,19 +283,28 @@ export namespace SqlTestStubGenerator {
         }
     }
 
-    export function generateTestCaseSpec(schema: string, name: string, routineType: RoutineType, routineSignature: RoutineSignature, functionType: FunctionType | undefined, existingCursors: string[], addStubComments: boolean): SqlTestCaseSpec {
+    export function generateTestCaseSpec(schema: string, name: string, routineType: RoutineType, routineSignature: RoutineSignature, functionType: FunctionType | undefined, existingProcedures: string[], existingCursors: string[], addStubComments: boolean, qualifyCalls: boolean): SqlTestCaseSpec {
+        // Get unique procedure name
         const safeName = name.replace(/[^a-zA-Z0-9_]/g, '_').toLocaleLowerCase();
+        const baseProcedureName = `test_${safeName}`;
+        let procedureName = baseProcedureName;
+        const uppercasedExistingProcedures = new Set(existingProcedures.map(p => p.toLocaleUpperCase()));
+        let procSuffix = 1;
+        while (uppercasedExistingProcedures.has(procedureName.toUpperCase())) {
+            procedureName = `${baseProcedureName}_${procSuffix}`;
+            procSuffix++;
+        }
 
         let dataStructure: { name: string; text: string[] } | undefined;
         let text: string[] = [];
         if (routineType === `FUNCTION` && functionType === `SCALAR`) {
-            text = buildScalarFunctionStub(schema, name, safeName, routineSignature, addStubComments);
+            text = buildScalarFunctionStub(schema, name, procedureName, routineSignature, addStubComments, qualifyCalls);
         } else if (routineType === `FUNCTION` && functionType === `TABLE`) {
-            const result = buildTableFunctionStub(schema, name, safeName, routineSignature, existingCursors, addStubComments);
+            const result = buildTableFunctionStub(schema, name, procedureName, routineSignature, existingCursors, addStubComments, qualifyCalls);
             dataStructure = result.dataStructure;
             text = result.text;
         } else if (routineType === `PROCEDURE`) {
-            text = buildProcedureStub(schema, name, safeName, routineSignature, addStubComments);
+            text = buildProcedureStub(schema, name, procedureName, routineSignature, addStubComments, qualifyCalls);
         }
 
         return {
@@ -304,8 +313,8 @@ export namespace SqlTestStubGenerator {
         };
     }
 
-    function buildScalarFunctionStub(schema: string, name: string, safeName: string, routineSignature: RoutineSignature, addStubComments: boolean): string[] {
-        const qualifiedName = `${schema}.${name}`;
+    function buildScalarFunctionStub(schema: string, name: string, procedureName: string, routineSignature: RoutineSignature, addStubComments: boolean, qualifyCalls: boolean): string[] {
+        const callName = qualifyCalls ? `${schema}.${name}` : name;
 
         // Return
         const returnRow = routineSignature.returns.find(r => r.ROW_TYPE === `C`);
@@ -331,7 +340,7 @@ export namespace SqlTestStubGenerator {
         }).join(`, `);
 
         return [
-            `dcl-proc test_${safeName} export;`,
+            `dcl-proc ${procedureName} export;`,
             `  dcl-pi *n extproc(*dclcase) end-pi;`,
             ``,
             ...paramDecls,
@@ -346,10 +355,10 @@ export namespace SqlTestStubGenerator {
             ``,
             ...(addStubComments ? [`  // Actual results`] : []),
             `  exec sql`,
-            `    SET :actual = ${qualifiedName}(${paramHostVars});`,
+            `    SET :actual = ${callName}(${paramHostVars});`,
             ``,
             `  if (SQLCODE <> 0);`,
-            `    fail('Failed to fetch using ${qualifiedName}. SQLCODE: ' + %char(SQLCODE));`,
+            `    fail('Failed to fetch using ${callName}. SQLCODE: ' + %char(SQLCODE));`,
             `  endif;`,
             ``,
             ...(returnDetail ?
@@ -364,8 +373,8 @@ export namespace SqlTestStubGenerator {
         ];
     }
 
-    function buildTableFunctionStub(schema: string, name: string, safeName: string, routineSignature: RoutineSignature, existingCursors: string[], addStubComments: boolean): { dataStructure: { name: string; text: string[] }; text: string[] } {
-        const qualifiedName = `${schema}.${name}`;
+    function buildTableFunctionStub(schema: string, name: string, procedureName: string, routineSignature: RoutineSignature, existingCursors: string[], addStubComments: boolean, qualifyCalls: boolean): { dataStructure: { name: string; text: string[] }; text: string[] } {
+        const callName = qualifyCalls ? `${schema}.${name}` : name;
 
         // Row data structure fields
         const rowDsFields = routineSignature.returns.map((col, i) => {
@@ -395,7 +404,7 @@ export namespace SqlTestStubGenerator {
             return `  expected(1).${colName} = ${detail.defaultValue};`;
         });
 
-        // Cursor for embedded SQL
+        // Unique cursor for embedded SQL
         const uppercasedExistingCursors = new Set(existingCursors.map(c => c.toUpperCase()));
         let cursorIndex = 1;
         while (uppercasedExistingCursors.has(`C${cursorIndex}`)) {
@@ -432,7 +441,7 @@ export namespace SqlTestStubGenerator {
                 ]
             },
             text: [
-                `dcl-proc test_${safeName} export;`,
+                `dcl-proc ${procedureName} export;`,
                 `  dcl-pi *n extproc(*dclcase) end-pi;`,
                 ``,
                 ...paramDecls,
@@ -446,7 +455,7 @@ export namespace SqlTestStubGenerator {
                 `  exec sql`,
                 `    DECLARE ${cursorName} CURSOR FOR`,
                 `      SELECT ${selectCols}`,
-                `        FROM TABLE(${qualifiedName}(${paramHostVars})) AS T;`,
+                `        FROM TABLE(${callName}(${paramHostVars}));`,
                 ``,
                 `  exec sql OPEN ${cursorName};`,
                 ``,
@@ -454,7 +463,7 @@ export namespace SqlTestStubGenerator {
                 `    FETCH ${cursorName} FOR 1 ROWS INTO :actual;`,
                 ``,
                 `  if (SQLCODE <> 0);`,
-                `    fail('Failed to fetch using ${qualifiedName}. SQLCODE: ' + %char(SQLCODE));`,
+                `    fail('Failed to fetch using ${callName}. SQLCODE: ' + %char(SQLCODE));`,
                 `  endif;`,
                 ``,
                 `  exec sql CLOSE ${cursorName};`,
@@ -469,8 +478,8 @@ export namespace SqlTestStubGenerator {
         };
     }
 
-    function buildProcedureStub(schema: string, name: string, safeName: string, routineSignature: RoutineSignature, addStubComments: boolean): string[] {
-        const qualifiedName = `${schema}.${name}`;
+    function buildProcedureStub(schema: string, name: string, procedureName: string, routineSignature: RoutineSignature, addStubComments: boolean, qualifyCalls: boolean): string[] {
+        const callName = qualifyCalls ? `${schema}.${name}` : name;
 
         const inParams = routineSignature.parms.filter(p => p.PARAMETER_MODE === `IN` || p.PARAMETER_MODE === `INOUT`);
         const outParams = routineSignature.parms.filter(p => p.PARAMETER_MODE === `OUT` || p.PARAMETER_MODE === `INOUT`);
@@ -515,7 +524,7 @@ export namespace SqlTestStubGenerator {
         });
 
         return [
-            `dcl-proc test_${safeName} export;`,
+            `dcl-proc ${procedureName} export;`,
             `  dcl-pi *n extproc(*dclcase) end-pi;`,
             ``,
             ...paramDecls,
@@ -526,12 +535,12 @@ export namespace SqlTestStubGenerator {
             ``,
             ...(addStubComments ? [`  // Call`] : []),
             `  exec sql`,
-            `    CALL ${qualifiedName}(`,
+            `    CALL ${callName}(`,
             callArgs,
             `    );`,
             ``,
             `  if (SQLCODE <> 0);`,
-            `    fail('Failed to call ${qualifiedName}. SQLCODE: ' + %char(SQLCODE));`,
+            `    fail('Failed to call ${callName}. SQLCODE: ' + %char(SQLCODE));`,
             `  endif;`,
             ``,
             ...(addStubComments ? [`  // Expected results`] : []),

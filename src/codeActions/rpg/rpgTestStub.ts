@@ -5,7 +5,7 @@ import { getInstance } from "../../extensions/ibmi";
 import { RpgLspUtils } from "./rpgLspUtils";
 import * as path from "path";
 import { Configuration, Section, TestStubPreferences } from "../../configuration";
-import { RpgTestStubGenerator } from "./rpgTestStubGenerator";
+import { RpgTestStubGenerator, RpgTestCaseSpec } from "./rpgTestStubGenerator";
 
 export namespace RpgTestStub {
     export function registerCodeActions(context: ExtensionContext) {
@@ -126,9 +126,6 @@ export namespace RpgTestStub {
             testFileLocation.testFileUri = openedTestDocument.uri;
         }
 
-        // Generate test case spec
-        const testCaseSpecs = await Promise.all(exportProcedures.map(async proc => await RpgTestStubGenerator.generateTestCaseSpec(docs, proc, testStubPreferences["Add Stub Comments"])));
-
         // Build test stub edit and insert code in appropriate places
         const testStubEdit = new WorkspaceEdit();
         const testDocs = await RpgLspUtils.getDocs(testFileLocation.testFileUri);
@@ -181,7 +178,33 @@ export namespace RpgTestStub {
             }
         }
 
+        // Extract existing procedure names so generated names are unique
+        const existingProcedures = testDocs?.procedures.map(p => p.name) ?? [];
         const text = testDocument ? testDocument.getText() : '';
+
+        // Generate test case spec
+        let promptForInputValue = testStubPreferences["Prompt For Input Value"];
+        let promptForExpectedValue = testStubPreferences["Prompt For Expected Value"];
+        const testCaseSpecs: RpgTestCaseSpec[] = [];
+        for (const proc of exportProcedures) {
+            const testCaseSpecResult = await RpgTestStubGenerator.generateTestCaseSpec(docs, proc, existingProcedures, testStubPreferences["Add Stub Comments"], promptForInputValue, promptForExpectedValue);
+            existingProcedures.push(testCaseSpecResult.spec.testCase.name);
+            testCaseSpecs.push(testCaseSpecResult.spec);
+
+            // If the user disabled either prompt mid-wizard, respect that for subsequent procedures
+            promptForInputValue = testCaseSpecResult.promptForInputValue;
+            promptForExpectedValue = testCaseSpecResult.promptForExpectedValue;
+        }
+
+        // Persist any preference changes the user made via the disable button
+        if (promptForInputValue !== testStubPreferences["Prompt For Input Value"] || promptForExpectedValue !== testStubPreferences["Prompt For Expected Value"]) {
+            await Configuration.set(Section.testStubPreferences, {
+                ...testStubPreferences,
+                "Prompt For Input Value": promptForInputValue,
+                "Prompt For Expected Value": promptForExpectedValue
+            });
+        }
+
         const lastLine = testDocument ? testDocument.lineCount - 1 : 0;
         function lineAt(line: number): string {
             return testDocument ? testDocument.lineAt(line).text : '';
@@ -359,24 +382,6 @@ export namespace RpgTestStub {
                     newTestCasesInsert.line = Math.max(...existingProcOrProto.map(proc => proc.range.end!));
                     newTestCasesInsert.character = lineAt(newTestCasesInsert.line).length;
                 }
-
-                // Rename any test case whose procedure name already exists by appending _1, _2, _3, ...
-                const existingProcNames = new Set(testDocs.procedures.map(proc => proc.name.toLocaleLowerCase()));
-                newTestCases = newTestCases.map(tc => {
-                    const baseProcName = `test_${tc.name}`;
-                    if (!existingProcNames.has(baseProcName.toLocaleLowerCase())) {
-                        return tc;
-                    }
-                    let suffix = 1;
-                    while (existingProcNames.has(`${baseProcName}_${suffix}`.toLocaleLowerCase())) {
-                        suffix++;
-                    }
-                    const newProcName = `${baseProcName}_${suffix}`;
-                    return {
-                        name: tc.name,
-                        text: tc.text.map(line => line === `dcl-proc ${baseProcName} export;` ? `dcl-proc ${newProcName} export;` : line)
-                    };
-                });
             } catch (error) { }
         }
         if (newTestCases.length > 0) {
