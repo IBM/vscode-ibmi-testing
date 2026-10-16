@@ -1,5 +1,6 @@
 import { ConfigurationTarget, LogLevel, workspace } from "vscode";
 import { testOutputLogger } from "./extension";
+import { RPGUnitInfo } from "./components/rpgUnit/info";
 
 export interface TestStubPreferences {
     "Show Test Stub Preview": boolean;
@@ -35,7 +36,7 @@ export enum Section {
 }
 
 export const defaultConfigurations: { [T in Section]: ValueType } = {
-    [Section.productLibrary]: 'RPGUNIT',
+    [Section.productLibrary]: RPGUnitInfo.LIBRARY_NAME,
     [Section.testSourceFiles]: ['QTESTSRC'],
     [Section.testStubPreferences]: {
         "Show Test Stub Preview": true,
