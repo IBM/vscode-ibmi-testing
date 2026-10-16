@@ -160,7 +160,7 @@ export class RPGUnit implements IBMiComponent {
                         (release.draft ? `- Draft` : ``),
                     ].filter(Boolean).join(` `);
                     githubReleaseItems.push({
-                        label: `$(github) ${version}`,
+                        label: `$(github) v${version}`,
                         description,
                         release
                     });
@@ -402,12 +402,7 @@ export class RPGUnit implements IBMiComponent {
                 await testOutputLogger.log(LogLevel.Info, `${productLibrary}.LIB approved for usage.`);
             }
 
-            if (newState.status === 'Installed') {
-                await testOutputLogger.appendWithNotification(LogLevel.Info, `${RPGUnitInfo.FRAMEWORK_NAME} v${newState.installedVersion} installed successfully into ${productLibrary}.LIB`);
-            } else {
-                const availableVersion = await this.getAvailableVersion();
-                await testOutputLogger.appendWithNotification(LogLevel.Info, `${RPGUnitInfo.FRAMEWORK_NAME} v${newState.installedVersion} installed successfully into ${productLibrary}.LIB, but v${availableVersion} is available`);
-            }
+            await testOutputLogger.appendWithNotification(LogLevel.Info, `${RPGUnitInfo.FRAMEWORK_NAME} v${newState.installedVersion} installed successfully into ${productLibrary}.LIB`);
         } else {
             await testOutputLogger.appendWithNotification(LogLevel.Error, `${RPGUnitInfo.FRAMEWORK_NAME} v${newState.installedVersion} failed to install into ${productLibrary}.LIB`, undefined, errorButtons);
         }
