@@ -10,12 +10,11 @@ import * as path from "path";
 import * as os from "os";
 import { getInstance } from "../../extensions/ibmi";
 import { testOutputLogger } from "../../extension";
-import { LOCAL_SAVE_FILE, GITHUB_SAVE_FILE, VERSION } from "./version";
+import { RPGUnitInfo } from "./info";
 import { GlobalState } from "../../globalState";
 import { GitHub, Release } from "./github";
 
 export class RPGUnit implements IBMiComponent {
-    static readonly ID: string = "RPGUnit";
     static readonly VERSION_REGEX = 'v\\d+(\\.\\d+){2}(\\.b\\d{1,3}|\\.r|\\.v)?';
     static context: ExtensionContext;
 
@@ -23,13 +22,13 @@ export class RPGUnit implements IBMiComponent {
 
     constructor(context: ExtensionContext) {
         RPGUnit.context = context;
-        this.localAssetPath = path.join(context.extensionPath, `dist`, LOCAL_SAVE_FILE);
+        this.localAssetPath = path.join(context.extensionPath, `dist`, RPGUnitInfo.LOCAL_SAVE_FILE);
     }
 
     getIdentification(): ComponentIdentification {
         return {
-            name: RPGUnit.ID,
-            version: VERSION,
+            name: RPGUnitInfo.FRAMEWORK_NAME,
+            version: RPGUnitInfo.MINIMUM_VERSION,
             userManaged: true
         } as any;
     }
@@ -37,6 +36,7 @@ export class RPGUnit implements IBMiComponent {
     async getRemoteState(connection: IBMi, installDirectory: string): Promise<SecureComponentState> {
         const content = connection.getContent();
 
+        const availableVersion = await this.getAvailableVersion();
         try {
             // Check if product library exists
             const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
@@ -58,7 +58,7 @@ export class RPGUnit implements IBMiComponent {
                             for (const copyright of copyrights) {
                                 const versionMatch = copyright.match(RPGUnit.VERSION_REGEX);
                                 if (versionMatch && versionMatch[0]) {
-                                    installedVersion = versionMatch[0].startsWith('v') ? versionMatch[0].substring(1) : versionMatch[0];
+                                    installedVersion = RPGUnitInfo.versionTagToVersion(versionMatch[0]);
                                     break;
                                 }
                             }
@@ -77,7 +77,7 @@ export class RPGUnit implements IBMiComponent {
                             // Get installed version from library text description
                             const versionMatch = libraryText.match(RPGUnit.VERSION_REGEX);
                             if (versionMatch && versionMatch[0]) {
-                                installedVersion = versionMatch[0].startsWith('v') ? versionMatch[0].substring(1) : versionMatch[0];
+                                installedVersion = RPGUnitInfo.versionTagToVersion(versionMatch[0]);
                             }
                         }
                     } else {
@@ -87,24 +87,31 @@ export class RPGUnit implements IBMiComponent {
 
                 if (installedVersion) {
                     // Compare installed version with minimum version
-                    if (await this.compareVersions(installedVersion, VERSION) >= 0) {
-                        await testOutputLogger.log(LogLevel.Info, `Installed version of RPGUnit is v${installedVersion}`);
-                        return { status: `Installed` };
+                    if (await this.compareVersions(installedVersion, RPGUnitInfo.MINIMUM_VERSION) >= 0) {
+                        // Check if the available version is higher than what's installed
+                        const hasUpdateAvailable = await this.compareVersions(availableVersion, installedVersion) > 0;
+                        if (hasUpdateAvailable) {
+                            await testOutputLogger.log(LogLevel.Info, `Installed version of ${RPGUnitInfo.FRAMEWORK_NAME} is v${installedVersion}, but v${availableVersion} is available`);
+                            return { status: `UpdateAvailable`, installedVersion, availableVersion };
+                        } else {
+                            await testOutputLogger.log(LogLevel.Info, `Installed version of ${RPGUnitInfo.FRAMEWORK_NAME} is v${installedVersion}`);
+                            return { status: `Installed`, installedVersion };
+                        }
                     } else {
-                        await testOutputLogger.log(LogLevel.Error, `Installed version of RPGUnit (v${installedVersion}) is lower than minimum version (v${VERSION})`);
-                        return { status: `NeedsUpdate` };
+                        await testOutputLogger.log(LogLevel.Error, `Installed version of ${RPGUnitInfo.FRAMEWORK_NAME} (v${installedVersion}) is lower than minimum version (v${RPGUnitInfo.MINIMUM_VERSION})`);
+                        return { status: `NeedsUpdate`, installedVersion, availableVersion };
                     }
                 } else {
-                    await testOutputLogger.log(LogLevel.Error, `Failed to parse installed version of RPGUnit`);
-                    return { status: `NeedsUpdate` };
+                    await testOutputLogger.log(LogLevel.Error, `Failed to parse installed version of ${RPGUnitInfo.FRAMEWORK_NAME}`);
+                    return { status: `NeedsUpdate`, availableVersion };
                 }
             } else {
                 await testOutputLogger.log(LogLevel.Error, `Product library ${productLibrary}.LIB does not exist`);
-                return { status: `NotInstalled` };
+                return { status: `NotInstalled`, availableVersion };
             }
         } catch (error) {
-            await testOutputLogger.log(LogLevel.Error, `Failed to get remote state of RPGUnit component. Error: ${error}`);
-            return { status: `Error` };
+            await testOutputLogger.log(LogLevel.Error, `Failed to get remote state of ${RPGUnitInfo.FRAMEWORK_NAME} component. Error: ${error}`);
+            return { status: `Error`, availableVersion };
         }
     }
 
@@ -114,7 +121,7 @@ export class RPGUnit implements IBMiComponent {
                 label: 'Try Again',
                 func: async () => {
                     const componentManager = connection.getComponentManager();
-                    await componentManager.installComponent(RPGUnit.ID);
+                    await componentManager.installComponent(RPGUnitInfo.FRAMEWORK_NAME);
                 }
             }
         ];
@@ -124,9 +131,9 @@ export class RPGUnit implements IBMiComponent {
 
         // Create quick pick item for bundled save file
         const bundledQuickPickItem: QuickPickItem = {
-            label: `$(package) v${VERSION}`,
+            label: `$(package) v${RPGUnitInfo.BUNDLED_VERSION}`,
             description: `Recommended`,
-            detail: `Install the minimum compatible version using a save file bundled in the extension`
+            detail: `Install the bundled version shipped with this extension`
         };
 
         // Fetch GitHub releases
@@ -141,11 +148,10 @@ export class RPGUnit implements IBMiComponent {
             await testOutputLogger.log(LogLevel.Error, `Failed to retrieve GitHub releases: ${releasesResponse.error}`);
         } else {
             for await (const release of releasesResponse.data) {
-                let version = release.name || release.tag_name;
-                version = version.startsWith('v') ? version.substring(1) : version;
-                const isValid = (release.assets.some(asset => asset.name === GITHUB_SAVE_FILE)) &&
-                    (await this.compareVersions(version, VERSION)) >= 0;
-                if (isValid) {
+                const version = RPGUnitInfo.versionTagToVersion(release.name || release.tag_name);
+                const isCompatible = await this.compareVersions(version, RPGUnitInfo.MINIMUM_VERSION) >= 0;
+                const saveFileExists = release.assets.some(asset => asset.name === RPGUnitInfo.GITHUB_SAVE_FILE);
+                if (isCompatible && saveFileExists) {
                     const publishedAt = release.published_at ? new Date(release.published_at).toLocaleString() : ``;
                     const description = [
                         publishedAt,
@@ -154,7 +160,7 @@ export class RPGUnit implements IBMiComponent {
                         (release.draft ? `- Draft` : ``),
                     ].filter(Boolean).join(` `);
                     githubReleaseItems.push({
-                        label: `$(github) ${version}`,
+                        label: `$(github) v${version}`,
                         description,
                         release
                     });
@@ -172,7 +178,7 @@ export class RPGUnit implements IBMiComponent {
             ],
             {
                 placeHolder: `Installation Source`,
-                prompt: `Select where you would like the RPGUnit save file to be retrieved from.`,
+                prompt: `Select where you would like the ${RPGUnitInfo.FRAMEWORK_NAME} save file to be installed from.`,
                 ignoreFocusOut: true
             }
         );
@@ -195,16 +201,16 @@ export class RPGUnit implements IBMiComponent {
         if (!isGitHubRelease) {
             // Prompt user to confirm bundled installation process
             const proceed = await window.showInformationMessage(
-                `RPGUnit Installation via Bundled Save File`,
+                `${RPGUnitInfo.FRAMEWORK_NAME} Installation via Bundled Save File`,
                 {
                     modal: true,
                     detail: [
-                        `IBM i Testing v${extensionVersion} is compatible with RPGUnit v${VERSION}. The following steps will be performed to install this version of RPGUnit:`,
+                        `IBM i Testing v${extensionVersion} is compatible with ${RPGUnitInfo.FRAMEWORK_NAME} ≥ v${RPGUnitInfo.MINIMUM_VERSION}. The following steps will be performed to install ${RPGUnitInfo.FRAMEWORK_NAME} v${RPGUnitInfo.BUNDLED_VERSION} bundled with this extension:`,
                         ``,
-                        `  1. Locate the bundled save file (${LOCAL_SAVE_FILE}) shipped with the extension.`,
+                        `  1. Locate the bundled save file (${RPGUnitInfo.LOCAL_SAVE_FILE}) shipped with the extension.`,
                         `  2. Delete the existing product library ${productLibrary}.LIB (if present).`,
-                        `  3. Upload the bundled save file (${LOCAL_SAVE_FILE}) to a temporary IFS directory (${tempDir}).`,
-                        `  4. Create a save file object (RPGUNIT.FILE) in the temporary library (${tempLibrary}.LIB).`,
+                        `  3. Upload the bundled save file (${RPGUnitInfo.LOCAL_SAVE_FILE}) to a temporary IFS directory (${tempDir}).`,
+                        `  4. Create a save file object (${RPGUnitInfo.LIBRARY_NAME}.FILE) in the temporary library (${tempLibrary}.LIB).`,
                         `  5. Copy the uploaded save file into the save file object.`,
                         `  6. Restore the save file contents into ${productLibrary}.LIB.`,
                         `  7. Delete all temporary files and objects.`
@@ -213,14 +219,14 @@ export class RPGUnit implements IBMiComponent {
                 `Proceed`
             );
             if (proceed !== `Proceed`) {
-                await testOutputLogger.appendWithNotification(LogLevel.Error, `Installation aborted as permission was not granted to proceed with RPGUnit installation via bundled save file`, undefined, errorButtons);
+                await testOutputLogger.appendWithNotification(LogLevel.Error, `Installation aborted as permission was not granted to proceed with ${RPGUnitInfo.FRAMEWORK_NAME} installation via bundled save file`, undefined, errorButtons);
                 return state;
             }
 
             testOutputLogger.show();
 
             // Check if bundled save file exists
-            await testOutputLogger.log(LogLevel.Info, `Locating bundled ${LOCAL_SAVE_FILE}: ${this.localAssetPath}`);
+            await testOutputLogger.log(LogLevel.Info, `Locating bundled ${RPGUnitInfo.LOCAL_SAVE_FILE}: ${this.localAssetPath}`);
             if (!existsSync(this.localAssetPath)) {
                 await testOutputLogger.appendWithNotification(LogLevel.Error, `Bundled save file not found at ${this.localAssetPath}`, undefined, [
                     ...errorButtons
@@ -229,23 +235,23 @@ export class RPGUnit implements IBMiComponent {
             }
 
             localAssetPath = this.localAssetPath;
-            saveFileName = LOCAL_SAVE_FILE;
+            saveFileName = RPGUnitInfo.LOCAL_SAVE_FILE;
         } else {
             // Prompt user to confirm GitHub installation process
             const selectedRelease = (selectedSource as QuickPickItem & { release: Release }).release;
-            const releaseVersion = selectedRelease?.name || selectedRelease?.tag_name;
-            const releaseAsset = selectedRelease?.assets.find(asset => asset.name === GITHUB_SAVE_FILE)!;
+            const releaseVersion = RPGUnitInfo.versionTagToVersion(selectedRelease?.name || selectedRelease?.tag_name);
+            const releaseAsset = selectedRelease?.assets.find(asset => asset.name === RPGUnitInfo.GITHUB_SAVE_FILE)!;
             const proceed = await window.showInformationMessage(
-                `RPGUnit Installation via GitHub Release`,
+                `${RPGUnitInfo.FRAMEWORK_NAME} Installation via GitHub Release`,
                 {
                     modal: true,
                     detail: [
-                        `The following steps will be performed to install RPGUnit ${releaseVersion} from GitHub:`,
+                        `The following steps will be performed to install ${RPGUnitInfo.FRAMEWORK_NAME} v${releaseVersion} from GitHub:`,
                         ``,
                         `  1. Download the save file (${releaseAsset.name}) from the GitHub release.`,
                         `  2. Delete the existing product library ${productLibrary}.LIB (if present).`,
                         `  3. Upload the downloaded save file (${releaseAsset.name}) to a temporary IFS directory (${tempDir}).`,
-                        `  4. Create a save file object (RPGUNIT.FILE) in the temporary library (${tempLibrary}.LIB).`,
+                        `  4. Create a save file object (${RPGUnitInfo.LIBRARY_NAME}.FILE) in the temporary library (${tempLibrary}.LIB).`,
                         `  5. Copy the uploaded save file into the save file object.`,
                         `  6. Restore the save file contents into ${productLibrary}.LIB.`,
                         `  7. Delete all temporary files and objects.`
@@ -254,7 +260,7 @@ export class RPGUnit implements IBMiComponent {
                 `Proceed`
             );
             if (proceed !== `Proceed`) {
-                await testOutputLogger.appendWithNotification(LogLevel.Error, `Installation aborted as permission was not granted to proceed with RPGUnit installation via GitHub release`, undefined, errorButtons);
+                await testOutputLogger.appendWithNotification(LogLevel.Error, `Installation aborted as permission was not granted to proceed with ${RPGUnitInfo.FRAMEWORK_NAME} installation via GitHub release`, undefined, errorButtons);
                 return state;
             }
 
@@ -262,7 +268,7 @@ export class RPGUnit implements IBMiComponent {
 
             // Download the release asset to a local temp directory
             const downloadDir = os.tmpdir();
-            await testOutputLogger.log(LogLevel.Info, `Downloading ${releaseAsset.name} from GitHub release ${releaseVersion} to ${downloadDir}`);
+            await testOutputLogger.log(LogLevel.Info, `Downloading ${releaseAsset.name} from GitHub release v${releaseVersion} to ${downloadDir}`);
             const downloadResult = await GitHub.downloadReleaseAsset(releaseAsset, downloadDir);
             if (!downloadResult.data) {
                 await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to download ${releaseAsset.name} from GitHub`, downloadResult.error, errorButtons);
@@ -319,19 +325,19 @@ export class RPGUnit implements IBMiComponent {
 
         // Creating save file in temporary library
         const createSavfCommand = content.toCl(`QSYS/CRTSAVF`, {
-            'FILE': `${tempLibrary}/RPGUNIT`
+            'FILE': `${tempLibrary}/${RPGUnitInfo.LIBRARY_NAME}`
         });
-        await testOutputLogger.log(LogLevel.Info, `Creating ${GITHUB_SAVE_FILE} in ${tempLibrary}.LIB: ${createSavfCommand}`);
+        await testOutputLogger.log(LogLevel.Info, `Creating ${RPGUnitInfo.GITHUB_SAVE_FILE} in ${tempLibrary}.LIB: ${createSavfCommand}`);
         const createSavfResult = await connection.runCommand({ command: createSavfCommand, environment: `ile`, noLibList: true });
         if (createSavfResult.code !== 0 && !createSavfResult.stderr.includes('CPF5813')) {
-            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to create ${GITHUB_SAVE_FILE}`, createSavfResult.stderr, errorButtons);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to create ${RPGUnitInfo.GITHUB_SAVE_FILE}`, createSavfResult.stderr, errorButtons);
             return state;
         }
 
         // Transfering save file to temporary library
         const transferCommand = content.toCl(`QSYS/CPYFRMSTMF`, {
             'FROMSTMF': remotePath,
-            'TOMBR': `\'/QSYS.LIB/${tempLibrary}.LIB/RPGUNIT.FILE\'`,
+            'TOMBR': `\'/QSYS.LIB/${tempLibrary}.LIB/${RPGUnitInfo.LIBRARY_NAME}.FILE\'`,
             'STMFCCSID': 37,
             'MBROPT': `*REPLACE`
         });
@@ -344,15 +350,15 @@ export class RPGUnit implements IBMiComponent {
 
         // Restoring library
         const restoreCommand = content.toCl(`QSYS/RSTLIB`, {
-            'SAVLIB': 'RPGUNIT',
+            'SAVLIB': RPGUnitInfo.LIBRARY_NAME,
             'DEV': `*SAVF`,
-            'SAVF': `${tempLibrary}/RPGUNIT`,
+            'SAVF': `${tempLibrary}/${RPGUnitInfo.LIBRARY_NAME}`,
             'RSTLIB': productLibrary
         });
-        await testOutputLogger.log(LogLevel.Info, `Restoring ${GITHUB_SAVE_FILE} contents into ${productLibrary}.LIB: ${restoreCommand}`);
+        await testOutputLogger.log(LogLevel.Info, `Restoring ${RPGUnitInfo.GITHUB_SAVE_FILE} contents into ${productLibrary}.LIB: ${restoreCommand}`);
         const restoreResult = await connection.runCommand({ command: restoreCommand, environment: `ile`, noLibList: true });
         if (restoreResult.code !== 0) {
-            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to restore ${GITHUB_SAVE_FILE} contents`, restoreResult.stderr, errorButtons);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to restore ${RPGUnitInfo.GITHUB_SAVE_FILE} contents`, restoreResult.stderr, errorButtons);
             return state;
         }
 
@@ -376,17 +382,17 @@ export class RPGUnit implements IBMiComponent {
 
         // Deleting temporary save file object
         const deleteSavfCommand = content.toCl(`QSYS/DLTF`, {
-            FILE: `${tempLibrary}/RPGUNIT`
+            FILE: `${tempLibrary}/${RPGUnitInfo.LIBRARY_NAME}`
         });
-        await testOutputLogger.log(LogLevel.Info, `Deleting ${GITHUB_SAVE_FILE} in ${tempLibrary}.LIB: ${deleteSavfCommand}`);
+        await testOutputLogger.log(LogLevel.Info, `Deleting ${RPGUnitInfo.GITHUB_SAVE_FILE} in ${tempLibrary}.LIB: ${deleteSavfCommand}`);
         const deleteSavfResult = await connection.runCommand({ command: deleteSavfCommand, environment: `ile`, noLibList: true });
         if (deleteSavfResult.code !== 0) {
-            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to delete ${GITHUB_SAVE_FILE}`, deleteSavfResult.stderr, errorButtons);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to delete ${RPGUnitInfo.GITHUB_SAVE_FILE}`, deleteSavfResult.stderr, errorButtons);
         }
 
         // Get new component state
         const newState = await this.getRemoteState(connection, installDirectory);
-        if (newState.status === 'Installed') {
+        if (newState.status === 'Installed' || newState.status === 'UpdateAvailable') {
             // Approve usage of library if not already approved
             const state = GlobalState.get();
             const host = connection.currentHost;
@@ -396,35 +402,37 @@ export class RPGUnit implements IBMiComponent {
                 await testOutputLogger.log(LogLevel.Info, `${productLibrary}.LIB approved for usage.`);
             }
 
-            await testOutputLogger.appendWithNotification(LogLevel.Info, `RPGUnit v${VERSION} installed successfully into ${productLibrary}.LIB`);
+            await testOutputLogger.appendWithNotification(LogLevel.Info, `${RPGUnitInfo.FRAMEWORK_NAME} v${newState.installedVersion} installed successfully into ${productLibrary}.LIB`);
         } else {
-            await testOutputLogger.appendWithNotification(LogLevel.Error, `RPGUnit v${VERSION} failed to install into ${productLibrary}.LIB`, undefined, errorButtons);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `${RPGUnitInfo.FRAMEWORK_NAME} v${newState.installedVersion} failed to install into ${productLibrary}.LIB`, undefined, errorButtons);
         }
         return newState;
     }
 
-    async compareVersions(v1: string, v2: string): Promise<number> {
-        function normalize(v: string) {
-            // Remove version prefix
-            if (v.startsWith('v')) {
-                v = v.slice(1)
+    private async getAvailableVersion(): Promise<string> {
+        try {
+            const latestRelease = await GitHub.getLatestRelease();
+            if (latestRelease.error) {
+                await testOutputLogger.log(LogLevel.Error, `Failed to retrieve latest GitHub release: ${latestRelease.error}`);
+            } else {
+                const version = RPGUnitInfo.versionTagToVersion(latestRelease.data.name || latestRelease.data.tag_name);
+                const isCompatible = await this.compareVersions(version, RPGUnitInfo.BUNDLED_VERSION) >= 0;
+                const saveFileExists = latestRelease.data.assets.some(asset => asset.name === RPGUnitInfo.GITHUB_SAVE_FILE);
+                if (isCompatible && saveFileExists) {
+                    return version;
+                }
             }
-
-            // Remove production suffix
-            if (v.endsWith('.v') || v.endsWith('.r')) {
-                v = v.slice(0, -2);
-            }
-
-            // Convert beta suffix
-            if (!v.includes('-beta.')) {
-                v = v.includes('.b') ? v.replace('.b', '-beta.') : (v.includes('b') ? v.replace('b', '-beta.') : v);
-            }
-
-            return v;
+        } catch (error) {
+            await testOutputLogger.log(LogLevel.Error, `Failed to retrieve latest GitHub release. Error: ${error}`);
         }
 
+        // Fall back to bundled version if GitHub is unreachable
+        return RPGUnitInfo.BUNDLED_VERSION;
+    }
+
+    async compareVersions(v1: string, v2: string): Promise<number> {
         try {
-            return compareVersions(normalize(v1), normalize(v2));
+            return compareVersions(RPGUnitInfo.versionTagToVersion(v1), RPGUnitInfo.versionTagToVersion(v2));
         } catch (error) {
             await testOutputLogger.log(LogLevel.Error, `Failed to compare versions ${v1} and ${v2}. Error: ${error}`);
             return -1;
@@ -437,7 +445,7 @@ export class RPGUnit implements IBMiComponent {
 
         // Check current installation state
         const componentManager = connection.getComponentManager();
-        const state = await componentManager.getRemoteState(RPGUnit.ID);
+        const state = await componentManager.getRemoteState(RPGUnitInfo.FRAMEWORK_NAME);
         const status = state?.status;
 
         // RPGUnit is installed
@@ -449,27 +457,27 @@ export class RPGUnit implements IBMiComponent {
         const extensionVersion = RPGUnit.context.extension.packageJSON.version;
         const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
         const title = status === 'NeedsUpdate' ?
-            'RPGUnit Update Required' :
-            'RPGUnit Installation Required';
+            `${RPGUnitInfo.FRAMEWORK_NAME} Update Required` :
+            `${RPGUnitInfo.FRAMEWORK_NAME} Installation Required`;
         const installMessage = status === 'NeedsUpdate' ?
-            `RPGUnit must be updated to v${VERSION} on the IBM i to use v${extensionVersion} of the IBM i Testing extension.` :
-            `RPGUnit must be installed with at least v${VERSION} on the IBM i to use v${extensionVersion} of the IBM i Testing extension.`;
+            `${RPGUnitInfo.FRAMEWORK_NAME} must be updated to at least v${RPGUnitInfo.MINIMUM_VERSION} on the IBM i to use v${extensionVersion} of the IBM i Testing extension.` :
+            `${RPGUnitInfo.FRAMEWORK_NAME} must be installed with at least v${RPGUnitInfo.MINIMUM_VERSION} on the IBM i to use v${extensionVersion} of the IBM i Testing extension.`;
         const installQuestion = status === 'NeedsUpdate' ?
             `Can it be updated in ${productLibrary}.LIB?` :
             `Can it be installed into ${productLibrary}.LIB?`;
         const installButton = status === 'NeedsUpdate' ? 'Update' : 'Install';
-        const compatabilityMessage = `It is always recommended to stay current to leverage the latest enhancements. However if you would like to keep the current version of RPGUnit, check the documentation to see what version of the extension is compatible.`;
-        const configureProductLibraryMessage = `You can also maintain several different versions of RPGUnit by installing it into a different library. Simply configure the product library in the extension settings and make sure to set your library list accordingly.`;
+        const compatabilityMessage = `It is always recommended to stay current to leverage the latest enhancements. However if you would like to keep the current version of ${RPGUnitInfo.FRAMEWORK_NAME}, check the documentation to see what version of the extension is compatible.`;
+        const configureProductLibraryMessage = `You can also maintain several different versions of ${RPGUnitInfo.FRAMEWORK_NAME} by installing it into a different library. Simply configure the product library in the extension settings and make sure to set your library list accordingly.`;
         const progressBarMessage = status === 'NeedsUpdate' ?
-            `Updating ${RPGUnit.ID}` :
-            `Installing ${RPGUnit.ID}`;
+            `Updating ${RPGUnitInfo.FRAMEWORK_NAME}` :
+            `Installing ${RPGUnitInfo.FRAMEWORK_NAME}`;
 
         // Prompt user to install or update RPGUnit
         return await window.showErrorMessage(title, { modal: true, detail: `${installMessage} ${installQuestion}\n\n${compatabilityMessage}\n\n${configureProductLibraryMessage}` }, installButton, 'Configure Product Library', 'View Documentation').then(async (value) => {
             if (value === installButton) {
                 const state = await window.withProgress({ title: `Components`, location: ProgressLocation.Notification }, async (progress) => {
                     progress.report({ message: progressBarMessage });
-                    return (await componentManager.installComponent(RPGUnit.ID)).state;
+                    return (await componentManager.installComponent(RPGUnitInfo.FRAMEWORK_NAME)).state;
                 });
                 if (state.status === `Installed`) {
                     return { status: true };
@@ -477,7 +485,7 @@ export class RPGUnit implements IBMiComponent {
             } else if (value === 'Configure Product Library') {
                 await commands.executeCommand('workbench.action.openSettings', '@ext:IBM.vscode-ibmi-testing');
             } else if (value === 'View Documentation') {
-                await env.openExternal(Uri.parse('https://codefori.github.io/docs/developing/testing/overview/#2-rpgunit'));
+                await env.openExternal(Uri.parse(`https://codefori.github.io/docs/developing/testing/overview/#2-${RPGUnitInfo.FRAMEWORK_NAME.toLowerCase()}`));
             }
 
             return { status: false, error: installMessage };
@@ -556,11 +564,11 @@ export class RPGUnit implements IBMiComponent {
 
         // Request user to approve usage of product library which exists on the current IBM i
         const useExisting = await window.showInformationMessage(
-            `RPGUnit Usage Approval`,
+            `${RPGUnitInfo.FRAMEWORK_NAME} Usage Approval`,
             {
                 modal: true,
                 detail: [
-                    `RPGUnit v${VERSION} is installed in ${productLibrary}.LIB on the IBM i. Since it is the first time you are using this library via this extension, do you approve the usage of it to compile and run your unit tests? If you do not wish to use this existing library, you can configure a different product library and install your own version of RPGUnit.`,
+                    `${RPGUnitInfo.FRAMEWORK_NAME} is installed in ${productLibrary}.LIB on the IBM i. Since it is the first time you are using this library via this extension, do you approve the usage of it to compile and run your unit tests? If you do not wish to use this existing library, you can configure a different product library and install your own version of ${RPGUnitInfo.FRAMEWORK_NAME}.`,
                     ``,
                     ...objectInformation,
                 ].join(`\n`)
@@ -578,7 +586,7 @@ export class RPGUnit implements IBMiComponent {
         } else if (useExisting === `Configure Product Library`) {
             // User wants to use a different library
             await commands.executeCommand('workbench.action.openSettings', '@ext:IBM.vscode-ibmi-testing');
-            return { approved: false, error: `${productLibrary}.LIB was not approved for usage. Configure the product library in the extension settings and install RPGUnit into it before any running tests.` };
+            return { approved: false, error: `${productLibrary}.LIB was not approved for usage. Configure the product library in the extension settings and install ${RPGUnitInfo.FRAMEWORK_NAME} into it before any running tests.` };
         } else {
             // User dismissed the dialog
             return { approved: false, error: `${productLibrary}.LIB was not approved for usage.` };

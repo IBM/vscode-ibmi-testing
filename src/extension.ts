@@ -4,6 +4,7 @@ import { getComponentRegistry, getInstance, loadBase } from "./extensions/ibmi";
 import { Configuration, Section } from "./configuration";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { RPGUnit } from "./components/rpgUnit/rpgUnit";
+import { RPGUnitInfo } from "./components/rpgUnit/info";
 import { CodeCov } from "./components/codeCov/codeCov";
 import * as tmp from "tmp";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
@@ -39,7 +40,7 @@ export async function activate(context: ExtensionContext): Promise<IBMiTesting> 
 		if (event.affectsConfiguration(`${Configuration.group}.${Section.productLibrary}`)) {
 			const connection = ibmi!.getConnection();
 			const componentManager = connection?.getComponentManager();
-			await componentManager?.getRemoteState(RPGUnit.ID);
+			await componentManager?.getRemoteState(RPGUnitInfo.FRAMEWORK_NAME);
 		}
 
 		if (event.affectsConfiguration(`${Configuration.group}.${Section.testSourceFiles}`)) {

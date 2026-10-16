@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { components } from "@octokit/openapi-types";
 import fetch from "node-fetch";
 import * as path from "path";
-import { OWNER, REPO } from "./version";
+import { RPGUnitInfo } from "./info";
 
 export interface Response<T> {
     data: T,
@@ -21,8 +21,8 @@ export namespace GitHub {
         try {
             const octokit = new Octokit();
             const response = await octokit.rest.repos.listReleases({
-                owner: OWNER,
-                repo: REPO
+                owner: RPGUnitInfo.OWNER,
+                repo: RPGUnitInfo.REPO
             });
 
             if (response.status === 200) {
@@ -45,8 +45,8 @@ export namespace GitHub {
         try {
             const octokit = new Octokit();
             const response = await octokit.rest.repos.getLatestRelease({
-                owner: OWNER,
-                repo: REPO
+                owner: RPGUnitInfo.OWNER,
+                repo: RPGUnitInfo.REPO
             });
 
             if (response.status === 200) {
