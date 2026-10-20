@@ -88,9 +88,10 @@ export async function activate(context: ExtensionContext): Promise<IBMiTesting> 
 		userLibraryList = config.libraryList;
 	});
 	ibmi!.subscribe(context, 'disconnected', 'Dispose IBM i Test Manager', async () => {
-		if (connection) {
-			await testOutputLogger.log(LogLevel.Debug, `Disconnected from ${connection.currentUser}@${connection.currentHost}`);
-		}
+		// Cancel active test run and clean up existing results
+		commands.executeCommand(`testing.cancelRun`);
+		commands.executeCommand(`testing.clearTestResults`);
+		commands.executeCommand(`testing.coverage.close`);
 
 		// Clean up test manager
 		if (manager) {
@@ -101,8 +102,9 @@ export async function activate(context: ExtensionContext): Promise<IBMiTesting> 
 		// Clean up cache
 		userLibraryList = undefined;
 
-		// TODO: Handle disposing of tests mid execution
-		commands.executeCommand(`testing.coverage.close`);
+		if (connection) {
+			await testOutputLogger.log(LogLevel.Debug, `Disconnected from ${connection.currentUser}@${connection.currentHost}`);
+		}
 	});
 
 	// Miscellaneous setup
