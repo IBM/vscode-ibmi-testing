@@ -1,4 +1,4 @@
-import { ConfigurationChangeEvent, ExtensionContext, LogLevel, workspace } from "vscode";
+import { commands, ConfigurationChangeEvent, ExtensionContext, LogLevel, workspace } from "vscode";
 import { IBMiTestManager } from "./manager";
 import { getComponentRegistry, getInstance, loadBase } from "./extensions/ibmi";
 import { Configuration, Section } from "./configuration";
@@ -102,6 +102,7 @@ export async function activate(context: ExtensionContext): Promise<IBMiTesting> 
 		userLibraryList = undefined;
 
 		// TODO: Handle disposing of tests mid execution
+		commands.executeCommand(`testing.coverage.close`);
 	});
 
 	// Miscellaneous setup
