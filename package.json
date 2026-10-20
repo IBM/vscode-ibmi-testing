@@ -79,11 +79,14 @@
               "Test Source File": "QTESTSRC",
               "Test Source Directory": "qtestsrc",
               "Prompt For Test Name": false,
+              "Prompt For Input Value": false,
+              "Prompt For Expected Value": false,
               "Generate Default Test Configuration": true,
               "Add Control Options and Directives": true,
               "Add Includes": true,
               "Add Prototypes": true,
-              "Add Stub Comments": false
+              "Add Stub Comments": false,
+              "Qualify SQL Function And Procedure Calls": false
             },
             "properties": {
               "Show Test Stub Preview": {
@@ -101,6 +104,14 @@
               "Prompt For Test Name": {
                 "type": "boolean",
                 "default": false
+              },
+              "Prompt For Input Value": {
+                "type": "boolean",
+                "default": true
+              },
+              "Prompt For Expected Value": {
+                "type": "boolean",
+                "default": true
               },
               "Generate Default Test Configuration": {
                 "type": "boolean",
@@ -121,10 +132,14 @@
               "Add Stub Comments": {
                 "type": "boolean",
                 "default": false
+              },
+              "Qualify SQL Function And Procedure Calls": {
+                "type": "boolean",
+                "default": false
               }
             },
             "additionalProperties": false,
-            "markdownDescription": "Preferences for how test stubs should be generated:\n* `Show Test Stub Preview`: Controls whether to show a preview of the test stub before adding it to the file or source member. This refactoring preview can also be used to selectively insert portions of the stub.\n* `Test Source File`: The default source file to generate new test members into.\n* `Test Source Directory`: The default directory to generate new test files into.\n* `Prompt For Test Name`: Controls whether to prompt for the name of the test including where it is located. The default source file is set using the `Test Source File` preference, the default directory is set using the `Test Source Directory` preference, and the test file or member will be named according to the rules described [here](https://codefori.github.io/docs/developing/testing/writing/#test-suites).\n* `Generate Default Test Configuration`: Controls whether a default `testing.json` should be created alongside the generated test when no existing configuration is found.\n* `Add Control Options and Directives`: Controls whether to add control options (`ctl-opt nomain ccsidcvt(*excp) ccsid(*char : *jobrun);`) and directives (`**free`) for new test files or members.\n* `Add Includes`: Controls whether to generate relevant includes.\n* `Add Prototypes`: Controls whether to generate a prototype for the procedure being tested (if it does not already exist).\n* `Add Stub Comments`: Controls whether to add comments to the test stub to distinguish inputs, actual results, expected results, and assertions."
+            "markdownDescription": "Preferences for how test stubs should be generated:\n* `Show Test Stub Preview`: Controls whether to show a preview of the test stub before adding it to the file or source member. This refactoring preview can also be used to selectively insert portions of the stub.\n* `Test Source File`: The default source file to generate new test members into.\n* `Test Source Directory`: The default directory to generate new test files into.\n* `Prompt For Test Name`: Controls whether to prompt for the name of the test including where it is located. The default source file is set using the `Test Source File` preference, the default directory is set using the `Test Source Directory` preference, and the test file or member will be named according to the rules described [here](https://codefori.github.io/docs/developing/testing/writing/#test-suites).\n* `Prompt For Input Value`: Controls whether to prompt for the input value of each parameter when generating a test stub.\n* `Prompt For Expected Value`: Controls whether to prompt for the expected value of each return field when generating a test stub.\n* `Generate Default Test Configuration`: Controls whether a default `testing.json` should be created alongside the generated test when no existing configuration is found.\n* `Add Control Options and Directives`: Controls whether to add control options (`ctl-opt nomain ccsidcvt(*excp) ccsid(*char : *jobrun);`) and directives (`**free`) for new test files or members.\n* `Add Includes`: Controls whether to generate relevant includes.\n* `Add Prototypes`: Controls whether to generate a prototype for the procedure being tested (if it does not already exist).\n* `Add Stub Comments`: Controls whether to add comments to the test stub to distinguish inputs, actual results, expected results, and assertions.\n* `Qualify SQL Function And Procedure Calls`: Controls whether to qualify the function or procedure name with its schema in the generated embedded SQL (e.g. `MYSCHEMA.MYFUNC` vs `MYFUNC`)."
           },
           "IBM i Testing.libraryListValidation": {
             "order": 3,
@@ -265,6 +280,7 @@
   },
   "devDependencies": {
     "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
+    "vscode-db2i": "github:halcyon-tech/vscode-db2i",
     "@halcyontech/vscode-ibmi-types": "^3.0.7",
     "@octokit/rest": "22.0.1",
     "@types/node": "22.x",

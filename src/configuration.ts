@@ -6,11 +6,14 @@ export interface TestStubPreferences {
     "Test Source File": string;
     "Test Source Directory": string;
     "Prompt For Test Name": boolean;
+    "Prompt For Input Value": boolean;
+    "Prompt For Expected Value": boolean;
     "Generate Default Test Configuration": boolean;
     "Add Control Options and Directives": boolean;
     "Add Includes": boolean;
     "Add Prototypes": boolean;
     "Add Stub Comments": boolean;
+    "Qualify SQL Function And Procedure Calls": boolean;
 }
 
 export interface LibraryListValidation {
@@ -42,11 +45,14 @@ export const defaultConfigurations: { [T in Section]: ValueType } = {
         "Test Source File": "QTESTSRC",
         "Test Source Directory": "qtestsrc",
         "Prompt For Test Name": false,
+        "Prompt For Input Value": false,
+        "Prompt For Expected Value": false,
         "Generate Default Test Configuration": true,
         "Add Control Options and Directives": true,
         "Add Includes": true,
         "Add Prototypes": true,
-        "Add Stub Comments": false
+        "Add Stub Comments": false,
+        "Qualify SQL Function And Procedure Calls": false
     },
     [Section.libraryListValidation]: {
         "RPGUNIT": true,

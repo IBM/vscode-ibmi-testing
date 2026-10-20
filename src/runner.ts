@@ -16,6 +16,7 @@ import * as path from "path";
 import { IfsConfigHandler, LocalConfigHandler, QsysConfigHandler } from "../api/config";
 import Parser from "vscode-rpgle/language/ile/parser";
 import { TestRunResult } from "./types";
+import { DeploymentMethod } from "@halcyontech/vscode-ibmi-types/api/types";
 
 export class IBMiTestRunner {
     private manager: IBMiTestManager;
@@ -277,8 +278,8 @@ export class IBMiTestRunner {
             },
             deploy: async (workspaceFolderPath: string): Promise<DeploymentStatus> => {
                 const workspaceFolder = workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath))!;
-                const defaultDeploymentMethod = config.defaultDeploymentMethod;
-                const deployResult = await deployTools!.launchDeploy(workspaceFolder.index, defaultDeploymentMethod || undefined);
+                const deployMethod = testCallbacks.getDeployMethod();
+                const deployResult = await deployTools!.launchDeploy(workspaceFolder.index, deployMethod);
                 const deploymentStatus = deployResult ? 'success' : 'errored';
                 return deploymentStatus;
             },
@@ -286,6 +287,10 @@ export class IBMiTestRunner {
                 const workspaceFolder = workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath))!;
                 const deployDirectory = deployTools!.getRemoteDeployDirectory(workspaceFolder)!;
                 return deployDirectory;
+            },
+            getDeployMethod: function (): DeploymentMethod {
+                const config = connection.getConfig();
+                return config.defaultDeploymentMethod || `compare`;
             },
             getLibraryList: async (workspaceFolderPath?: string): Promise<ILELibrarySettings> => {
                 const workspaceFolder = workspaceFolderPath ? workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath)) : undefined;

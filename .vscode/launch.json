@@ -11,9 +11,7 @@
 			"request": "launch",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"${workspaceFolder}/examples/rpg-utils",
-				"${workspaceFolder}/examples/rpgunit-stmf",
-				"${workspaceFolder}/examples/ibmi-company_system",
+				"${workspaceFolder}/examples/examples.code-workspace"
 			],
 			"outFiles": [
 				"${workspaceFolder}/dist/**/*.js"
