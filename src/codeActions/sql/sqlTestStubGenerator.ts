@@ -334,10 +334,11 @@ export namespace SqlTestStubGenerator {
             return `  ${varName} = ${detail.defaultValue};`;
         });
 
-        // Parameter host variables for embedded SQL
-        const paramHostVars = routineSignature.parms.map((p, i) => {
-            return `:${toRpgVarName(p.PARAMETER_NAME, i, `param`)}`;
-        }).join(`, `);
+        // Named parameters with host variables for embedded SQL
+        const callArgs = routineSignature.parms.map((p, i, parms) => {
+            const hostVar = `:${toRpgVarName(p.PARAMETER_NAME, i, `param`)}`;
+            return `        ${p.PARAMETER_NAME ? `${p.PARAMETER_NAME} => ` : ``}${hostVar}${i < parms.length - 1 ? `,` : ``}`;
+        });
 
         return [
             `dcl-proc ${procedureName} export;`,
@@ -355,7 +356,10 @@ export namespace SqlTestStubGenerator {
             ``,
             ...(addStubComments ? [`  // Actual results`] : []),
             `  exec sql`,
-            `    SET :actual = ${callName}(${paramHostVars});`,
+            `    SET :actual =`,
+            `      ${callName}(`,
+            ...callArgs,
+            `      );`,
             ``,
             `  if (SQLCODE <> 0);`,
             `    fail('Failed to fetch using ${callName}. SQLCODE: ' + %char(SQLCODE));`,
@@ -418,10 +422,11 @@ export namespace SqlTestStubGenerator {
             return `        ${colName}${i < cols.length - 1 ? `,` : ``}`;
         });
 
-        // Parameter host variables for embedded SQL
-        const paramHostVars = routineSignature.parms.map((p, i) => {
-            return `:${toRpgVarName(p.PARAMETER_NAME, i, `param`)}`;
-        }).join(`, `);
+        // Named parameters with host variables for embedded SQL
+        const callArgs = routineSignature.parms.map((p, i, parms) => {
+            const hostVar = `:${toRpgVarName(p.PARAMETER_NAME, i, `param`)}`;
+            return `          ${p.PARAMETER_NAME ? `${p.PARAMETER_NAME} => ` : ``}${hostVar}${i < parms.length - 1 ? `,` : ``}`;
+        });
 
         // Assertions
         const assertions = routineSignature.returns.map((col, i) => {
@@ -457,9 +462,14 @@ export namespace SqlTestStubGenerator {
                 `    DECLARE ${cursorName} CURSOR FOR`,
                 `      SELECT`,
                 ...selectCols,
-                `      FROM TABLE(${callName}(${paramHostVars}));`,
+                `      FROM TABLE(`,
+                `        ${callName}(`,
+                ...callArgs,
+                `        )`,
+                `      );`,
                 ``,
-                `  exec sql OPEN ${cursorName};`,
+                `  exec sql`,
+                `    OPEN ${cursorName};`,
                 ``,
                 `  exec sql`,
                 `    FETCH ${cursorName} FOR 1 ROWS INTO :actual;`,
@@ -468,7 +478,8 @@ export namespace SqlTestStubGenerator {
                 `    fail('Failed to fetch using ${callName}. SQLCODE: ' + %char(SQLCODE));`,
                 `  endif;`,
                 ``,
-                `  exec sql CLOSE ${cursorName};`,
+                `  exec sql`,
+                `    CLOSE ${cursorName};`,
                 ``,
                 ...(addStubComments ? [`  // Expected results`] : []),
                 ...expectedInits,
@@ -508,9 +519,10 @@ export namespace SqlTestStubGenerator {
         });
 
         // Parameter host variables for embedded SQL
-        const callArgs = routineSignature.parms.map((p, i) => {
-            return `      :${toRpgVarName(p.PARAMETER_NAME, i, `param`)}`;
-        }).join(`,\n`);
+        const callArgs = routineSignature.parms.map((p, i, parms) => {
+            const hostVar = `:${toRpgVarName(p.PARAMETER_NAME, i, `param`)}`;
+            return `      ${p.PARAMETER_NAME ? `${p.PARAMETER_NAME} => ` : ``}${hostVar}${i < parms.length - 1 ? `,` : ``}`;
+        });
 
         // Expected OUT/INOUT initializations
         const expectedInits = outParams.map(p => {
@@ -538,7 +550,7 @@ export namespace SqlTestStubGenerator {
             ...(addStubComments ? [`  // Call`] : []),
             `  exec sql`,
             `    CALL ${callName}(`,
-            callArgs,
+            ...callArgs,
             `    );`,
             ``,
             `  if (SQLCODE <> 0);`,
