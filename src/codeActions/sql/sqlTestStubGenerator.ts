@@ -413,9 +413,10 @@ export namespace SqlTestStubGenerator {
         const cursorName = `C${cursorIndex}`;
 
         // Select columns for embedded SQL
-        const selectCols = routineSignature.returns.map(col => {
-            return col.PARAMETER_NAME?.toLocaleUpperCase() ?? col.PARAMETER_NAME;
-        }).join(`, `);
+        const selectCols = routineSignature.returns.map((col, i, cols) => {
+            const colName = col.PARAMETER_NAME?.toLocaleUpperCase() ?? col.PARAMETER_NAME;
+            return `        ${colName}${i < cols.length - 1 ? `,` : ``}`;
+        });
 
         // Parameter host variables for embedded SQL
         const paramHostVars = routineSignature.parms.map((p, i) => {
@@ -454,8 +455,9 @@ export namespace SqlTestStubGenerator {
                 ...(addStubComments ? [`  // Actual results`] : []),
                 `  exec sql`,
                 `    DECLARE ${cursorName} CURSOR FOR`,
-                `      SELECT ${selectCols}`,
-                `        FROM TABLE(${callName}(${paramHostVars}));`,
+                `      SELECT`,
+                ...selectCols,
+                `      FROM TABLE(${callName}(${paramHostVars}));`,
                 ``,
                 `  exec sql OPEN ${cursorName};`,
                 ``,
