@@ -54,7 +54,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "ts-loader": "^9.5.7",
     "typescript": "^5.8.2",
-    "vite": "^8.1.5",
+    "vite": "^8.3.5",
     "vitest": "^4.1.10",
     "vscode-ibmi": "github:halcyon-tech/vscode-ibmi",
     "vscode-rpgle": "github:halcyon-tech/vscode-rpgle",
