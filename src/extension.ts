@@ -3,18 +3,20 @@ import { IBMiTestManager } from "./manager";
 import { getComponentRegistry, getInstance, loadBase } from "./extensions/ibmi";
 import { Configuration, Section } from "./configuration";
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
-import { RPGUnit } from "./components/rpgUnit";
-import { CodeCov } from "./components/codeCov";
+import { RPGUnit } from "./components/rpgUnit/rpgUnit";
+import { CodeCov } from "./components/codeCov/codeCov";
 import * as tmp from "tmp";
 import { TestOutputLogger } from "./loggers/testOutputLogger";
-import { TestStubCodeActions } from "./codeActions/testStub";
-import { IBMiTestingApi } from "./types";
+import { TestStubGenerator } from "./codeActions/testStubGenerator";
+import { TestStubCodeActions } from "./codeActions";
+import { IBMiTesting } from "./types";
+import { GlobalState } from "./globalState";
 
 export let testOutputLogger: TestOutputLogger = new TestOutputLogger();
 export let manager: IBMiTestManager | undefined;
 let userLibraryList: string[] | undefined;
 
-export async function activate(context: ExtensionContext): Promise<IBMiTestingApi> {
+export async function activate(context: ExtensionContext): Promise<IBMiTesting> {
 	console.log('Congratulations, your extension "vscode-ibmi-testing" is now active!');
 	const installedVersion = context.extension.packageJSON.version;
 	await testOutputLogger.log(LogLevel.Info, `IBM i Testing (v${installedVersion}) extension activated!`);
@@ -22,6 +24,9 @@ export async function activate(context: ExtensionContext): Promise<IBMiTestingAp
 	// Load Code4i API
 	loadBase();
 	const ibmi = getInstance();
+
+	// Initialize global state
+	GlobalState.initialize(context);
 
 	// Initialize configurations
 	Configuration.initialize();
@@ -61,7 +66,7 @@ export async function activate(context: ExtensionContext): Promise<IBMiTestingAp
 	});
 
 	// Register components
-	const rpgUnit = new RPGUnit();
+	const rpgUnit = new RPGUnit(context);
 	const codeCov = new CodeCov();
 	const componentRegistry = getComponentRegistry();
 	componentRegistry?.registerComponent(context, rpgUnit);
@@ -102,9 +107,10 @@ export async function activate(context: ExtensionContext): Promise<IBMiTestingAp
 	tmp.setGracefulCleanup();
 
 	return {
-		getManager: () => {
+		getTestManager: () => {
 			return manager;
-		}
+		},
+		testStubGenerator: TestStubGenerator
 	};
 }
 

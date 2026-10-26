@@ -1,5 +1,9 @@
 node_modules
 dist
+coverage
 .DS_Store
 .itest
 *.vsix
+.env
+.config.json
+.storage.json

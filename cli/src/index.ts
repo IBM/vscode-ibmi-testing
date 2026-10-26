@@ -9,13 +9,10 @@ import { TestOutputLogger } from "./loggers/testOutputLogger";
 import { TestResultLogger } from "./loggers/testResultLogger";
 import { IfsTestBucketBuilder, LocalTestBucketBuilder, QsysTestBucketBuilder, TestBucketBuilder } from "./testBucketBuilder";
 import { CodeForIStorage } from "vscode-ibmi/src/api/configuration/storage/CodeForIStorage";
-import { VirtualStorage } from "vscode-ibmi/src/api/configuration/storage/BaseStorage";
 import { VirtualConfig } from "vscode-ibmi/src/api/configuration/config/VirtualConfig";
 import { extensionComponentRegistry } from "vscode-ibmi/src/api/components/manager";
-import { CustomQSh } from "vscode-ibmi/src/api/components/cqsh";
-import { GetNewLibl } from "vscode-ibmi/src/api/components/getNewLibl";
-import { GetMemberInfo } from "vscode-ibmi/src/api/components/getMemberInfo";
-import { CopyToImport } from "vscode-ibmi/src/api/components/copyToImport";
+import { Mapepire } from "vscode-ibmi/src/api/components/mapepire";
+import { BaseStorage } from "vscode-ibmi/src/api/configuration/storage/BaseStorage";
 import { LocalSSH } from "./localSsh";
 import { ApiUtils } from "../../api/apiUtils";
 import { Option, program } from "commander";
@@ -27,6 +24,7 @@ import os from 'os';
 import { exit } from "process";
 import inquirer from "inquirer";
 import pkg from '../package.json';
+import Parser from "vscode-rpgle/language/ile/parser";
 
 interface Options {
     localDirectory?: string;
@@ -260,13 +258,9 @@ function main() {
             IBMi.connectionManager.configMethod = virtualConfig;
 
             // Setup components
-            const customQsh = new CustomQSh();
-            customQsh.setLocalAssetPath(path.join(__dirname, customQsh.getFileName()));
+            const mapepire = new Mapepire(__dirname);
             const testingId = `itest`;
-            extensionComponentRegistry.registerComponent(testingId, customQsh);
-            extensionComponentRegistry.registerComponent(testingId, new GetNewLibl());
-            extensionComponentRegistry.registerComponent(testingId, new GetMemberInfo());
-            extensionComponentRegistry.registerComponent(testingId, new CopyToImport());
+            extensionComponentRegistry.registerComponent(testingId, mapepire);
 
             // Connect to IBM i
             if (!isRunningOnIBMi) {
@@ -289,6 +283,9 @@ function main() {
                             if (!isRunningOnIBMi) {
                                 spinner.text = `${credentials.name}: ${message}`;
                             }
+                        },
+                        inputBox: async (prompt: string, placeHolder: string, ignoreFocusOut: boolean) => {
+                            return undefined;
                         },
                         uiErrorHandler: async (connection, code, data) => {
                             return false;
@@ -335,7 +332,7 @@ function main() {
                         localDirectory ? ` in ${localDirectory}` :
                             ifsDirectory ? ` in ${ifsDirectory}` : ``;
                     spinner.fail(`No test suites found${location}`);
-                    await connection.dispose();
+                    await connection.disconnect();
                     exit(1);
                 }
 
@@ -347,6 +344,10 @@ function main() {
                 // Setup test callbacks
                 let finalCoverageDatasets: MergedCoverageData[] = [];
                 const testCallbacks: TestCallbacks = {
+                    getDocs: async function (uri: string, content: string): Promise<any | undefined> {
+                        const rpgleParser = new Parser();
+                        return await rpgleParser.getDocs(uri, content);
+                    },
                     deploy: async function (workspaceFolderPath: string): Promise<DeploymentStatus> {
                         try {
                             const content = connection.getContent();
@@ -453,7 +454,7 @@ function main() {
                 spinner.stop();
                 const runner: Runner = new Runner(connection as any, testRequest, testCallbacks, testLogger);
                 await runner.run();
-                await connection.dispose();
+                await connection.disconnect();
                 await testResultLogger.append(`\n`);
                 const testMetrics = runner.getTestMetrics();
 
@@ -473,5 +474,11 @@ function main() {
 
     } catch (error) {
         console.log(error);
+    }
+}
+
+class VirtualStorage extends BaseStorage {
+    constructor() {
+        super(new Map<string, any>());
     }
 }

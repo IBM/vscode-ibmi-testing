@@ -36,6 +36,27 @@ For ideas on where to help out, check out the [open issues](https://github.com/I
     ```
 4. Use the `Run CLI` from VS Code's `Run and Debug` view or use the CLI from the terminal as described [here](./cli/README.md).
 
+### API
+
+1. Follow steps 1-3 from the [Extension](#extension) section above.
+2. Install all API dependencies.
+    ```sh
+    cd api
+    npm install
+    ```
+3. Copy the sample env file and fill in the necessary environment variables.
+    ```sh
+    cp tests/.env.sample tests/.env
+    ```
+4. Run the API tests.
+    ```sh
+    npm run test
+    ```
+5. Run the API tests with coverage.
+    ```sh
+    npm run coverage
+    ```
+
 ## Contributors
 
 Thanks so much to everyone [who has contributed](https://github.com/IBM/vscode-ibmi-testing/graphs/contributors).

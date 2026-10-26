@@ -7,6 +7,11 @@ export enum LogLevel {
     Error = 5
 }
 
+export interface LogStorage {
+    shouldStore: boolean,
+    logs: string[]
+}
+
 export interface Logger {
     append: (message: string) => Promise<void>;
     appendWithNotification: (level: LogLevel, message: string, details?: string, buttons?: { label: string, func: () => Promise<void> }[]) => Promise<void>;
@@ -146,11 +151,16 @@ export interface TestMetrics {
 
 export interface TestingConfig {
     rpgunit?: {
-        rucrtrpg?: RUCRTRPG & { wrapperCmd?: WrapperCmd },
-        rucrtcbl?: RUCRTCBL & { wrapperCmd?: WrapperCmd },
-        rucalltst?: RUCALLTST & { wrapperCmd?: WrapperCmd }
+        rucrtrpg?: RUCRTRPG & CommandOverrides,
+        rucrtcbl?: RUCRTCBL & CommandOverrides,
+        rucalltst?: RUCALLTST & CommandOverrides
     },
-    codecov?: CODECOV
+    codecov?: CODECOV & CommandOverrides
+}
+
+export interface CommandOverrides {
+    proxyCmd?: string,
+    wrapperCmd?: WrapperCmd
 }
 
 export interface RUCRTRPG {
@@ -166,11 +176,14 @@ export interface RUCRTRPG {
     bOption?: string,
     define?: string[],
     dltSplf?: string,
+    dltMod?: string,
     actGrp?: string,
     module?: string[],
     rpgPpOpt?: string,
     pOption?: string[],
     compileOpt?: string,
+    cmpparm?: string,
+    lnkparm?: string,
     tgtRls?: string
     incDir?: string[],
     tgtCcsid?: string | number
@@ -189,10 +202,13 @@ export interface RUCRTCBL {
     bOption?: string,
     define?: string[],
     dltSplf?: string,
+    dltMod?: string,
     actGrp?: string,
     module?: string[],
     pOption?: string[],
     compileOpt?: string,
+    cmpparm?: string,
+    lnkparm?: string,
     tgtRls?: string
     incDir?: string[],
     tgtCcsid?: number
@@ -234,7 +250,7 @@ export interface CoverageData {
     coverage: {
         signitures: string[],
         lineString: string,
-        activeLines: { [key: number]: boolean },
+        activeLines: { [key: number]: { name: string, executed: boolean } },
         percentRan: string
     }
 }
@@ -248,5 +264,5 @@ export interface MappedCoverageData {
 export interface MergedCoverageData {
     uri: BasicUri;
     ccLvl: CCLVL;
-    activeLines: { [key: number]: boolean }
+    activeLines: { [key: number]: { name: string, executed: boolean } }
 }

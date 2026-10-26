@@ -1,4 +1,4 @@
-import { CancellationToken, ExtensionContext, LogLevel, RelativePattern, TestController, TestItem, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, window, workspace, WorkspaceFolder } from "vscode";
+import { CancellationToken, ExtensionContext, LogLevel, RelativePattern, TestController, TestItem, TestRunProfile, TestRunProfileKind, TestRunRequest, tests, TestTag, TextDocument, TextDocumentChangeEvent, Uri, window, workspace, WorkspaceFolder } from "vscode";
 import * as path from "path";
 import { IBMiTestRunner } from "./runner";
 import { IBMiFileCoverage } from "./fileCoverage";
@@ -8,11 +8,13 @@ import { Configuration, Section } from "./configuration";
 import { testOutputLogger } from "./extension";
 import { TestData, TestFileData } from "./testData";
 import { CompileMode } from "../api/types";
+import { TestRunResult } from "./types";
 
 export class IBMiTestManager {
     public context: ExtensionContext;
     public testMap: WeakMap<TestItem, TestData>;
     public controller: TestController;
+    public profiles: TestRunProfile[];
 
     constructor(context: ExtensionContext) {
         this.context = context;
@@ -30,30 +32,41 @@ export class IBMiTestManager {
             await this.refreshTests();
         };
 
+        this.profiles = [];
+
         // Profiles for running tests
         ['Run Tests', 'Run Tests (Force Compile)', 'Run Tests (Skip Compile)'].forEach((profile, index) => {
             const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
-            this.controller.createRunProfile(profile, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
-                await this.createTestRun(request, token, compileMode);
+            const runProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Run, async (request: TestRunRequest, token: CancellationToken) => {
+                try {
+                    await this.createTestRun(request, token, compileMode);
+                } catch (error) { }
             }, index === 0, undefined, false);
+            this.profiles.push(runProfile);
         });
 
         // Profiles for running tests with line coverage
         ['Run Tests with Line Coverage', 'Run Tests with Line Coverage (Force Compile)', 'Run Tests with Line Coverage (Skip Compile)'].forEach((profile, index) => {
             const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
             const lineCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-                await this.createTestRun(request, token, compileMode);
+                try {
+                    await this.createTestRun(request, token, compileMode);
+                } catch (error) { }
             }, index === 0, undefined, false);
             lineCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
+            this.profiles.push(lineCoverageProfile);
         });
 
         // Profiles for running tests with procedure coverage
         ['Run Tests with Procedure Coverage', 'Run Tests with Procedure Coverage (Force Compile)', 'Run Tests with Procedure Coverage (Skip Compile)'].forEach((profile, index) => {
             const compileMode = index === 0 ? 'check' : index === 1 ? 'force' : 'skip';
             const procedureCoverageProfile = this.controller.createRunProfile(profile, TestRunProfileKind.Coverage, async (request: TestRunRequest, token: CancellationToken) => {
-                await this.createTestRun(request, token, compileMode);
+                try {
+                    await this.createTestRun(request, token, compileMode);
+                } catch (error) { }
             }, false, undefined, false);
             procedureCoverageProfile.loadDetailedCoverage = IBMiFileCoverage.loadDetailedCoverage;
+            this.profiles.push(procedureCoverageProfile);
         });
 
         context.subscriptions.push(
@@ -409,10 +422,8 @@ export class IBMiTestManager {
         }
     }
 
-    public async createTestRun(request: TestRunRequest, token: CancellationToken | undefined, compileMode: CompileMode): Promise<string[]> {
+    public async createTestRun(request: TestRunRequest, token: CancellationToken | undefined, compileMode: CompileMode): Promise<TestRunResult> {
         const runner = new IBMiTestRunner(this, request, token, compileMode);
-        await runner.runHandler();
-        // TODO: Return test result
-        return [];
+        return await runner.runHandler();
     }
 }

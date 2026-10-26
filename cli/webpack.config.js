@@ -47,9 +47,9 @@ const extensionConfig = {
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: path.resolve(__dirname, 'node_modules/vscode-ibmi/src/api/components/cqsh/cqsh'),
-          to: path.resolve(__dirname, 'dist/cqsh_1'),
-          toType: 'file'
+          context: path.resolve(__dirname, 'node_modules/vscode-ibmi/dist'),
+          from: 'mapepire-server-*.jar',
+          to: path.resolve(__dirname, 'dist/[name][ext]'),
         },
       ],
     }),
@@ -62,7 +62,8 @@ const extensionConfig = {
       },
       issue: {
         exclude: [
-          { file: '**/node_modules/**' }
+          { file: '**/node_modules/**' },
+          { file: '../api/node_modules/**' }
         ]
       }
     })

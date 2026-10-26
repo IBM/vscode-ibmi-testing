@@ -1,5 +1,5 @@
 
-import { MergedCoverageData, BasicUri, CODECOV, CompilationStatus, DeploymentStatus, Env, LogLevel, MappedCoverageData, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestSuite, WrapperCmd, TestOutcome, AssertionResult } from "./types";
+import { MergedCoverageData, BasicUri, CODECOV, CommandOverrides, CompilationStatus, DeploymentStatus, Env, LogLevel, MappedCoverageData, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestSuite, WrapperCmd, TestOutcome, AssertionResult } from "./types";
 import { TestLogger } from "./testLogger";
 import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
 import IBMi from "vscode-ibmi/src/api/IBMi";
@@ -9,9 +9,11 @@ import { CodeCoverageParser } from "./codeCoverageParser";
 import { XMLParser } from "./xmlParser";
 import * as xmljs from "xml-js";
 import * as path from "path";
+import Cache from "vscode-rpgle/language/models/cache";
 import { getParser } from "./evfEventFileReader";
 
 export interface TestCallbacks {
+    getDocs: (uri: string, content: string) => Promise<Cache | undefined>;
     deploy: (workspaceFolderPath: string) => Promise<DeploymentStatus>;
     getDeployDirectory(workspaceFolderPath: string): string;
     getLibraryList(workspaceFolderPath?: string): Promise<ILELibrarySettings>
@@ -40,7 +42,7 @@ export class Runner {
     private testCallbacks: TestCallbacks;
     private testLogger: TestLogger;
     private testMetrics: TestMetrics;
-    private mappedCoverageDatasets: MappedCoverageData[];
+    private mappedCoverageDatasets: MappedCoverageData[] | undefined;
 
     constructor(connection: IBMi, testRequest: TestRequest, testCallbacks: TestCallbacks, testLogger: TestLogger) {
         this.connection = connection;
@@ -55,7 +57,6 @@ export class Runner {
             testFiles: { passed: 0, failed: 0, errored: 0, skipped: 0, cancelled: 0 },
             testCases: { passed: 0, failed: 0, errored: 0, skipped: 0, cancelled: 0 }
         };
-        this.mappedCoverageDatasets = [];
     }
 
     getTestMetrics(): TestMetrics {
@@ -202,13 +203,15 @@ export class Runner {
             }
         }
 
-        const mergedCoverageDatasets = this.mergeCoverageDatasets(this.mappedCoverageDatasets);
-        this.testCallbacks.addCoverageDatasets(mergedCoverageDatasets);
+        if (this.mappedCoverageDatasets) {
+            const mergedCoverageDatasets = this.mergeCoverageDatasets(this.mappedCoverageDatasets);
+            this.testCallbacks.addCoverageDatasets(mergedCoverageDatasets);
 
-        const shouldLogCoverage = this.testCallbacks.shouldLogCoverage();
-        if (shouldLogCoverage) {
-            const coverageThresholds = this.testCallbacks.getCoverageThresholds();
-            await this.testLogger.logCoverage(mergedCoverageDatasets, coverageThresholds);
+            const shouldLogCoverage = this.testCallbacks.shouldLogCoverage();
+            if (shouldLogCoverage) {
+                const coverageThresholds = this.testCallbacks.getCoverageThresholds();
+                await this.testLogger.logCoverage(mergedCoverageDatasets, coverageThresholds);
+            }
         }
         await this.testLogger.logMetrics(this.testMetrics);
         await this.testCallbacks.end();
@@ -296,14 +299,17 @@ export class Runner {
             return 'errored';
         }
 
+        let proxyCmd: string | undefined;
         let wrapperCmd: WrapperCmd | undefined;
 
         const isRPGLE = ApiUtils.isRPGLE(testSuitePath);
         if (isRPGLE) {
             const rucrtrpg = testSuite.testingConfig?.rpgunit?.rucrtrpg;
+            proxyCmd = testSuite.testingConfig?.rpgunit?.rucrtrpg?.proxyCmd;
             wrapperCmd = testSuite.testingConfig?.rpgunit?.rucrtrpg?.wrapperCmd;
-            if (wrapperCmd) {
-                delete rucrtrpg?.wrapperCmd;
+            if (rucrtrpg) {
+                delete (rucrtrpg as CommandOverrides).proxyCmd;
+                delete (rucrtrpg as CommandOverrides).wrapperCmd;
             }
 
             compileParams = {
@@ -316,9 +322,11 @@ export class Runner {
             }
         } else {
             const rucrtcbl = testSuite.testingConfig?.rpgunit?.rucrtcbl;
+            proxyCmd = testSuite.testingConfig?.rpgunit?.rucrtcbl?.proxyCmd;
             wrapperCmd = testSuite.testingConfig?.rpgunit?.rucrtcbl?.wrapperCmd;
-            if (wrapperCmd) {
-                delete rucrtcbl?.wrapperCmd;
+            if (rucrtcbl) {
+                delete (rucrtcbl as CommandOverrides).proxyCmd;
+                delete (rucrtcbl as CommandOverrides).wrapperCmd;
             }
 
             compileParams = {
@@ -384,13 +392,22 @@ export class Runner {
         // Wrap all include directories in quotes
         compileParams.incDir = compileParams.incDir.map((dir) => `'${dir}'`);
 
+        // Wrap additional compiler and linker parameters in quotes
+        if(compileParams.cmpparm) {
+            compileParams.cmpparm = `'${compileParams.cmpparm}'`
+        }
+        if(compileParams.lnkparm) {
+            compileParams.lnkparm = `'${compileParams.lnkparm}'`
+        }
+
         // Flatten compile parameters and convert to strings
         const flattenedCompileParams = ApiUtils.flattenCommandParams(compileParams);
 
         // Build compile command
         const productLibrary = this.testCallbacks.getProductLibrary();
         const languageSpecificCommand = isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
-        let compileCommand = content.toCl(`${productLibrary}/${languageSpecificCommand}`, flattenedCompileParams as any);
+        const compileCommandName = proxyCmd || `${productLibrary}/${languageSpecificCommand}`;
+        let compileCommand = content.toCl(compileCommandName, flattenedCompileParams as any);
 
         // Wrap compile command if a wrapper command is specified
         if (wrapperCmd && wrapperCmd.cmd) {
@@ -403,7 +420,7 @@ export class Runner {
         let compileResult: any;
         try {
             const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
-            compileResult = await this.connection.runCommand({ command: compileCommand, environment: `ile`, env: env });
+            compileResult = await this.connection.runCommand({ command: compileCommand, environment: `ile`, env: env, getSpooledFiles: true });
         } catch (error: any) {
             await this.testLogger.logCompilation(testSuite.name, 'errored', [error.message ? error.message : error]);
             this.testMetrics.compilations.errored++;
@@ -520,9 +537,11 @@ export class Runner {
             // Merge base execution params (ie. from VS Code settings) and execution params from config file
             const baseExecutionParams = this.testCallbacks.getBaseExecutionParams(qualifiedTstPgm, xmlStmf, testCase?.name);
             const rucalltst = testSuite.testingConfig?.rpgunit?.rucalltst;
-            const wrapperCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.wrapperCmd;
-            if (wrapperCmd) {
-                delete rucalltst?.wrapperCmd;
+            const rucalltstProxyCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.proxyCmd;
+            const rucalltstWrapperCmd = testSuite.testingConfig?.rpgunit?.rucalltst?.wrapperCmd;
+            if (rucalltst) {
+                delete (rucalltst as CommandOverrides).proxyCmd;
+                delete (rucalltst as CommandOverrides).wrapperCmd;
             }
             const testParams: RUCALLTST = {
                 ...baseExecutionParams,
@@ -545,25 +564,26 @@ export class Runner {
 
             // Build call tests command
             const productLibrary = this.testCallbacks.getProductLibrary();
-            let testCommand = content.toCl(`${productLibrary}/RUCALLTST`, testParams as any);
+            const testCommandName = rucalltstProxyCmd || `${productLibrary}/RUCALLTST`;
+            let testCommand = content.toCl(testCommandName, testParams as any);
 
             // Wrap call tests command if a wrapper command is specified
-            if (wrapperCmd && wrapperCmd.cmd) {
-                const cmd = `${wrapperCmd.cmd}(${testCommand})`;
-                const params = wrapperCmd.params || {};
+            if (rucalltstWrapperCmd && rucalltstWrapperCmd.cmd) {
+                const cmd = `${rucalltstWrapperCmd.cmd}(${testCommand})`;
+                const params = rucalltstWrapperCmd.params || {};
                 testCommand = content.toCl(cmd, params);
             }
 
             // Build CODECOV command if code coverage is enabled
             let coverageParams: CODECOV | undefined;
             if (testSuite.ccLvl) {
+                const codecovProxyCmd = testSuite.testingConfig?.codecov?.proxyCmd;
+                const codecovWrapperCmd = testSuite.testingConfig?.codecov?.wrapperCmd;
                 coverageParams = {
                     cmd: testCommand,
                     module: [],
                     ccLvl: testSuite.ccLvl,
-                    ccView: testSuite.testingConfig?.codecov?.ccView,
                     outStmf: testStorage.CODECOV,
-                    testId: testSuite.testingConfig?.codecov?.testId,
                 };
 
                 // Add the service program under test and modules from the testing config
@@ -574,14 +594,32 @@ export class Runner {
                 coverageParams.module = coverageParams.module.map((m: string) => `(${m})`);
 
                 const flattenedCoverageParams = ApiUtils.flattenCommandParams(coverageParams);
-                testCommand = `QDEVTOOLS/CODECOV CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
+                const codecovCommandName = codecovProxyCmd || `QDEVTOOLS/CODECOV`;
+                let codecovCommand = `${codecovCommandName} CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
+
+                // Append extra params from the codecov config (anything beyond the fields already in the hand-rolled command)
+                const knownCodecovKeys = new Set<string>([...Object.keys(flattenedCoverageParams), `proxyCmd`, `wrapperCmd`]);
+                const extraCodecovParams = Object.fromEntries(
+                    Object.entries(testSuite.testingConfig?.codecov || {}).filter(([key]) => !knownCodecovKeys.has(key))
+                );
+                const flattenedExtraCodecovParams = ApiUtils.flattenCommandParams(extraCodecovParams);
+                codecovCommand = content.toCl(codecovCommand, flattenedExtraCodecovParams);
+
+                // Wrap code coverage command if a wrapper command is specified
+                if (codecovWrapperCmd && codecovWrapperCmd.cmd) {
+                    const cmd = `${codecovWrapperCmd.cmd}(${codecovCommand})`;
+                    const params = codecovWrapperCmd.params || {};
+                    testCommand = content.toCl(cmd, params);
+                } else {
+                    testCommand = codecovCommand;
+                }
             }
             await this.testLogger.testOutputLogger.log(LogLevel.Info, `Running ${testSuite.name}: ${testCommand}`);
 
             let testResult: any;
             try {
                 const env = testBucket.uri.scheme === 'file' ? await this.testCallbacks.getEnvConfig(testBucketPath) : {};
-                testResult = await this.connection.runCommand({ command: testCommand, environment: `ile`, env: env });
+                testResult = await this.connection.runCommand({ command: testCommand, environment: `ile`, env: env, getSpooledFiles: true });
             } catch (error: any) {
                 const assertionResult: AssertionResult[] = [{
                     outcome: 'error',
@@ -599,7 +637,9 @@ export class Runner {
 
             let hitRunTimeError: boolean = false;
             let resolvedXmlStmf: string = testParams.xmlStmf;
-            if (testResult.stdout.length > 0) {
+            const hasStdOut = testResult.stdout.length > 0;
+            const hasStdErr = testResult.stderr.length > 0;
+            if (hasStdOut) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Info, `${testSuite.name} execution output:\n${testResult.stdout}`);
                 const lines = testResult.stdout.split('\n');
                 for (const line of lines) {
@@ -611,20 +651,40 @@ export class Runner {
                 }
 
                 const match = testResult.stdout.match(/XML file\s*:\s*([\s\S]*?)XML type\s*:/);
-                if (match && match.length >= 1) {
+                if (match && match.length >= 2) {
                     resolvedXmlStmf = match[1]
                         .split(/\r?\n/)
                         .map((line: string) => line.trim().slice(1, -1))
                         .filter((line: string) => line.length > 0)
                         .join('');
+                } else {
+                    await this.testLogger.testOutputLogger.log(LogLevel.Warning, `Failed to extract resolved XML file from standard output`);
                 }
+            } else {
+                await this.testLogger.testOutputLogger.log(LogLevel.Warning, `${testSuite.name} execution output:\nNone`);
             }
-            if (testResult.stderr.length > 0) {
+            
+            if (hasStdErr) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Error, `${testSuite.name} execution error(s):\n${testResult.stderr}`);
+
+                if (!hasStdOut) {
+                    const match = testResult.stderr.match(/Created XML file\s*\([^)]*\)\s*:\s*(.+)$/m);
+                    if (match && match.length >= 2) {
+                        resolvedXmlStmf = match[1];
+                    } else {
+                        await this.testLogger.testOutputLogger.log(LogLevel.Warning, `Failed to extract resolved XML file from standard error`);
+                    }
+                }
+            } else {
+                await this.testLogger.testOutputLogger.log(LogLevel.Warning, `${testSuite.name} execution error(s):\nNone`);
             }
 
             if (testSuite.ccLvl) {
-                const codeCoverageParser = new CodeCoverageParser(this.connection, this.testLogger);
+                if (!this.mappedCoverageDatasets) {
+                    this.mappedCoverageDatasets = [];
+                }
+
+                const codeCoverageParser = new CodeCoverageParser(this.connection, this.testCallbacks, this.testLogger, testSuite.ccLvl);
                 const codeCoverage = await codeCoverageParser.getCoverage(coverageParams!.outStmf);
                 if (codeCoverage) {
                     for (const coverageData of codeCoverage) {
@@ -690,10 +750,14 @@ export class Runner {
                 const xmlParser = new XMLParser(xmlAsJs, isStreamFile, parser);
                 testCaseResults = xmlParser.parseTestResults();
             } catch (error: any) {
+                const message = (error.code && error.code === 2 && error.message && error.message === `No such file`) ?
+                    `${error.message} (${resolvedXmlStmf})` :
+                    (error.message ? error.message : error);
+
                 for (const testCase of testSuite.testCases) {
                     const assertionResult: AssertionResult[] = [{
                         outcome: 'error',
-                        message: error.message ? error.message : error
+                        message: message
                     }];
                     await this.testLogger.logTestCaseErrored(testCase.name, 0);
                     await this.testCallbacks.errored(testCase.uri, assertionResult);
@@ -784,12 +848,12 @@ export class Runner {
                 const existingLines = existingData.activeLines;
                 const newLines = mappedCoverageData.coverageData.coverage.activeLines;
 
-                for (const [lineStr, covered] of Object.entries(newLines)) {
+                for (const [lineStr, info] of Object.entries(newLines)) {
                     const line = Number(lineStr);
                     if (line in existingLines) {
-                        existingLines[line] = existingLines[line] || covered;
+                        existingLines[line].executed = existingLines[line].executed || info.executed;
                     } else {
-                        existingLines[line] = covered;
+                        existingLines[line] = info;
                     }
                 }
             }
