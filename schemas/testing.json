@@ -1008,7 +1008,22 @@
                 "testId": {
                     "type": "string",
                     "default": "",
-                    "markdownDescription": "Test ID"
+                    "markdownDescription": "Test Identifier\n\nSpecifies the test case identifier of the current code coverage session. It can be used as an identifier to merge code coverage reports."
+                },
+                "ccView": {
+                    "type": "string",
+                    "default": "*DFT",
+                    "enum": [
+                        "*DFT",
+                        "*LIST",
+                        "*SOURCE"
+                    ],
+                    "enumDescriptions": [
+                        "When the program is compiled with DBGVIEW(*LIST), it uses the *LIST view. When the program is compiled with DBGVIEW(*SOURCE) or DBGVIEW(*ALL), it uses the *SOURCE view.",
+                        "Use the *LIST view as the code coverage view for this code coverage session.",
+                        "Use the *SOURCE view as the code coverage view for this code coverage session."
+                    ],
+                    "markdownDescription": "Coverage View\n\nSpecifies the code coverage view to be used for all programs and service programs that are included in one code coverage session."
                 },
                 "exclude": {
                     "type": "array",
@@ -1017,7 +1032,7 @@
                         "type": "string",
                         "default": ""
                     },
-                    "markdownDescription": "Exclude\n\nObjects to exclude"
+                    "markdownDescription": "Exclude\n\nSpecifies objects that match the given name and type from all libraries to be excluded from code coverage instrumentation."
                 },
                 "proxyCmd": {
                     "type": "string",

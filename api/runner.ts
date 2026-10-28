@@ -392,10 +392,10 @@ export class Runner {
         compileParams.incDir = compileParams.incDir.map((dir) => `'${dir}'`);
 
         // Wrap additional compiler and linker parameters in quotes
-        if(compileParams.cmpparm) {
+        if (compileParams.cmpparm) {
             compileParams.cmpparm = `'${compileParams.cmpparm}'`
         }
-        if(compileParams.lnkparm) {
+        if (compileParams.lnkparm) {
             compileParams.lnkparm = `'${compileParams.lnkparm}'`
         }
 
@@ -592,6 +592,17 @@ export class Runner {
                 }
                 coverageParams.module = coverageParams.module.map((m: string) => `(${m})`);
 
+                // Add the other miscellaneous coverage parameters from the testing config
+                if (testSuite.testingConfig?.codecov?.ccView) {
+                    coverageParams.ccView = testSuite.testingConfig.codecov.ccView;
+                }
+                if (testSuite.testingConfig?.codecov?.testId) {
+                    coverageParams.testId = testSuite.testingConfig.codecov.testId;
+                }
+                if (testSuite.testingConfig?.codecov?.exclude) {
+                    coverageParams.exclude = testSuite.testingConfig.codecov.exclude;
+                }
+
                 const flattenedCoverageParams = ApiUtils.flattenCommandParams(coverageParams);
                 const codecovCommandName = codecovProxyCmd || `QDEVTOOLS/CODECOV`;
                 let codecovCommand = `${codecovCommandName} CMD(${flattenedCoverageParams.cmd}) MODULE(${flattenedCoverageParams.module}) CCLVL(${flattenedCoverageParams.ccLvl}) OUTSTMF('${flattenedCoverageParams.outStmf}')`;
@@ -662,7 +673,7 @@ export class Runner {
             } else {
                 await this.testLogger.testOutputLogger.log(LogLevel.Warning, `${testSuite.name} execution output:\nNone`);
             }
-            
+
             if (hasStdErr) {
                 await this.testLogger.testOutputLogger.log(LogLevel.Error, `${testSuite.name} execution error(s):\n${testResult.stderr}`);
 
