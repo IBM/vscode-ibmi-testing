@@ -290,7 +290,12 @@ export class IBMiTestRunner {
             getLibraryList: async (workspaceFolderPath?: string): Promise<ILELibrarySettings> => {
                 const workspaceFolder = workspaceFolderPath ? workspace.getWorkspaceFolder(Uri.file(workspaceFolderPath)) : undefined;
                 const libraryList = await ibmi!.getLibraryList(connection, workspaceFolder);
-                return libraryList;
+                const librarySetup: ILELibrarySettings = {
+                    currentLibrary: libraryList.currentLibrary || `*CURLIB`,
+                    libraryList: libraryList.libraryList || [],
+                };
+
+                return librarySetup;
             },
             isDiagnosticsCleared: (): boolean => {
                 const clearErrorsBeforeBuild = workspace.getConfiguration('code-for-ibmi').get<boolean>('clearErrorsBeforeBuild');

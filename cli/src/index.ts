@@ -363,11 +363,10 @@ function main() {
                     },
                     getLibraryList: async function (workspaceFolderPath?: string): Promise<ILELibrarySettings> {
                         const env = workspaceFolderPath ? await ApiUtils.getEnvConfig(workspaceFolderPath) : {};
-
                         const config = connection.getConfig();
                         const librarySetup: ILELibrarySettings = {
-                            currentLibrary: env[`CURLIB`] || config.currentLibrary,
-                            libraryList: env[`LIBL`]?.split(` `) || config.libraryList,
+                            currentLibrary: env[`CURLIB`] || config.currentLibrary || `*CURLIB`,
+                            libraryList: env[`LIBL`]?.split(` `) || config.libraryList || [],
                         };
 
                         return librarySetup;
