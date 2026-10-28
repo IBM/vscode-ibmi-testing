@@ -237,10 +237,11 @@ export interface CODECOV {
     cmd: string,
     module: string[],
     ccLvl: string,
-    ccView?: string,
     outDir?: string,
     outStmf: string,
-    testId?: string
+    testId?: string,
+    ccView?: string,
+    exclude?: string[]
 }
 
 export interface CoverageData {
