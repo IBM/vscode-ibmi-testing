@@ -363,7 +363,7 @@ export class RPGUnit implements IBMiComponent {
         }
 
         // Updating object references if product library has a different name
-        if (productLibrary !== 'RPGUNIT') {
+        if (productLibrary !== RPGUnitInfo.LIBRARY_NAME) {
             // Changing UPDLIB command to point to <productLibrary>/QBUILD instead of to RPGUNIT/QBUILD
             const chgCmd = content.toCl(`QSYS/CHGCMD`, {
                 'CMD': `${productLibrary}/UPDLIB`,
