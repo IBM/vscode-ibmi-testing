@@ -4,6 +4,7 @@
 out/**
 node_modules/**
 api/**
+!api/schemas/**/*.json
 cli/**
 src/**
 tools/**
