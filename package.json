@@ -46,7 +46,7 @@
           "testing.json",
           "TESTING.JSON"
         ],
-        "url": "./schemas/testing.json"
+        "url": "./api/schemas/testing.json"
       }
     ],
     "configuration": [

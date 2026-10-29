@@ -3,6 +3,7 @@ import * as path from "path";
 import lodash from "lodash";
 import { ConfigHandler, Logger, LogLevel, TestingConfig } from "./types";
 import IBMi, { MemberParts } from 'vscode-ibmi/src/api/IBMi';
+import { SchemaId, SchemaValidator } from "./schemas/validator";
 
 const TESTING_CONFIG_NAME = 'testing';
 const TESTING_CONFIG_EXT = 'json';
@@ -10,13 +11,40 @@ const TESTING_CONFIG_BASENAME = `${TESTING_CONFIG_NAME}.${TESTING_CONFIG_EXT}`;
 const GLOBAL_CONFIG_DIRECTORY = '.vscode';
 const GLOBAL_CONFIG_SOURCE_FILE = 'VSCODE';
 
-export class LocalConfigHandler implements ConfigHandler {
-    private testOutputLogger: Logger;
+export abstract class BaseConfigHandler implements ConfigHandler {
+    protected testOutputLogger: Logger;
+
+    constructor(testOutputLogger: Logger) {
+        this.testOutputLogger = testOutputLogger;
+    }
+
+    abstract getConfig(): Promise<TestingConfig | undefined>;
+
+    protected async validateConfig(config: TestingConfig | undefined, type: 'directory' | 'source file' | 'global'): Promise<void> {
+        if (config) {
+            const validatorResult = SchemaValidator.validateSchema(SchemaId.testing, config);
+            if (validatorResult && validatorResult.errors.length > 0) {
+                const groupedErrors: { [property: string]: string[] } = {};
+                for (const error of validatorResult.errors) {
+                    const property = error.property.replace('instance.', '').replace('instance', 'testing');
+                    if (!groupedErrors[property]) {
+                        groupedErrors[property] = [];
+                    }
+                    groupedErrors[property].push(error.message);
+                }
+
+                await this.testOutputLogger.log(LogLevel.Warning, `Schema errors detected in ${type} testing configuration:\n${JSON.stringify(groupedErrors, null, 2)}`);
+            }
+        }
+    }
+}
+
+export class LocalConfigHandler extends BaseConfigHandler {
     private workspaceFolderPath: string;
     private localPath: string;
 
     constructor(testOutputLogger: Logger, workspaceFolderPath: string, localPath: string) {
-        this.testOutputLogger = testOutputLogger;
+        super(testOutputLogger);
         this.workspaceFolderPath = workspaceFolderPath;
         this.localPath = localPath;
     }
@@ -27,12 +55,14 @@ export class LocalConfigHandler implements ConfigHandler {
             const directoryConfig = directoryConfigPath ? await this.readConfig(directoryConfigPath) : undefined;
             if (directoryConfigPath && directoryConfig) {
                 await this.testOutputLogger.log(LogLevel.Info, `Found directory testing configuration at ${directoryConfigPath}:\n${JSON.stringify(directoryConfig, null, 2)}`);
+                await this.validateConfig(directoryConfig, 'directory');
             }
 
             const globalConfigPath = path.join(this.workspaceFolderPath, GLOBAL_CONFIG_DIRECTORY, TESTING_CONFIG_BASENAME);
             const globalConfig = await this.readConfig(globalConfigPath);
             if (globalConfig) {
                 await this.testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigPath}:\n${JSON.stringify(globalConfig, null, 2)}`);
+                await this.validateConfig(globalConfig, 'global');
             }
 
             if (globalConfig || directoryConfig) {
@@ -84,15 +114,14 @@ export class LocalConfigHandler implements ConfigHandler {
     }
 }
 
-export class IfsConfigHandler implements ConfigHandler {
+export class IfsConfigHandler extends BaseConfigHandler {
     private connection: IBMi;
-    private testOutputLogger: Logger;
     private rootIfsPath: string;
     private ifsPath: string;
 
     constructor(connection: IBMi, testOutputLogger: Logger, rootIfsPath: string, ifsPath: string) {
+        super(testOutputLogger);
         this.connection = connection;
-        this.testOutputLogger = testOutputLogger;
         this.rootIfsPath = rootIfsPath;
         this.ifsPath = ifsPath;
     }
@@ -103,12 +132,14 @@ export class IfsConfigHandler implements ConfigHandler {
             const directoryConfig = directoryConfigPath ? await this.readConfig(directoryConfigPath) : undefined;
             if (directoryConfigPath && directoryConfig) {
                 await this.testOutputLogger.log(LogLevel.Info, `Found directory testing configuration at ${directoryConfigPath.toString()}:\n${JSON.stringify(directoryConfig, null, 2)}`);
+                await this.validateConfig(directoryConfig, 'directory');
             }
 
             const globalConfigPath = path.posix.join(this.rootIfsPath, GLOBAL_CONFIG_DIRECTORY, TESTING_CONFIG_BASENAME);
             const globalConfig = await this.readConfig(globalConfigPath);
             if (globalConfig) {
                 await this.testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigPath.toString()}:\n${JSON.stringify(globalConfig, null, 2)}`);
+                await this.validateConfig(globalConfig, 'global');
             }
 
             if (globalConfig || directoryConfig) {
@@ -161,14 +192,13 @@ export class IfsConfigHandler implements ConfigHandler {
     }
 }
 
-export class QsysConfigHandler implements ConfigHandler {
+export class QsysConfigHandler extends BaseConfigHandler {
     private connection: IBMi;
-    private testOutputLogger: Logger;
     private memberPath: string;
 
     constructor(connection: IBMi, testOutputLogger: Logger, memberPath: string) {
+        super(testOutputLogger);
         this.connection = connection;
-        this.testOutputLogger = testOutputLogger;
         this.memberPath = memberPath;
     }
 
@@ -185,6 +215,7 @@ export class QsysConfigHandler implements ConfigHandler {
             const memberConfig = await this.readConfig(parsedMemberPath, memberConfigPath);
             if (memberConfig) {
                 await this.testOutputLogger.log(LogLevel.Info, `Found source file testing configuration at ${memberConfigPath}:\n${JSON.stringify(memberConfig, null, 2)}`);
+                await this.validateConfig(memberConfig, 'source file');
             }
 
             const parsedGlobalPath = parsedMemberPath;
@@ -196,6 +227,7 @@ export class QsysConfigHandler implements ConfigHandler {
             const globalConfig = await this.readConfig(parsedGlobalPath, globalConfigPath);
             if (globalConfig) {
                 await this.testOutputLogger.log(LogLevel.Info, `Found global testing configuration at ${globalConfigPath}:\n${JSON.stringify(globalConfig, null, 2)}`);
+                await this.validateConfig(globalConfig, 'global');
             }
 
             if (globalConfig || memberConfig) {
