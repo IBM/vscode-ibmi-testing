@@ -362,6 +362,48 @@ export class RPGUnit implements IBMiComponent {
             return state;
         }
 
+        // Updating object references if product library has a different name
+        if (productLibrary !== 'RPGUNIT') {
+            // Changing UPDLIB command to point to <productLibrary>/QBUILD instead of to RPGUNIT/QBUILD
+            const chgCmd = content.toCl(`QSYS/CHGCMD`, {
+                'CMD': `${productLibrary}/UPDLIB`,
+                'PGM': `*REXX`,
+                'REXSRCFILE': `${productLibrary}/QBUILD`,
+                'HLPPNLGRP': `${productLibrary}/UPDLIBHLP`
+            });
+            await testOutputLogger.log(LogLevel.Info, `Changing update command to use the REXX procedure in ${productLibrary}.LIB: ${chgCmd}`);
+            const chgCmdResult = await connection.runCommand({ command: chgCmd, environment: `ile`, noLibList: true });
+            if (chgCmdResult.code !== 0) {
+                await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to change update command to use the REXX procedure in ${productLibrary}.LIB`, chgCmdResult.stderr, errorButtons);
+                return state;
+            }
+
+            // Updating the commands, programs, and job description from RPGUNIT to the product library
+            const updLibCmd = content.toCl(`${productLibrary}/UPDLIB`, {
+                'LIB': productLibrary
+            });
+            await testOutputLogger.log(LogLevel.Info, `Updating the commands, programs, and job description in ${productLibrary}.LIB: ${updLibCmd}`);
+            const updLibResult = await connection.runCommand({ command: updLibCmd, environment: `ile`, noLibList: true });
+            if (updLibResult.code !== 0) {
+                await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to update the commands, programs, and job description in ${productLibrary}.LIB`, updLibResult.stderr, errorButtons);
+                return state;
+            }
+
+            // UPDSRVPGM is only needed for iRPGUnit versions before v6.0.8, whose UPDLIB misses RUTESTCASE
+            // It does no harm with v6.0.8 and later, so the extension can run it regardless
+            const updSrvPgmCmd = content.toCl(`QSYS/UPDSRVPGM`, {
+                'SRVPGM': `${productLibrary}/RUTESTCASE`,
+                'MODULE': `*NONE`,
+                'SRVPGMLIB': productLibrary
+            });
+            await testOutputLogger.log(LogLevel.Info, `Updating service program reference in ${productLibrary}.LIB: ${updSrvPgmCmd}`);
+            const updSrvPgmResult = await connection.runCommand({ command: updSrvPgmCmd, environment: `ile`, noLibList: true });
+            if (updSrvPgmResult.code !== 0) {
+                await testOutputLogger.appendWithNotification(LogLevel.Error, `Failed to update service program reference in ${productLibrary}.LIB`, updSrvPgmResult.stderr, errorButtons);
+                return state;
+            }
+        }
+
         // Deleting locally downloaded save file (GitHub release installation only)
         if (isGitHubRelease) {
             try {
