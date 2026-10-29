@@ -2,25 +2,23 @@ import { ComponentIdentification, IBMiComponent, SecureComponentState } from "@h
 import IBMi from "@halcyontech/vscode-ibmi-types/api/IBMi";
 import { LogLevel } from "vscode";
 import { testOutputLogger } from "../../extension";
+import { CodeCovInfo } from "./info";
 
 export class CodeCov implements IBMiComponent {
-    static ID: string = "CODECOV";
-    static MINIMUM_VERSION = "1.0.0";
-
     getIdentification(): ComponentIdentification {
         return {
-            name: CodeCov.ID,
-            version: CodeCov.MINIMUM_VERSION
+            name: CodeCovInfo.COMMAND,
+            version: CodeCovInfo.MINIMUM_VERSION
         } as any;
     }
 
     async getRemoteState(connection: IBMi, installDirectory: string): Promise<SecureComponentState> {
         const content = connection.getContent();
 
+        const command = CodeCovInfo.COMMAND;
         try {
             // Check if CODECOV command exists
-            const library = 'QDEVTOOLS';
-            const command = 'CODECOV';
+            const library = CodeCovInfo.LIBRARY;
             const commandExists = await content.checkObject({ library: library, name: command, type: '*CMD' });
             if (commandExists) {
                 return { status: `Installed` };
@@ -29,7 +27,7 @@ export class CodeCov implements IBMiComponent {
                 return { status: `NotInstalled` };
             }
         } catch (error) {
-            await testOutputLogger.log(LogLevel.Error, `Failed to get remote state of CODECOV component. Error: ${error}`);
+            await testOutputLogger.log(LogLevel.Error, `Failed to get remote state of ${command} component. Error: ${error}`);
             return { status: `Error` };
         }
     }
