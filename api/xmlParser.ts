@@ -9,10 +9,19 @@ export namespace XMLParser {
                 continue;
             }
 
+            // Always use milliseconds
+            let time = Number(testcase.attributes.time);
+            let timeUnit = testcase.attributes.timeUnit?.toLocaleLowerCase() || `ms`;
+            if(timeUnit === `s`) {
+                time = time * 1000;
+                timeUnit = `ms`;
+            }
+
             const result: TestCaseResult = {
                 name: testcase.attributes.name.toLocaleUpperCase(),
                 outcome: testcase.attributes.outcome.toLocaleLowerCase(),
-                time: Number((parseFloat(testcase.attributes.time) / 1000).toFixed(2)),
+                time: time,
+                timeUnit: timeUnit,
                 assertions: parseInt(testcase.attributes.assertions),
                 results: []
             };

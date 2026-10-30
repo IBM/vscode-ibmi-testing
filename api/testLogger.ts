@@ -78,18 +78,21 @@ export class TestLogger {
     }
 
     async logTestCasePassed(testCaseName: string, assertionCount: number, duration?: number) {
-        await this.testResultLogger.append(`\t${c.green(`✔`)}  ${testCaseName} ${c.grey(`(${assertionCount}) ${duration !== undefined ? `${duration}s` : ``}`)}\r\n`);
-        await this.testOutputLogger.log(LogLevel.Info, `Test case ${testCaseName} passed${duration !== undefined ? ` in ${duration}s` : ``}`);
+        const durationInSeconds = duration ? Number((duration / 1000).toFixed(2)) : undefined;
+        await this.testResultLogger.append(`\t${c.green(`✔`)}  ${testCaseName} ${c.grey(`(${assertionCount}) ${durationInSeconds !== undefined ? `${durationInSeconds}s` : ``}`)}\r\n`);
+        await this.testOutputLogger.log(LogLevel.Info, `Test case ${testCaseName} passed${durationInSeconds !== undefined ? ` in ${durationInSeconds}s` : ``}`);
     }
 
     async logTestCaseFailed(testCaseName: string, assertionCount: number, duration?: number) {
-        await this.testResultLogger.append(`\t${c.red(`✘`)}  ${testCaseName} ${c.grey(`(${assertionCount}) ${duration !== undefined ? `${duration}s` : ``}`)}\r\n`);
-        await this.testOutputLogger.log(LogLevel.Error, `Test case ${testCaseName} failed${duration !== undefined ? ` in ${duration}s` : ``}`);
+        const durationInSeconds = duration ? Number((duration / 1000).toFixed(2)) : undefined;
+        await this.testResultLogger.append(`\t${c.red(`✘`)}  ${testCaseName} ${c.grey(`(${assertionCount}) ${durationInSeconds !== undefined ? `${durationInSeconds}s` : ``}`)}\r\n`);
+        await this.testOutputLogger.log(LogLevel.Error, `Test case ${testCaseName} failed${durationInSeconds !== undefined ? ` in ${durationInSeconds}s` : ``}`);
     }
 
     async logTestCaseErrored(testCaseName: string, assertionCount: number, duration?: number) {
-        await this.testResultLogger.append(`\t${c.yellow(`⚠`)}  ${testCaseName} ${c.grey(`(${assertionCount}) ${duration !== undefined ? `${duration}s` : ``}`)}\r\n`);
-        await this.testOutputLogger.log(LogLevel.Error, `Test case ${testCaseName} errored${duration !== undefined ? ` in ${duration}s` : ``}`);
+        const durationInSeconds = duration ? Number((duration / 1000).toFixed(2)) : undefined;
+        await this.testResultLogger.append(`\t${c.yellow(`⚠`)}  ${testCaseName} ${c.grey(`(${assertionCount}) ${durationInSeconds !== undefined ? `${durationInSeconds}s` : ``}`)}\r\n`);
+        await this.testOutputLogger.log(LogLevel.Error, `Test case ${testCaseName} errored${durationInSeconds !== undefined ? ` in ${durationInSeconds}s` : ``}`);
     }
 
     async logTestCaseSkipped(testCaseName: string) {
