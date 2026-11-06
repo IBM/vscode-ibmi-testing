@@ -4,6 +4,8 @@ import { getDeployTools, getInstance } from "./extensions/ibmi";
 import { Configuration, LibraryListValidation, Section } from "./configuration";
 import { IBMiFileCoverage } from "./fileCoverage";
 import { RPGUnit } from "./components/rpgUnit/rpgUnit";
+import { RPGUnitInfo } from "./components/rpgUnit/info";
+import { CodeCovInfo } from "./components/codeCov/info";
 import { Runner, TestCallbacks } from "../api/runner";
 import { MergedCoverageData, BasicUri, ConfigHandler, DeploymentStatus, Env, LogLevel, RUCALLTST, TestBucket, TestRequest, CCLVL, CompileMode, AssertionResult } from "../api/types";
 import { TestLogger } from "../api/testLogger";
@@ -227,7 +229,7 @@ export class IBMiTestRunner {
         // Check for cancellation request before checking if RPGUnit is installed
         if (this.token?.isCancellationRequested) {
             testRun.end();
-            throw new Error(`Test run was cancelled before RPGUnit installation check.`);
+            throw new Error(`Test run was cancelled before ${RPGUnitInfo.FRAMEWORK_NAME} installation check.`);
         }
 
         // Check if RPGUnit is installed
@@ -237,7 +239,7 @@ export class IBMiTestRunner {
                 // End test run
                 await testLogger.logComponentError(installation.error);
                 testRun.end();
-                throw new Error(`RPGUnit is not installed. Error: ${installation.error}`);
+                throw new Error(`${RPGUnitInfo.FRAMEWORK_NAME} is not installed. Error: ${installation.error}`);
             }
         }
 
@@ -247,7 +249,7 @@ export class IBMiTestRunner {
             if (approval.error) {
                 await testLogger.logComponentError(approval.error);
                 testRun.end();
-                throw new Error(`RPGUnit library not approved to be used. Error: ${approval.error}`);
+                throw new Error(`${RPGUnitInfo.FRAMEWORK_NAME} library not approved to be used. Error: ${approval.error}`);
             }
         }
 
@@ -531,7 +533,7 @@ export class IBMiTestRunner {
             const connection = ibmi!.getConnection()!;
 
             const productLibrary = connection.upperCaseName(Configuration.getOrFallback<string>(Section.productLibrary));
-            const qdevtoolsLibrary = 'QDEVTOOLS';
+            const qdevtoolsLibrary = CodeCovInfo.LIBRARY;
 
             const testBucketsMissingProductLibrary = [];
             const testBucketsMissingQDevToolsLibrary = [];
