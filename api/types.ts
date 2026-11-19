@@ -67,6 +67,7 @@ export interface TestCaseResult {
     name: string,
     outcome: TestOutcome,
     time: number,
+    timeUnit: TimeUnit,
     assertions: number,
     results?: AssertionResult[]
 }
@@ -112,6 +113,8 @@ export type TestOutcome = 'success' | 'failure' | 'error';
 export type DeploymentStatus = 'success' | 'errored' | 'skipped' | 'cancelled';
 
 export type CompilationStatus = 'success' | 'errored' | 'skipped' | 'cancelled';
+
+export type TimeUnit = 'ms' | 's';
 
 export interface TestStorage {
     RPGUNIT: string,
