@@ -18,9 +18,38 @@ async function work() {
   }
 
   try {
+    const githubToken = process.env.GITHUB_TOKEN;
     const octokit = new Octokit({
-      auth: process.env.GITHUB_TOKEN
+      auth: githubToken,
+      log: {
+        debug: () => { },
+        info: () => { },
+        warn: () => { },
+        error: () => { }
+      }
     });
+
+    if (githubToken) {
+      try {
+        const result = await octokit.rest.users.getAuthenticated();
+        console.log(`Authenticated as:`, result.data.login);
+      } catch (error) {
+        console.log(`GitHub authentication failed: ${error}`);
+      }
+    } else {
+      console.log(`No GitHub token provided`)
+    }
+
+    try {
+      const result = await octokit.rest.rateLimit.get();
+      console.log("GitHub API rate limits:");
+      console.log(`  • Limit: ${result.data.resources.core.limit}`);
+      console.log(`  • Used: ${result.data.resources.core.used}`);
+      console.log(`  • Remaining: ${result.data.resources.core.remaining}`);
+    } catch (error) {
+      console.log("Not authenticated or invalid GitHub token");
+    }
+
     const result = await octokit.request(`GET /repos/{owner}/{repo}/releases/tags/${SERVER_VERSION_TAG}`, {
       owner: OWNER,
       repo: REPO,
