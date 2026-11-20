@@ -22,6 +22,7 @@ on:
 permissions:
   id-token: write  # Required for OIDC
   contents: read
+  packages: read
 
 jobs:
   release:
@@ -55,6 +56,8 @@ jobs:
         run: |
           npm install
           npm install -g vsce ovsx
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install CLI Dependencies
         working-directory: cli
