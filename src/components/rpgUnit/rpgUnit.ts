@@ -10,7 +10,7 @@ import * as path from "path";
 import * as os from "os";
 import { getInstance } from "../../extensions/ibmi";
 import { testOutputLogger } from "../../extension";
-import { LOCAL_SAVE_FILE, GITHUB_SAVE_FILE, VERSION } from "./version";
+import { LOCAL_SAVE_FILE, GITHUB_SAVE_FILE, MINIMUM_VERSION, LATEST_VERSION } from "./version";
 import { GlobalState } from "../../globalState";
 import { GitHub, Release } from "./github";
 
@@ -29,7 +29,7 @@ export class RPGUnit implements IBMiComponent {
     getIdentification(): ComponentIdentification {
         return {
             name: RPGUnit.ID,
-            version: VERSION,
+            version: LATEST_VERSION,
             userManaged: true
         } as any;
     }
@@ -87,11 +87,11 @@ export class RPGUnit implements IBMiComponent {
 
                 if (installedVersion) {
                     // Compare installed version with minimum version
-                    if (await this.compareVersions(installedVersion, VERSION) >= 0) {
+                    if (await this.compareVersions(installedVersion, MINIMUM_VERSION) >= 0) {
                         await testOutputLogger.log(LogLevel.Info, `Installed version of RPGUnit is v${installedVersion}`);
                         return { status: `Installed` };
                     } else {
-                        await testOutputLogger.log(LogLevel.Error, `Installed version of RPGUnit (v${installedVersion}) is lower than minimum version (v${VERSION})`);
+                        await testOutputLogger.log(LogLevel.Error, `Installed version of RPGUnit (v${installedVersion}) is lower than minimum version (v${MINIMUM_VERSION})`);
                         return { status: `NeedsUpdate` };
                     }
                 } else {
@@ -124,9 +124,9 @@ export class RPGUnit implements IBMiComponent {
 
         // Create quick pick item for bundled save file
         const bundledQuickPickItem: QuickPickItem = {
-            label: `$(package) v${VERSION}`,
+            label: `$(package) v${LATEST_VERSION}`,
             description: `Recommended`,
-            detail: `Install the minimum compatible version using a save file bundled in the extension`
+            detail: `Install a compatible version using a save file bundled in the extension`
         };
 
         // Fetch GitHub releases
@@ -142,9 +142,8 @@ export class RPGUnit implements IBMiComponent {
         } else {
             for await (const release of releasesResponse.data) {
                 let version = release.name || release.tag_name;
-                version = version.startsWith('v') ? version.substring(1) : version;
                 const isValid = (release.assets.some(asset => asset.name === GITHUB_SAVE_FILE)) &&
-                    (await this.compareVersions(version, VERSION)) >= 0;
+                    (await this.compareVersions(version, MINIMUM_VERSION)) >= 0;
                 if (isValid) {
                     const publishedAt = release.published_at ? new Date(release.published_at).toLocaleString() : ``;
                     const description = [
@@ -190,6 +189,7 @@ export class RPGUnit implements IBMiComponent {
 
         let localAssetPath: string;
         let saveFileName: string;
+        let versionToInstall: string;
 
         const isGitHubRelease = selectedSource !== bundledQuickPickItem;
         if (!isGitHubRelease) {
@@ -199,7 +199,7 @@ export class RPGUnit implements IBMiComponent {
                 {
                     modal: true,
                     detail: [
-                        `IBM i Testing v${extensionVersion} is compatible with RPGUnit v${VERSION}. The following steps will be performed to install this version of RPGUnit:`,
+                        `IBM i Testing v${extensionVersion} is compatible with RPGUnit v${LATEST_VERSION}. The following steps will be performed to install this version of RPGUnit:`,
                         ``,
                         `  1. Locate the bundled save file (${LOCAL_SAVE_FILE}) shipped with the extension.`,
                         `  2. Delete the existing product library ${productLibrary}.LIB (if present).`,
@@ -230,10 +230,12 @@ export class RPGUnit implements IBMiComponent {
 
             localAssetPath = this.localAssetPath;
             saveFileName = LOCAL_SAVE_FILE;
+            versionToInstall = LATEST_VERSION;
         } else {
             // Prompt user to confirm GitHub installation process
             const selectedRelease = (selectedSource as QuickPickItem & { release: Release }).release;
             const releaseVersion = selectedRelease?.name || selectedRelease?.tag_name;
+            versionToInstall = releaseVersion.startsWith('v') ? releaseVersion.substring(1) : releaseVersion;
             const releaseAsset = selectedRelease?.assets.find(asset => asset.name === GITHUB_SAVE_FILE)!;
             const proceed = await window.showInformationMessage(
                 `RPGUnit Installation via GitHub Release`,
@@ -438,9 +440,9 @@ export class RPGUnit implements IBMiComponent {
                 await testOutputLogger.log(LogLevel.Info, `${productLibrary}.LIB approved for usage.`);
             }
 
-            await testOutputLogger.appendWithNotification(LogLevel.Info, `RPGUnit v${VERSION} installed successfully into ${productLibrary}.LIB`);
+            await testOutputLogger.appendWithNotification(LogLevel.Info, `RPGUnit v${versionToInstall} installed successfully into ${productLibrary}.LIB`);
         } else {
-            await testOutputLogger.appendWithNotification(LogLevel.Error, `RPGUnit v${VERSION} failed to install into ${productLibrary}.LIB`, undefined, errorButtons);
+            await testOutputLogger.appendWithNotification(LogLevel.Error, `RPGUnit v${versionToInstall} failed to install into ${productLibrary}.LIB`, undefined, errorButtons);
         }
         return newState;
     }
@@ -494,8 +496,8 @@ export class RPGUnit implements IBMiComponent {
             'RPGUnit Update Required' :
             'RPGUnit Installation Required';
         const installMessage = status === 'NeedsUpdate' ?
-            `RPGUnit must be updated to v${VERSION} on the IBM i to use v${extensionVersion} of the IBM i Testing extension.` :
-            `RPGUnit must be installed with at least v${VERSION} on the IBM i to use v${extensionVersion} of the IBM i Testing extension.`;
+            `RPGUnit must be updated to at least v${MINIMUM_VERSION} on the IBM i to use v${extensionVersion} of the IBM i Testing extension.` :
+            `RPGUnit must be installed with at least v${MINIMUM_VERSION} on the IBM i to use v${extensionVersion} of the IBM i Testing extension.`;
         const installQuestion = status === 'NeedsUpdate' ?
             `Can it be updated in ${productLibrary}.LIB?` :
             `Can it be installed into ${productLibrary}.LIB?`;
@@ -602,7 +604,7 @@ export class RPGUnit implements IBMiComponent {
             {
                 modal: true,
                 detail: [
-                    `RPGUnit v${VERSION} is installed in ${productLibrary}.LIB on the IBM i. Since it is the first time you are using this library via this extension, do you approve the usage of it to compile and run your unit tests? If you do not wish to use this existing library, you can configure a different product library and install your own version of RPGUnit.`,
+                    `RPGUnit is installed in ${productLibrary}.LIB on the IBM i. Since it is the first time you are using this library via this extension, do you approve the usage of it to compile and run your unit tests? If you do not wish to use this existing library, you can configure a different product library and install your own version of RPGUnit.`,
                     ``,
                     ...objectInformation,
                 ].join(`\n`)
