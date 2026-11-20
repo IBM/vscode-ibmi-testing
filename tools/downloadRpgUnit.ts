@@ -18,7 +18,9 @@ async function work() {
   }
 
   try {
-    const octokit = new Octokit();
+    const octokit = new Octokit({
+      auth: process.env.GITHUB_TOKEN
+    });
     const result = await octokit.request(`GET /repos/{owner}/{repo}/releases/tags/${SERVER_VERSION_TAG}`, {
       owner: OWNER,
       repo: REPO,
