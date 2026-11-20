@@ -1,4 +1,5 @@
-import { TestStubGenerator } from "./codeActions/testStubGenerator";
+import { RpgTestStubGenerator } from "./codeActions/rpg/rpgTestStubGenerator";
+import { SqlTestStubGenerator } from "./codeActions/sql/sqlTestStubGenerator";
 import { IBMiTestManager } from "./manager";
 
 export interface TestRunResult {
@@ -8,5 +9,6 @@ export interface TestRunResult {
 
 export interface IBMiTesting {
     getTestManager: () => IBMiTestManager | undefined;
-    testStubGenerator: typeof TestStubGenerator;
+    rpgTestStubGenerator: typeof RpgTestStubGenerator;
+    sqlTestStubGenerator: typeof SqlTestStubGenerator;
 }

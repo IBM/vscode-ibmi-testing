@@ -26,19 +26,22 @@ export class TestLogger {
         await this.testOutputLogger.log(LogLevel.Info, `Running tests in ${workspaceName}`);
     }
 
-    async logDeployment(workspaceName: string, status: DeploymentStatus) {
+    async logDeployment(workspaceName: string, status: DeploymentStatus, directory: string | undefined, method: string) {
+        const deployment = directory ?
+            `Deployment (${method}) of ${workspaceName} to ${directory}` :
+            `Deployment (${method}) of ${workspaceName}`;
         if (status === 'success') {
             await this.testResultLogger.append(` ${c.grey(`[ Deployment Successful ]`)}\r\n`);
-            await this.testOutputLogger.log(LogLevel.Info, `Deployment successful for ${workspaceName}`);
+            await this.testOutputLogger.log(LogLevel.Info, `${deployment} successful`);
         } else if (status === 'errored') {
             await this.testResultLogger.append(` ${c.yellow(`[ Deployment Error ]`)}\r\n`);
-            await this.testOutputLogger.log(LogLevel.Error, `Deployment error for ${workspaceName}`);
+            await this.testOutputLogger.log(LogLevel.Error, `${deployment} errored`);
         } else if (status === 'skipped') {
             await this.testResultLogger.append(` ${c.grey(`[ Deployment Skipped ]`)}\r\n`);
-            await this.testOutputLogger.log(LogLevel.Error, `Deployment skipped for ${workspaceName}`);
+            await this.testOutputLogger.log(LogLevel.Error, `${deployment} skipped`);
         } else if (status === 'cancelled') {
             await this.testResultLogger.append(` ${c.magenta(`[ Deployment Cancelled ]`)}\r\n`);
-            await this.testOutputLogger.log(LogLevel.Warning, `Deployment cancelled for ${workspaceName}`);
+            await this.testOutputLogger.log(LogLevel.Warning, `${deployment} cancelled`);
         }
     }
 

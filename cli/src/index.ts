@@ -1,6 +1,6 @@
 import IBMi from "vscode-ibmi/src/api/IBMi";
 import { Runner, TestCallbacks } from "../../api/runner";
-import { ConnectionData } from "vscode-ibmi/src/api/types";
+import { ConnectionData, DeploymentMethod } from "vscode-ibmi/src/api/types";
 import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
 import { DeploymentStatus, Env, RUCALLTST, BasicUri, TestRequest, MergedCoverageData, CCLVL, AssertionResult } from "../../api/types";
 import { TestLogger } from "../../api/testLogger";
@@ -360,6 +360,9 @@ function main() {
                     },
                     getDeployDirectory: function (workspaceFolderPath: string): string {
                         return ifsDirectory!;
+                    },
+                    getDeployMethod: function (): DeploymentMethod {
+                        return `all`;
                     },
                     getLibraryList: async function (workspaceFolderPath?: string): Promise<ILELibrarySettings> {
                         const env = workspaceFolderPath ? await ApiUtils.getEnvConfig(workspaceFolderPath) : {};

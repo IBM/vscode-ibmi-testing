@@ -2,6 +2,7 @@
 import { MergedCoverageData, BasicUri, CODECOV, CommandOverrides, CompilationStatus, DeploymentStatus, Env, LogLevel, MappedCoverageData, RUCALLTST, RUCRTCBL, RUCRTRPG, TestBucket, TestCase, TestCaseResult, TestMetrics, TestRequest, TestSuite, WrapperCmd, TestOutcome, AssertionResult } from "./types";
 import { TestLogger } from "./testLogger";
 import { ILELibrarySettings } from "vscode-ibmi/src/api/CompileTools";
+import { DeploymentMethod } from "vscode-ibmi/src/api/types";
 import IBMi from "vscode-ibmi/src/api/IBMi";
 import { ApiUtils } from "./apiUtils";
 import { IBMiTestStorage } from "./storage";
@@ -15,6 +16,7 @@ export interface TestCallbacks {
     getDocs: (uri: string, content: string) => Promise<Cache | undefined>;
     deploy: (workspaceFolderPath: string) => Promise<DeploymentStatus>;
     getDeployDirectory(workspaceFolderPath: string): string;
+    getDeployMethod(): DeploymentMethod;
     getLibraryList(workspaceFolderPath?: string): Promise<ILELibrarySettings>
     isDiagnosticsCleared: () => boolean;
     clearDiagnostics: () => Promise<void>;
@@ -75,9 +77,13 @@ export class Runner {
                 const workspaceFolderPath = testBucket.uri.fsPath;
                 await this.testLogger.logWorkspace(workspaceFolderName, testBucket.testSuites.length);
 
+                // Get deployment configuration
+                const deployDirectory = this.testCallbacks.getDeployDirectory(workspaceFolderPath);
+                const deployMethod = this.testCallbacks.getDeployMethod();
+
                 // Check for cancellation request before deployment
                 if (this.testCallbacks.isCancellationRequested()) {
-                    await this.testLogger.logDeployment(workspaceFolderName, 'cancelled');
+                    await this.testLogger.logDeployment(workspaceFolderName, 'cancelled', deployDirectory, deployMethod);
                     this.testMetrics.deployments.cancelled++;
 
                     // Skip all test suites since user requested cancellation
@@ -99,7 +105,7 @@ export class Runner {
                 // Deploy workspace
                 const deploymentStatus = this.testRequest.compileMode === 'skip' ? 'skipped' :
                     await this.testCallbacks.deploy(workspaceFolderPath);
-                await this.testLogger.logDeployment(workspaceFolderName, deploymentStatus);
+                await this.testLogger.logDeployment(workspaceFolderName, deploymentStatus, deployDirectory, deployMethod);
 
                 // Check deployment status
                 if (deploymentStatus === 'success') {

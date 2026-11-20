@@ -1,14 +1,14 @@
 import { CodeAction, CodeActionKind, commands, ExtensionContext, languages, Position, ProgressLocation, Range, TextDocument, ThemeIcon, Uri, window, workspace, WorkspaceEdit } from "vscode";
 import Declaration from "vscode-rpgle/language/models/declaration";
 import Cache from "vscode-rpgle/language/models/cache";
-import { getInstance } from "../extensions/ibmi";
-import { LspUtils } from "./lspUtils";
+import { getInstance } from "../../extensions/ibmi";
+import { RpgLspUtils } from "./rpgLspUtils";
 import * as path from "path";
-import { Configuration, Section, TestStubPreferences } from "../configuration";
-import { TestStubGenerator } from "./testStubGenerator";
+import { Configuration, Section, TestStubPreferences } from "../../configuration";
+import { RpgTestStubGenerator, RpgTestCaseSpec } from "./rpgTestStubGenerator";
 
-export namespace TestStubCodeActions {
-    export function registerTestStubCodeActions(context: ExtensionContext) {
+export namespace RpgTestStub {
+    export function registerCodeActions(context: ExtensionContext) {
         context.subscriptions.push(
             languages.registerCodeActionsProvider({ language: 'rpgle' },
                 {
@@ -16,9 +16,9 @@ export namespace TestStubCodeActions {
                         const codeActions: CodeAction[] = [];
 
                         if (document) {
-                            const docs = await LspUtils.getDocs(document.uri);
+                            const docs = await RpgLspUtils.getDocs(document.uri);
                             if (docs) {
-                                const testStubCodeActions = await getTestStubCodeActions(document, docs, range);
+                                const testStubCodeActions = await getCodeActions(document, range, docs);
                                 if (testStubCodeActions) {
                                     codeActions.push(...testStubCodeActions);
                                 }
@@ -29,8 +29,44 @@ export namespace TestStubCodeActions {
                     }
                 }
             ),
-            commands.registerCommand('vscode-ibmi-testing.generateTestStub', generateTestStub)
+            commands.registerCommand('vscode-ibmi-testing.rpgGenerateTestStub', generateTestStub)
         );
+    }
+
+    async function getCodeActions(document: TextDocument, range: Range, docs: Cache): Promise<CodeAction[] | undefined> {
+        const codeActions: CodeAction[] = [];
+
+        const exportProcedures = docs.procedures.filter(proc => !proc.prototype && proc.keyword[`EXPORT`]);
+        if (exportProcedures.length > 0) {
+            // Build test file name
+            const parsedPath = path.parse(document.uri.fsPath);
+            const fileName = parsedPath.base;
+
+            // Test case generation
+            const currentProcedure = exportProcedures.find(proc => proc.range.start && proc.range.end && range.start.line >= proc.range.start && range.end.line <= proc.range.end);
+            if (currentProcedure) {
+                const title = `Generate test case for '${currentProcedure.name}'`;
+                const testCaseAction = new CodeAction(title, CodeActionKind.RefactorExtract);
+                testCaseAction.command = {
+                    title: title,
+                    command: `vscode-ibmi-testing.rpgGenerateTestStub`,
+                    arguments: [document, docs, [currentProcedure]]
+                };
+                codeActions.push(testCaseAction);
+            }
+
+            // Test suite generation
+            const title = `Generate test suite for '${fileName}'`;
+            const testSuiteAction = new CodeAction(title, CodeActionKind.RefactorExtract);
+            testSuiteAction.command = {
+                title: title,
+                command: `vscode-ibmi-testing.rpgGenerateTestStub`,
+                arguments: [document, docs, exportProcedures]
+            };
+            codeActions.push(testSuiteAction);
+        }
+
+        return codeActions;
     }
 
     async function generateTestStub(document: TextDocument, docs: Cache, exportProcedures: Declaration[], forcePreferences?: Partial<TestStubPreferences>): Promise<Uri | undefined> {
@@ -44,7 +80,7 @@ export namespace TestStubCodeActions {
         };
 
         // Build test file name, parent name (directory or source file) and URI
-        const testFileLocation = await TestStubGenerator.generateTestStubLocation(document.uri, connection);
+        const testFileLocation = await RpgTestStubGenerator.generateTestStubLocation(document.uri, connection);
         if (!testFileLocation) {
             return;
         }
@@ -54,7 +90,11 @@ export namespace TestStubCodeActions {
 
             // Check if test source file exists
             const parsedPath = connection.parserMemberPath(document.uri.path);
-            const sourceFileExists = await content.checkObject({ library: parsedPath.library, name: testFileLocation.testFileParentName, type: '*FILE' });
+            const sourceFileExists = await content.checkObject({
+                library: parsedPath.library,
+                name: testFileLocation.testFileParentName,
+                type: '*FILE'
+            });
 
             // Prompt user to create test source file if in preview mode
             if (testStubPreferences["Show Test Stub Preview"]) {
@@ -86,12 +126,9 @@ export namespace TestStubCodeActions {
             testFileLocation.testFileUri = openedTestDocument.uri;
         }
 
-        // Generate test case spec
-        const testCaseSpecs = await Promise.all(exportProcedures.map(async proc => await TestStubGenerator.generateTestCaseSpec(docs, proc, testStubPreferences["Add Stub Comments"])));
-
         // Build test stub edit and insert code in appropriate places
         const testStubEdit = new WorkspaceEdit();
-        const testDocs = await LspUtils.getDocs(testFileLocation.testFileUri);
+        const testDocs = await RpgLspUtils.getDocs(testFileLocation.testFileUri);
         let testDocument: TextDocument | undefined;
 
         // Create test file if it does not exist
@@ -112,9 +149,10 @@ export namespace TestStubCodeActions {
             );
         }
 
+        // Create test configuration
         let testConfig: { uri: Uri, content: string } | undefined;
         if (testStubPreferences["Generate Default Test Configuration"]) {
-            testConfig = await TestStubGenerator.generateTestConfig(document.uri, testFileLocation.testFileUri, connection);
+            testConfig = await RpgTestStubGenerator.generateTestConfig(document.uri, testFileLocation.testFileUri, connection);
             if (testConfig) {
                 testStubEdit.createFile(
                     testConfig.uri,
@@ -140,7 +178,33 @@ export namespace TestStubCodeActions {
             }
         }
 
+        // Extract existing procedure names so generated names are unique
+        const existingProcedures = testDocs?.procedures.map(p => p.name) ?? [];
         const text = testDocument ? testDocument.getText() : '';
+
+        // Generate test case spec
+        let promptForInputValue = testStubPreferences["Prompt For Input Value"];
+        let promptForExpectedValue = testStubPreferences["Prompt For Expected Value"];
+        const testCaseSpecs: RpgTestCaseSpec[] = [];
+        for (const proc of exportProcedures) {
+            const testCaseSpecResult = await RpgTestStubGenerator.generateTestCaseSpec(docs, proc, existingProcedures, testStubPreferences["Add Stub Comments"], promptForInputValue, promptForExpectedValue);
+            existingProcedures.push(testCaseSpecResult.spec.testCase.name);
+            testCaseSpecs.push(testCaseSpecResult.spec);
+
+            // If the user disabled either prompt mid-wizard, respect that for subsequent procedures
+            promptForInputValue = testCaseSpecResult.promptForInputValue;
+            promptForExpectedValue = testCaseSpecResult.promptForExpectedValue;
+        }
+
+        // Persist any preference changes the user made via the disable button
+        if (promptForInputValue !== testStubPreferences["Prompt For Input Value"] || promptForExpectedValue !== testStubPreferences["Prompt For Expected Value"]) {
+            await Configuration.set(Section.testStubPreferences, {
+                ...testStubPreferences,
+                "Prompt For Input Value": promptForInputValue,
+                "Prompt For Expected Value": promptForExpectedValue
+            });
+        }
+
         const lastLine = testDocument ? testDocument.lineCount - 1 : 0;
         function lineAt(line: number): string {
             return testDocument ? testDocument.lineAt(line).text : '';
@@ -385,41 +449,5 @@ export namespace TestStubCodeActions {
                 return testFileLocation.testFileUri;
             });
         }
-    }
-
-    async function getTestStubCodeActions(document: TextDocument, docs: Cache, range: Range): Promise<CodeAction[] | undefined> {
-        const codeActions: CodeAction[] = [];
-
-        const exportProcedures = docs.procedures.filter(proc => !proc.prototype && proc.keyword[`EXPORT`]);
-        if (exportProcedures.length > 0) {
-            // Build test file name
-            const parsedPath = path.parse(document.uri.fsPath);
-            const fileName = parsedPath.base;
-
-            // Test case generation
-            const currentProcedure = exportProcedures.find(proc => proc.range.start && proc.range.end && range.start.line >= proc.range.start && range.end.line <= proc.range.end);
-            if (currentProcedure) {
-                const title = `Generate test case for '${currentProcedure.name}'`;
-                const testCaseAction = new CodeAction(title, CodeActionKind.RefactorExtract);
-                testCaseAction.command = {
-                    title: title,
-                    command: `vscode-ibmi-testing.generateTestStub`,
-                    arguments: [document, docs, [currentProcedure]]
-                };
-                codeActions.push(testCaseAction);
-            }
-
-            // Test suite generation
-            const title = `Generate test suite for '${fileName}'`;
-            const testSuiteAction = new CodeAction(title, CodeActionKind.RefactorExtract);
-            testSuiteAction.command = {
-                title: title,
-                command: `vscode-ibmi-testing.generateTestStub`,
-                arguments: [document, docs, exportProcedures]
-            };
-            codeActions.push(testSuiteAction);
-        }
-
-        return codeActions;
     }
 }
