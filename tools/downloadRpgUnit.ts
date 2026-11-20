@@ -29,17 +29,6 @@ async function work() {
       }
     });
 
-    if (githubToken) {
-      try {
-        const result = await octokit.rest.users.getAuthenticated();
-        console.log(`Authenticated as:`, result.data.login);
-      } catch (error) {
-        console.log(`GitHub authentication failed: ${error}`);
-      }
-    } else {
-      console.log(`No GitHub token provided`)
-    }
-
     try {
       const result = await octokit.rest.rateLimit.get();
       console.log("GitHub API rate limits:");
