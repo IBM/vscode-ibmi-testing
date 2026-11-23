@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "ibmi-company_system"
+		},
+		{
+			"path": "rpg-utils"
+		},
+		{
+			"path": "rpgunit-stmf"
+		}
+	],
+	"extensions": {
+		"recommendations": ["IBM.vscode-ibmi-testing"]
+	}
+}
