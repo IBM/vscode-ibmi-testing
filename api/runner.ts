@@ -10,6 +10,7 @@ import { XMLParser } from "./xmlParser";
 import * as xmljs from "xml-js";
 import * as path from "path";
 import Cache from "vscode-rpgle/language/models/cache";
+import { getParser } from "./evfEventFileReader";
 
 export interface TestCallbacks {
     getDocs: (uri: string, content: string) => Promise<Cache | undefined>;
@@ -738,12 +739,16 @@ export class Runner {
                 }
             }
 
+            const parser = await getParser(this.connection, ``, ``);
+
             // Parse XML test case results
             let testCaseResults: TestCaseResult[] = [];
             try {
                 const xmlStmfContent = (await content.downloadStreamfileRaw(resolvedXmlStmf)).toString();
                 const xmlAsJs = xmljs.xml2js(xmlStmfContent, { compact: false, alwaysChildren: true });
-                testCaseResults = XMLParser.parseTestResults(xmlAsJs, testSuite.uri.scheme === 'file' || testSuite.uri.scheme === 'streamfile');
+                const isStreamFile = testSuite.uri.scheme === 'file' || testSuite.uri.scheme === 'streamfile';
+                const xmlParser = new XMLParser(xmlAsJs, isStreamFile, parser);
+                testCaseResults = xmlParser.parseTestResults();
             } catch (error: any) {
                 const message = (error.code && error.code === 2 && error.message && error.message === `No such file`) ?
                     `${error.message} (${resolvedXmlStmf})` :
