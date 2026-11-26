@@ -401,12 +401,18 @@ export class Runner {
 
         // Flatten compile parameters and convert to strings
         const flattenedCompileParams = ApiUtils.flattenCommandParams(compileParams);
+        const incDirs = flattenedCompileParams.incDir;
+        delete flattenedCompileParams.incDir;
 
         // Build compile command
         const productLibrary = this.testCallbacks.getProductLibrary();
         const languageSpecificCommand = isRPGLE ? 'RUCRTRPG' : 'RUCRTCBL';
         const compileCommandName = proxyCmd || `${productLibrary}/${languageSpecificCommand}`;
         let compileCommand = content.toCl(compileCommandName, flattenedCompileParams as any);
+
+        if (incDirs) {
+            compileCommand += ` INCDIR(${incDirs})`;
+        }
 
         // Wrap compile command if a wrapper command is specified
         if (wrapperCmd && wrapperCmd.cmd) {
