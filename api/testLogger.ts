@@ -220,7 +220,7 @@ export class TestLogger {
         testCaseResult += `${c.grey(`(${totalTestCases})`)}`;
 
         const assertionResult = `Assertions:   ${metrics.assertions}`;
-        const durationResult = `Duration:     ${metrics.duration.toFixed(2)}s`;
+        const durationResult = `Duration:     ${this.formatDuration(metrics.duration) ?? ``}`;
         const finalResult =
             isCancellationRequested ? c.bgMagenta(` CANCELLED `) :
                 hasErrors ? c.bgYellow(` ERROR `) :
